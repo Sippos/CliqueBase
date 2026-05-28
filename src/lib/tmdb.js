@@ -10,8 +10,8 @@ function mapMovie(movie) {
     tmdbRating: movie.vote_average ?? null,
     runtime: movie.runtime ?? null,
     genres: movie.genres?.map((genre) => genre.name).filter(Boolean) ?? [],
-    picks: 0,
-    score: 0,
+    picks: movie.picks ?? 0,
+    score: movie.score ?? 0,
   }
 }
 
@@ -29,9 +29,13 @@ function mapSeries(series) {
     genres: series.genres?.map((genre) => genre.name).filter(Boolean) ?? [],
     seasons: series.number_of_seasons ?? null,
     episodes: series.number_of_episodes ?? null,
-    picks: 0,
-    score: 0,
+    picks: series.picks ?? 0,
+    score: series.score ?? 0,
   }
+}
+
+function getId(value) {
+  return typeof value === 'object' ? value?.id : value
 }
 
 async function fetchJson(url) {
@@ -49,10 +53,11 @@ export async function searchMovies(query) {
   return (data.results || []).map(mapMovie)
 }
 
-export async function getMovieDetails(movieId) {
+export async function getMovieDetails(movie) {
+  const movieId = getId(movie)
   if (!movieId) return null
   const data = await fetchJson(`/api/tmdb/movie?id=${encodeURIComponent(movieId)}`)
-  return mapMovie(data)
+  return { ...(typeof movie === 'object' ? movie : {}), ...mapMovie(data) }
 }
 
 export async function searchSeries(query) {
@@ -61,8 +66,9 @@ export async function searchSeries(query) {
   return (data.results || []).map(mapSeries)
 }
 
-export async function getSeriesDetails(seriesId) {
+export async function getSeriesDetails(series) {
+  const seriesId = getId(series)
   if (!seriesId) return null
   const data = await fetchJson(`/api/tmdb/series?id=${encodeURIComponent(seriesId)}`)
-  return mapSeries(data)
+  return { ...(typeof series === 'object' ? series : {}), ...mapSeries(data) }
 }
