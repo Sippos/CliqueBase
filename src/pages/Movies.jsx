@@ -4,11 +4,17 @@ import SwipeDeck from '../components/SwipeDeck.jsx'
 import { getSavedHandle } from '../lib/handle.js'
 import { demoMovies } from '../lib/demoMovies.js'
 
+function DetailPill({ children }) {
+  if (!children) return null
+  return <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-neutral-300">{children}</span>
+}
+
 export default function Movies() {
   const [votes, setVotes] = useState({})
   const [watched, setWatched] = useState(() => demoMovies.filter((movie) => movie.watched).map((movie) => movie.id))
   const [ratings, setRatings] = useState(() => Object.fromEntries(demoMovies.filter((movie) => movie.rating).map((movie) => [movie.id, movie.rating])))
   const [editingRating, setEditingRating] = useState(null)
+  const [infoMovie, setInfoMovie] = useState(null)
   const [message, setMessage] = useState(null)
   const activeHandle = getSavedHandle()
 
@@ -25,6 +31,7 @@ export default function Movies() {
   function markWatched(movie) {
     setWatched((current) => current.includes(movie.id) ? current : [...current, movie.id])
     setVotes((current) => ({ ...current, [movie.id]: 'like' }))
+    setEditingRating(movie.id)
     setMessage({ text: `${movie.title} added to watched.` })
     setTimeout(() => setMessage(null), 2200)
   }
@@ -39,6 +46,7 @@ export default function Movies() {
     setWatched(demoMovies.filter((movie) => movie.watched).map((movie) => movie.id))
     setRatings(Object.fromEntries(demoMovies.filter((movie) => movie.rating).map((movie) => [movie.id, movie.rating])))
     setEditingRating(null)
+    setInfoMovie(null)
     setMessage(null)
   }
 
@@ -74,11 +82,12 @@ export default function Movies() {
           {ranking.slice(0, 6).map((movie, index) => (
             <div key={movie.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">{index + 1}</div>
-              {movie.poster ? <img src={movie.poster} alt="" className="h-14 w-10 rounded-lg object-cover" /> : null}
+              {movie.poster ? <button type="button" onClick={() => setInfoMovie(movie)} className="shrink-0"><img src={movie.poster} alt="" className="h-14 w-10 rounded-lg object-cover transition hover:opacity-80" /></button> : null}
               <div className="min-w-0 flex-1">
-                <div className="truncate font-semibold text-white">{movie.title}</div>
+                <button type="button" onClick={() => setInfoMovie(movie)} className="block max-w-full truncate text-left font-semibold text-white hover:underline">{movie.title}</button>
                 <div className="mt-1 text-xs text-neutral-400">{movie.picks + (votes[movie.id] === 'like' ? 1 : 0)} picks · score {movie.score + (votes[movie.id] === 'like' ? 1 : 0)}</div>
               </div>
+              <button type="button" onClick={() => setInfoMovie(movie)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">Details</button>
               <button type="button" onClick={() => markWatched(movie)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">Watched</button>
             </div>
           ))}
@@ -96,28 +105,58 @@ export default function Movies() {
 
         {watchedMovies.length === 0 ? <p className="text-neutral-400">No watched movies yet.</p> : (
           <div className="grid gap-3 md:grid-cols-2">
-            {watchedMovies.map((movie) => (
-              <div key={movie.id} className="relative flex gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
-                <button type="button" onClick={() => setEditingRating(editingRating === movie.id ? null : movie.id)} className="absolute right-3 top-3 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">
-                  ★ {ratings[movie.id] || 'Rate'}
-                </button>
-                {movie.poster ? <img src={movie.poster} alt="" className="h-24 w-16 rounded-xl object-cover" /> : null}
-                <div className="min-w-0 flex-1 pr-20">
-                  <h3 className="truncate font-bold text-white">{movie.title}</h3>
-                  <p className="mt-1 text-xs text-neutral-400">{movie.year} · {movie.genres?.slice(0, 2).join(' · ')}</p>
-                  {editingRating === movie.id ? (
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
-                        <button key={rating} type="button" onClick={() => rateMovie(movie, rating)} className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${ratings[movie.id] === rating ? 'bg-white text-neutral-950' : 'bg-white/[0.06] text-neutral-300 hover:bg-white/20'}`}>{rating}</button>
-                      ))}
-                    </div>
-                  ) : null}
+            {watchedMovies.map((movie) => {
+              const showRatingScale = !ratings[movie.id] || editingRating === movie.id
+              return (
+                <div key={movie.id} className="relative flex gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
+                  <button type="button" onClick={() => setEditingRating(editingRating === movie.id ? null : movie.id)} className="absolute right-3 top-3 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">
+                    ★ {ratings[movie.id] || 'Rate'}
+                  </button>
+                  {movie.poster ? <button type="button" onClick={() => setInfoMovie(movie)} className="shrink-0"><img src={movie.poster} alt="" className="h-24 w-16 rounded-xl object-cover transition hover:opacity-80" /></button> : null}
+                  <div className="min-w-0 flex-1 pr-20">
+                    <button type="button" onClick={() => setInfoMovie(movie)} className="block max-w-full truncate text-left font-bold text-white hover:underline">{movie.title}</button>
+                    <p className="mt-1 text-xs text-neutral-400">{movie.year} · {movie.genres?.slice(0, 2).join(' · ')}</p>
+                    <button type="button" onClick={() => setInfoMovie(movie)} className="mt-2 rounded-xl border border-white/10 px-3 py-1.5 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">Details</button>
+                    {showRatingScale ? (
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
+                          <button key={rating} type="button" onClick={() => rateMovie(movie, rating)} className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${ratings[movie.id] === rating ? 'bg-white text-neutral-950' : 'bg-white/[0.06] text-neutral-300 hover:bg-white/20'}`}>{rating}</button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>
+
+      {infoMovie ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/40">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-2xl font-bold leading-tight text-white">{infoMovie.title}</h3>
+                <div className="mt-1 text-sm text-neutral-400">{infoMovie.year}</div>
+              </div>
+              <button type="button" onClick={() => setInfoMovie(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-xl text-neutral-300 transition hover:bg-white hover:text-black">×</button>
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-[160px_1fr]">
+              {infoMovie.poster ? <img src={infoMovie.poster} alt="" className="w-full rounded-2xl object-cover" /> : null}
+              <div>
+                <div className="flex flex-wrap gap-2">
+                  {infoMovie.tmdbRating ? <DetailPill>TMDB ★ {Number(infoMovie.tmdbRating).toFixed(1)}</DetailPill> : null}
+                  {infoMovie.runtime ? <DetailPill>{infoMovie.runtime} min</DetailPill> : null}
+                  {infoMovie.genres?.map((genre) => <DetailPill key={genre}>{genre}</DetailPill>)}
+                </div>
+                <p className="mt-5 text-sm leading-7 text-neutral-300">{infoMovie.overview || 'No movie description available.'}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </PageShell>
   )
 }
