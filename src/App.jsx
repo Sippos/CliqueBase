@@ -8,10 +8,10 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/movies" element={<Movies />} />
-      <Route path="/series" element={<ComingSoonPage active="series" title="Series" eyebrow="Shows" description="The series picker will reuse the movie flow after the secure TMDB API proxy is finished." />} />
-      <Route path="/games" element={<ComingSoonPage active="games" title="Games" eyebrow="Games" description="The game picker will be added after the RAWG API key is moved behind a serverless endpoint." />} />
-      <Route path="/videos" element={<ComingSoonPage active="videos" title="Videos" eyebrow="Shared links" description="The video link dump can be reused safely once the Supabase policies are locked down." />} />
-      <Route path="/leaderboard" element={<ComingSoonPage active="leaderboard" title="Leaderboard" eyebrow="Group stats" description="The leaderboard will come back after votes and profiles are connected securely." />} />
+      <Route path="/series" element={<ComingSoonPage active="series" title="Series" eyebrow="Shows" description="Keep track of shows to start, continue, and finish together." />} />
+      <Route path="/games" element={<ComingSoonPage active="games" title="Games" eyebrow="Games" description="Collect game recommendations and find the next group favorite." />} />
+      <Route path="/videos" element={<ComingSoonPage active="videos" title="Videos" eyebrow="Shared links" description="Save funny clips, classics, and links everyone keeps sending around." />} />
+      <Route path="/leaderboard" element={<ComingSoonPage active="leaderboard" title="Leaderboard" eyebrow="Group stats" description="See the most picked titles and the people adding the best recommendations." />} />
     </Routes>
   )
 }
