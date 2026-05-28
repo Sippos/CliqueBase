@@ -8,6 +8,7 @@ export default function Movies() {
   const [votes, setVotes] = useState({})
   const [watched, setWatched] = useState(() => demoMovies.filter((movie) => movie.watched).map((movie) => movie.id))
   const [ratings, setRatings] = useState(() => Object.fromEntries(demoMovies.filter((movie) => movie.rating).map((movie) => [movie.id, movie.rating])))
+  const [editingRating, setEditingRating] = useState(null)
   const [message, setMessage] = useState(null)
   const activeHandle = getSavedHandle()
 
@@ -28,10 +29,16 @@ export default function Movies() {
     setTimeout(() => setMessage(null), 2200)
   }
 
+  function rateMovie(movie, rating) {
+    setRatings((current) => ({ ...current, [movie.id]: rating }))
+    setEditingRating(null)
+  }
+
   function resetPage() {
     setVotes({})
     setWatched(demoMovies.filter((movie) => movie.watched).map((movie) => movie.id))
     setRatings(Object.fromEntries(demoMovies.filter((movie) => movie.rating).map((movie) => [movie.id, movie.rating])))
+    setEditingRating(null)
     setMessage(null)
   }
 
@@ -51,30 +58,30 @@ export default function Movies() {
 
       {message ? <div className="mb-4 rounded-2xl bg-emerald-700 p-3 text-white">{message.text}</div> : null}
 
-      <section className="mb-8 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
+      <section className="mb-8">
         <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="movies" likeLabel="Watch" dislikeLabel="Pass" infoType="movie" />
+      </section>
 
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
-          <div className="mb-4 flex items-end justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Group pick</p>
-              <h2 className="mt-1 text-2xl font-bold text-white">Next movies</h2>
-            </div>
-            <span className="text-sm text-neutral-500">Top {Math.min(4, ranking.length)}</span>
+      <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
+        <div className="mb-4 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Group pick</p>
+            <h2 className="mt-1 text-2xl font-bold text-white">Next movies</h2>
           </div>
-          <div className="space-y-2">
-            {ranking.slice(0, 4).map((movie, index) => (
-              <div key={movie.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">{index + 1}</div>
-                {movie.poster ? <img src={movie.poster} alt="" className="h-14 w-10 rounded-lg object-cover" /> : null}
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold text-white">{movie.title}</div>
-                  <div className="mt-1 text-xs text-neutral-400">{movie.picks + (votes[movie.id] === 'like' ? 1 : 0)} picks · score {movie.score + (votes[movie.id] === 'like' ? 1 : 0)}</div>
-                </div>
-                <button type="button" onClick={() => markWatched(movie)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">Watched</button>
+          <span className="text-sm text-neutral-500">Top {Math.min(6, ranking.length)}</span>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2">
+          {ranking.slice(0, 6).map((movie, index) => (
+            <div key={movie.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">{index + 1}</div>
+              {movie.poster ? <img src={movie.poster} alt="" className="h-14 w-10 rounded-lg object-cover" /> : null}
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-semibold text-white">{movie.title}</div>
+                <div className="mt-1 text-xs text-neutral-400">{movie.picks + (votes[movie.id] === 'like' ? 1 : 0)} picks · score {movie.score + (votes[movie.id] === 'like' ? 1 : 0)}</div>
               </div>
-            ))}
-          </div>
+              <button type="button" onClick={() => markWatched(movie)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">Watched</button>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -90,17 +97,21 @@ export default function Movies() {
         {watchedMovies.length === 0 ? <p className="text-neutral-400">No watched movies yet.</p> : (
           <div className="grid gap-3 md:grid-cols-2">
             {watchedMovies.map((movie) => (
-              <div key={movie.id} className="flex gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
+              <div key={movie.id} className="relative flex gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
+                <button type="button" onClick={() => setEditingRating(editingRating === movie.id ? null : movie.id)} className="absolute right-3 top-3 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">
+                  ★ {ratings[movie.id] || 'Rate'}
+                </button>
                 {movie.poster ? <img src={movie.poster} alt="" className="h-24 w-16 rounded-xl object-cover" /> : null}
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 pr-20">
                   <h3 className="truncate font-bold text-white">{movie.title}</h3>
                   <p className="mt-1 text-xs text-neutral-400">{movie.year} · {movie.genres?.slice(0, 2).join(' · ')}</p>
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {[2, 4, 6, 8, 10].map((rating) => (
-                      <button key={rating} type="button" onClick={() => setRatings((current) => ({ ...current, [movie.id]: rating }))} className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${ratings[movie.id] === rating ? 'bg-white text-neutral-950' : 'bg-white/[0.06] text-neutral-300 hover:bg-white/20'}`}>{rating}</button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-neutral-500">Your rating: {ratings[movie.id] || 'not rated'}</p>
+                  {editingRating === movie.id ? (
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
+                        <button key={rating} type="button" onClick={() => rateMovie(movie, rating)} className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${ratings[movie.id] === rating ? 'bg-white text-neutral-950' : 'bg-white/[0.06] text-neutral-300 hover:bg-white/20'}`}>{rating}</button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ))}
