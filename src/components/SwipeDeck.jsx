@@ -10,6 +10,12 @@ function displayYear(value) {
   return year || ''
 }
 
+function getDisplayRating(item) {
+  const rating = item.rating ?? item.tmdbRating ?? item.rawgRating ?? null
+  if (rating === null || rating === undefined || rating === '') return null
+  return Number(rating).toFixed(Number(rating) % 1 === 0 ? 0 : 1)
+}
+
 export default function SwipeDeck({
   items = [],
   onSwipe = () => {},
@@ -106,6 +112,7 @@ export default function SwipeDeck({
         <div className="relative h-[620px]">
           {items.map((item, index) => {
             const itemWithDetails = { ...item, ...(cardDetails[item.id] || {}) }
+            const cardRating = getDisplayRating(itemWithDetails)
             const isTop = item.id === topItem.id
             const rotation = drag ? drag.dx / 18 : 0
             const year = displayYear(itemWithDetails.released || itemWithDetails.year)
@@ -135,12 +142,15 @@ export default function SwipeDeck({
 
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
 
-                  <button type="button" onClick={(event) => { event.stopPropagation(); openInfo(itemWithDetails) }} className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/60 text-lg font-bold text-white backdrop-blur transition hover:bg-white hover:text-black">i</button>
+                  <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+                    {cardRating ? <div className="rounded-full border border-white/20 bg-black/65 px-3 py-2 text-sm font-black text-white shadow-lg backdrop-blur">★ {cardRating}</div> : null}
+                    <button type="button" onClick={(event) => { event.stopPropagation(); openInfo(itemWithDetails) }} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/60 text-lg font-bold text-white backdrop-blur transition hover:bg-white hover:text-black">i</button>
+                  </div>
 
                   {isTop ? (
                     <>
                       <div className="absolute left-6 top-8 -rotate-12 rounded-2xl border-4 border-rose-300 px-5 py-2 text-3xl font-black uppercase tracking-wide text-rose-300" style={{ opacity: passOpacity }}>{dislikeLabel}</div>
-                      <div className="absolute right-6 top-8 rotate-12 rounded-2xl border-4 border-emerald-300 px-5 py-2 text-3xl font-black uppercase tracking-wide text-emerald-300" style={{ opacity: yesOpacity }}>{likeLabel}</div>
+                      <div className="absolute right-6 top-20 rotate-12 rounded-2xl border-4 border-emerald-300 px-5 py-2 text-3xl font-black uppercase tracking-wide text-emerald-300" style={{ opacity: yesOpacity }}>{likeLabel}</div>
                     </>
                   ) : null}
 
