@@ -127,17 +127,6 @@ function moviePayload(movie, nominatedBy = 'anonymous', groupId = null, ownerId 
   return mediaPayload(movie, 'movie_id', nominatedBy, groupId, ownerId)
 }
 
-function watchedMoviePayload(movie, nominatedBy = 'anonymous', ownerId = null, rating = null) {
-  const payload = {
-    ...moviePayload(movie, nominatedBy, null, ownerId),
-    watched: true,
-    updated_at: new Date().toISOString(),
-  }
-
-  if (rating !== null && rating !== undefined) payload.my_rating = rating
-  return payload
-}
-
 function seriesPayload(series, nominatedBy = 'anonymous', groupId = null, ownerId = null) {
   return {
     ...mediaPayload(series, 'series_id', nominatedBy, groupId, ownerId),
@@ -167,14 +156,17 @@ function applyScope(query, groupId, ownerId) {
   return query.is('group_id', null).eq('owner_id', ownerId)
 }
 
-async function upsertPersonalWatchedMovie(client, movie, rating = null, nominatedBy = 'anonymous') {
-  const user = await getCurrentUser()
-  if (!user) throw new Error('Sign in to use your personal library.')
+async function upsertScopedMedia({ table, item, payloadFor, conflict, normalize, groupId = null, nominatedBy = 'anonymous', doneColumn = null, rating }) {
+  const client = requireSupabase()
+  const ownerId = await getScopeUserId(groupId)
+  const payload = payloadFor(item, nominatedBy, groupId, ownerId)
+  payload.updated_at = new Date().toISOString()
+  if (doneColumn) payload[doneColumn] = true
+  if (rating !== undefined) payload.my_rating = rating
 
-  const payload = watchedMoviePayload(movie, nominatedBy || movie.nominated_by || 'anonymous', user.id, rating)
-  const { data, error } = await client.from('movies').upsert(payload, { onConflict: 'owner_id,movie_id' }).select().single()
+  const { data, error } = await client.from(table).upsert(payload, { onConflict: conflict }).select().single()
   if (error) throw error
-  return normalizeMovie(data)
+  return normalize(data)
 }
 
 export async function getCurrentSession() {
@@ -311,13 +303,15 @@ export async function getMovies(groupId = null) {
 }
 
 export async function saveMovie(movie, nominatedBy = 'anonymous', groupId = null) {
-  const client = requireSupabase()
-  const ownerId = await getScopeUserId(groupId)
-  const payload = moviePayload(movie, nominatedBy, groupId, ownerId)
-  const options = groupId ? { onConflict: 'group_id,movie_id' } : { onConflict: 'owner_id,movie_id' }
-  const { data, error } = await client.from('movies').upsert(payload, options).select().single()
-  if (error) throw error
-  return normalizeMovie(data)
+  return upsertScopedMedia({
+    table: 'movies',
+    item: movie,
+    payloadFor: moviePayload,
+    conflict: groupId ? 'group_id,movie_id' : 'owner_id,movie_id',
+    normalize: normalizeMovie,
+    groupId,
+    nominatedBy,
+  })
 }
 
 export async function copyMovieToGroup(movie, targetGroupId, nominatedBy = 'anonymous') {
@@ -336,30 +330,63 @@ export async function voteMovie(movie, vote, groupId = null) {
 }
 
 export async function markMovieWatched(movie, rating = null, groupId = null) {
-  const client = requireSupabase()
-  const ownerId = await getScopeUserId(groupId)
-  const update = { watched: true, updated_at: new Date().toISOString() }
-  if (rating !== null && rating !== undefined) update.my_rating = rating
+  const scopedMovie = await upsertScopedMedia({
+    table: 'movies',
+    item: movie,
+    payloadFor: moviePayload,
+    conflict: groupId ? 'group_id,movie_id' : 'owner_id,movie_id',
+    normalize: normalizeMovie,
+    groupId,
+    nominatedBy: movie.nominated_by || 'anonymous',
+    doneColumn: 'watched',
+    rating,
+  })
 
-  let query = applyScope(client.from('movies').update(update), groupId, ownerId)
-  const { data, error } = await query.eq('movie_id', String(movie.id)).select().single()
-  if (error) throw error
+  if (groupId) {
+    await upsertScopedMedia({
+      table: 'movies',
+      item: movie,
+      payloadFor: moviePayload,
+      conflict: 'owner_id,movie_id',
+      normalize: normalizeMovie,
+      groupId: null,
+      nominatedBy: movie.nominated_by || 'anonymous',
+      doneColumn: 'watched',
+      rating,
+    })
+  }
 
-  const watchedMovie = normalizeMovie(data)
-  if (groupId) await upsertPersonalWatchedMovie(client, watchedMovie, rating, watchedMovie.nominated_by)
-  return watchedMovie
+  return scopedMovie
 }
 
 export async function rateMovie(movie, rating, groupId = null) {
-  const client = requireSupabase()
-  const ownerId = await getScopeUserId(groupId)
-  let query = applyScope(client.from('movies').update({ my_rating: rating, updated_at: new Date().toISOString() }), groupId, ownerId)
-  const { data, error } = await query.eq('movie_id', String(movie.id)).select().single()
-  if (error) throw error
+  const scopedMovie = await upsertScopedMedia({
+    table: 'movies',
+    item: movie,
+    payloadFor: moviePayload,
+    conflict: groupId ? 'group_id,movie_id' : 'owner_id,movie_id',
+    normalize: normalizeMovie,
+    groupId,
+    nominatedBy: movie.nominated_by || 'anonymous',
+    doneColumn: 'watched',
+    rating,
+  })
 
-  const ratedMovie = normalizeMovie(data)
-  if (groupId) await upsertPersonalWatchedMovie(client, ratedMovie, rating, ratedMovie.nominated_by)
-  return ratedMovie
+  if (groupId) {
+    await upsertScopedMedia({
+      table: 'movies',
+      item: movie,
+      payloadFor: moviePayload,
+      conflict: 'owner_id,movie_id',
+      normalize: normalizeMovie,
+      groupId: null,
+      nominatedBy: movie.nominated_by || 'anonymous',
+      doneColumn: 'watched',
+      rating,
+    })
+  }
+
+  return scopedMovie
 }
 
 export async function getSeries(groupId = null) {
@@ -375,13 +402,15 @@ export async function getSeries(groupId = null) {
 }
 
 export async function saveSeries(series, nominatedBy = 'anonymous', groupId = null) {
-  const client = requireSupabase()
-  const ownerId = await getScopeUserId(groupId)
-  const payload = seriesPayload(series, nominatedBy, groupId, ownerId)
-  const options = groupId ? { onConflict: 'group_id,series_id' } : { onConflict: 'owner_id,series_id' }
-  const { data, error } = await client.from('series').upsert(payload, options).select().single()
-  if (error) throw error
-  return normalizeSeries(data)
+  return upsertScopedMedia({
+    table: 'series',
+    item: series,
+    payloadFor: seriesPayload,
+    conflict: groupId ? 'group_id,series_id' : 'owner_id,series_id',
+    normalize: normalizeSeries,
+    groupId,
+    nominatedBy,
+  })
 }
 
 export async function voteSeries(series, vote, groupId = null) {
@@ -396,21 +425,63 @@ export async function voteSeries(series, vote, groupId = null) {
 }
 
 export async function markSeriesFinished(series, rating = null, groupId = null) {
-  const client = requireSupabase()
-  const ownerId = await getScopeUserId(groupId)
-  let query = applyScope(client.from('series').update({ finished: true, my_rating: rating, updated_at: new Date().toISOString() }), groupId, ownerId)
-  const { data, error } = await query.eq('series_id', String(series.id)).select().single()
-  if (error) throw error
-  return normalizeSeries(data)
+  const scopedSeries = await upsertScopedMedia({
+    table: 'series',
+    item: series,
+    payloadFor: seriesPayload,
+    conflict: groupId ? 'group_id,series_id' : 'owner_id,series_id',
+    normalize: normalizeSeries,
+    groupId,
+    nominatedBy: series.nominated_by || 'anonymous',
+    doneColumn: 'finished',
+    rating,
+  })
+
+  if (groupId) {
+    await upsertScopedMedia({
+      table: 'series',
+      item: series,
+      payloadFor: seriesPayload,
+      conflict: 'owner_id,series_id',
+      normalize: normalizeSeries,
+      groupId: null,
+      nominatedBy: series.nominated_by || 'anonymous',
+      doneColumn: 'finished',
+      rating,
+    })
+  }
+
+  return scopedSeries
 }
 
 export async function rateSeries(series, rating, groupId = null) {
-  const client = requireSupabase()
-  const ownerId = await getScopeUserId(groupId)
-  let query = applyScope(client.from('series').update({ my_rating: rating, updated_at: new Date().toISOString() }), groupId, ownerId)
-  const { data, error } = await query.eq('series_id', String(series.id)).select().single()
-  if (error) throw error
-  return normalizeSeries(data)
+  const scopedSeries = await upsertScopedMedia({
+    table: 'series',
+    item: series,
+    payloadFor: seriesPayload,
+    conflict: groupId ? 'group_id,series_id' : 'owner_id,series_id',
+    normalize: normalizeSeries,
+    groupId,
+    nominatedBy: series.nominated_by || 'anonymous',
+    doneColumn: 'finished',
+    rating,
+  })
+
+  if (groupId) {
+    await upsertScopedMedia({
+      table: 'series',
+      item: series,
+      payloadFor: seriesPayload,
+      conflict: 'owner_id,series_id',
+      normalize: normalizeSeries,
+      groupId: null,
+      nominatedBy: series.nominated_by || 'anonymous',
+      doneColumn: 'finished',
+      rating,
+    })
+  }
+
+  return scopedSeries
 }
 
 export async function getGames(groupId = null) {
@@ -426,13 +497,15 @@ export async function getGames(groupId = null) {
 }
 
 export async function saveGame(game, nominatedBy = 'anonymous', groupId = null) {
-  const client = requireSupabase()
-  const ownerId = await getScopeUserId(groupId)
-  const payload = gamePayload(game, nominatedBy, groupId, ownerId)
-  const options = groupId ? { onConflict: 'group_id,game_id' } : { onConflict: 'owner_id,game_id' }
-  const { data, error } = await client.from('games').upsert(payload, options).select().single()
-  if (error) throw error
-  return normalizeGame(data)
+  return upsertScopedMedia({
+    table: 'games',
+    item: game,
+    payloadFor: gamePayload,
+    conflict: groupId ? 'group_id,game_id' : 'owner_id,game_id',
+    normalize: normalizeGame,
+    groupId,
+    nominatedBy,
+  })
 }
 
 export async function voteGame(game, vote, groupId = null) {
@@ -447,21 +520,63 @@ export async function voteGame(game, vote, groupId = null) {
 }
 
 export async function markGamePlayed(game, rating = null, groupId = null) {
-  const client = requireSupabase()
-  const ownerId = await getScopeUserId(groupId)
-  let query = applyScope(client.from('games').update({ played: true, my_rating: rating, updated_at: new Date().toISOString() }), groupId, ownerId)
-  const { data, error } = await query.eq('game_id', String(game.id)).select().single()
-  if (error) throw error
-  return normalizeGame(data)
+  const scopedGame = await upsertScopedMedia({
+    table: 'games',
+    item: game,
+    payloadFor: gamePayload,
+    conflict: groupId ? 'group_id,game_id' : 'owner_id,game_id',
+    normalize: normalizeGame,
+    groupId,
+    nominatedBy: game.nominated_by || 'anonymous',
+    doneColumn: 'played',
+    rating,
+  })
+
+  if (groupId) {
+    await upsertScopedMedia({
+      table: 'games',
+      item: game,
+      payloadFor: gamePayload,
+      conflict: 'owner_id,game_id',
+      normalize: normalizeGame,
+      groupId: null,
+      nominatedBy: game.nominated_by || 'anonymous',
+      doneColumn: 'played',
+      rating,
+    })
+  }
+
+  return scopedGame
 }
 
 export async function rateGame(game, rating, groupId = null) {
-  const client = requireSupabase()
-  const ownerId = await getScopeUserId(groupId)
-  let query = applyScope(client.from('games').update({ my_rating: rating, updated_at: new Date().toISOString() }), groupId, ownerId)
-  const { data, error } = await query.eq('game_id', String(game.id)).select().single()
-  if (error) throw error
-  return normalizeGame(data)
+  const scopedGame = await upsertScopedMedia({
+    table: 'games',
+    item: game,
+    payloadFor: gamePayload,
+    conflict: groupId ? 'group_id,game_id' : 'owner_id,game_id',
+    normalize: normalizeGame,
+    groupId,
+    nominatedBy: game.nominated_by || 'anonymous',
+    doneColumn: 'played',
+    rating,
+  })
+
+  if (groupId) {
+    await upsertScopedMedia({
+      table: 'games',
+      item: game,
+      payloadFor: gamePayload,
+      conflict: 'owner_id,game_id',
+      normalize: normalizeGame,
+      groupId: null,
+      nominatedBy: game.nominated_by || 'anonymous',
+      doneColumn: 'played',
+      rating,
+    })
+  }
+
+  return scopedGame
 }
 
 export async function getCommunityLeaderboard() {
