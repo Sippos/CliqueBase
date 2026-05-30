@@ -11,7 +11,8 @@ import Leaderboard from './pages/Leaderboard.jsx'
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<Leaderboard />} />
+      <Route path="/dashboard" element={<Home />} />
       <Route path="/movies" element={<Movies />} />
       <Route path="/series" element={<Series />} />
       <Route path="/games" element={<Games />} />
