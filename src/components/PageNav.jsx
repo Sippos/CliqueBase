@@ -30,6 +30,7 @@ export default function PageNav({ active = 'home' }) {
   const [handle, setHandle] = useState('')
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
+  const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [groupDraft, setGroupDraft] = useState('')
@@ -103,32 +104,64 @@ export default function PageNav({ active = 'home' }) {
     flash(copied ? 'Invite link copied.' : `Invite: ${getGroupInvitePath(group)}`)
   }
 
-  const linkClass = (name) =>
-    `flex h-10 items-center justify-center rounded-full px-2 text-xs transition sm:h-11 sm:px-3 sm:text-sm ${
-      active === name
-        ? 'bg-white font-semibold text-neutral-950'
-        : 'text-neutral-300 hover:bg-white/10 hover:text-white'
-    }`
+  const activeLink = links.find((link) => link.key === active)
 
   return (
     <>
-      <header className="mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-2 py-2 shadow-2xl shadow-black/30 backdrop-blur sm:rounded-full sm:px-4 sm:py-3">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <nav className="grid min-w-0 flex-1 grid-cols-4 gap-1 rounded-full bg-white/[0.04] p-1 text-center sm:grid-cols-7">
-            {links.map((link) => (
-              <Link key={link.key} to={link.to} aria-label={link.label} title={link.label} className={linkClass(link.key)}>
-                <span className="text-base sm:hidden">{link.icon}</span>
-                <span className="hidden sm:inline">{link.label}</span>
-              </Link>
-            ))}
-          </nav>
+      <header className="mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur sm:rounded-full sm:px-4">
+        <div className="flex items-center justify-between gap-3">
+          <Link to="/" className="min-w-0 rounded-full px-2 py-1 transition hover:bg-white/10">
+            <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">CliqueBase</div>
+            <div className="truncate text-lg font-black text-white sm:text-xl">{activeLink?.icon} {activeLink?.label || 'Home'}</div>
+          </Link>
 
-          <button type="button" onClick={() => { refreshGroups(); setEditing(true) }} aria-label="Profile" className="flex h-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
-            <span className="sm:mr-1.5">👤</span>
-            <span className="hidden max-w-[5.5rem] truncate sm:inline">{handle || 'Profile'}</span>
-          </button>
+          <div className="hidden min-w-0 flex-1 justify-center px-4 md:flex">
+            <div className="truncate rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-neutral-300">
+              {activeGroup ? <>Group: <strong className="text-white">{activeGroup.name}</strong></> : 'No group selected'}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <button type="button" onClick={() => setMenuOpen(true)} className="rounded-full bg-white px-4 py-3 text-sm font-bold text-neutral-950 transition hover:bg-neutral-200" aria-label="Open menu">
+              ☰ <span className="hidden sm:inline">Menu</span>
+            </button>
+            <button type="button" onClick={() => { refreshGroups(); setEditing(true) }} aria-label="Profile" className="flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
+              <span className="sm:mr-1.5">👤</span>
+              <span className="hidden max-w-[5.5rem] truncate sm:inline">{handle || 'Profile'}</span>
+            </button>
+          </div>
         </div>
       </header>
+
+      {menuOpen ? (
+        <div className="fixed inset-0 z-50 bg-black/70 p-4 backdrop-blur-sm">
+          <div className="ml-auto flex h-full w-full max-w-sm flex-col rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/40">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Navigation</div>
+                <h2 className="mt-1 text-3xl font-black text-white">Menu</h2>
+              </div>
+              <button type="button" onClick={() => setMenuOpen(false)} className="text-3xl text-neutral-400 hover:text-white" aria-label="Close menu">×</button>
+            </div>
+
+            <nav className="mt-6 space-y-2">
+              {links.map((link) => (
+                <Link key={link.key} to={link.to} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
+                  <span className="text-xl">{link.icon}</span>
+                  <span>{link.label}</span>
+                </Link>
+              ))}
+            </nav>
+
+            <div className="mt-auto rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Profile</p>
+              <p className="mt-2 text-sm text-neutral-300">{handle || 'No profile name yet'}</p>
+              <p className="mt-1 text-sm text-neutral-500">{activeGroup ? `Active group: ${activeGroup.name}` : 'Create a group in Profile'}</p>
+              <button type="button" onClick={() => { setMenuOpen(false); refreshGroups(); setEditing(true) }} className="mt-4 w-full rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950">Open profile</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {editing ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
