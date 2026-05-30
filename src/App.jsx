@@ -20,6 +20,7 @@ export default function App() {
       <Route path="/groups" element={<Groups />} />
       <Route path="/g/:groupId" element={<Groups />} />
       <Route path="/invite/:code" element={<Groups inviteMode />} />
+      <Route path="/explore" element={<Leaderboard />} />
       <Route path="/leaderboard" element={<Leaderboard />} />
     </Routes>
   )
