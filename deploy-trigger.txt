@@ -1,0 +1,4 @@
+Vercel deployment trigger
+
+This file exists only to create a fresh commit after connecting the repository to Vercel.
+Triggered at: 2026-05-30
