@@ -59,7 +59,7 @@ function LibrarySummaryPanel({ items, loading }) {
     <div className="mt-6 rounded-[1.75rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20 sm:p-4">
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {[0, 1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-[1.35rem] bg-white/[0.06] />)}
+          {[0, 1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-[1.35rem] bg-white/[0.06]" />)}
         </div>
       ) : previewItems.length ? (
         <div className="grid gap-3 sm:grid-cols-2">
