@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
+import MemberShareModal from '../components/MemberShareModal.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, parseInviteCode, setActiveGroup } from '../lib/groups.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
@@ -32,27 +33,30 @@ function normalizeItems(rows, type, code, to) {
   })).sort((a, b) => b.sortValue - a.sortValue)
 }
 
-function LibraryMiniTile({ item }) {
+function LibraryMiniTile({ item, onShare }) {
   const image = item.poster || item.backdrop
   const icon = TYPE_ICONS[item.type] || 'dashboard'
 
   return (
-    <Link to={item.to} className="flex min-w-0 items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.07] p-2.5 text-left text-white transition hover:bg-white hover:text-neutral-950">
-      <div className="h-16 w-12 shrink-0 overflow-hidden rounded-2xl bg-neutral-900">
-        {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-white/10" />}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] opacity-65">
-          <AppIcon name={icon} size={13} strokeWidth={2.4} />
-          <span>{item.type}</span>
+    <article className="flex min-w-0 items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.07] p-2.5 text-left text-white transition hover:border-white/20 hover:bg-white/[0.1]">
+      <Link to={item.to} className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.1rem] transition hover:opacity-85">
+        <div className="h-16 w-12 shrink-0 overflow-hidden rounded-2xl bg-neutral-900">
+          {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-white/10" />}
         </div>
-        <div className="mt-1 truncate text-sm font-black">{item.title}</div>
-      </div>
-    </Link>
+        <div className="min-w-0 flex-1">
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-neutral-400">
+            <AppIcon name={icon} size={13} strokeWidth={2.4} />
+            <span>{item.type}</span>
+          </div>
+          <div className="mt-1 truncate text-sm font-black text-white">{item.title}</div>
+        </div>
+      </Link>
+      <button type="button" onClick={() => onShare?.(item)} className="shrink-0 rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-200 transition hover:bg-white hover:text-neutral-950">Share</button>
+    </article>
   )
 }
 
-function LibrarySummaryPanel({ items, loading }) {
+function LibrarySummaryPanel({ items, loading, onShare }) {
   const previewItems = items.slice(0, 4)
 
   return (
@@ -63,7 +67,7 @@ function LibrarySummaryPanel({ items, loading }) {
         </div>
       ) : previewItems.length ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {previewItems.map((entry) => <LibraryMiniTile key={`${entry.type}-${entry.id}`} item={entry} />)}
+          {previewItems.map((entry) => <LibraryMiniTile key={`${entry.type}-${entry.id}`} item={entry} onShare={onShare} />)}
         </div>
       ) : (
         <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm leading-6 text-neutral-400">No saved picks yet. Use the add buttons on Movies, Series, or Games to start your library.</p>
@@ -72,7 +76,7 @@ function LibrarySummaryPanel({ items, loading }) {
   )
 }
 
-function LibraryShowcase({ items, loading }) {
+function LibraryShowcase({ items, loading, onShare }) {
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
@@ -134,11 +138,12 @@ function LibraryShowcase({ items, loading }) {
           </div>
         </div>
       </Link>
+      <button type="button" onClick={() => onShare?.(item)} className="absolute bottom-5 right-5 z-10 rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 shadow-2xl shadow-black/30 transition hover:bg-neutral-200">Share</button>
     </div>
   )
 }
 
-function CategoryTopCard({ category, loading }) {
+function CategoryTopCard({ category, loading, onShare }) {
   const top = category.top
   const image = top?.backdrop || top?.poster
 
@@ -152,7 +157,10 @@ function CategoryTopCard({ category, loading }) {
           <AppIcon name={category.icon} size={13} strokeWidth={2.4} />
           {category.title}
         </span>
-        <Link to={category.to} className="absolute right-4 top-4 z-10 rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">+ Add</Link>
+        <div className="absolute right-4 top-4 z-10 flex gap-2">
+          {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+          <Link to={category.to} className="rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">+ Add</Link>
+        </div>
         {!top ? <span className="absolute bottom-4 left-4 right-4 z-10 text-sm font-semibold text-neutral-300">No {category.title.toLowerCase()} yet</span> : null}
       </div>
 
@@ -180,6 +188,7 @@ function CategoryTopCard({ category, loading }) {
               {top.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(top.rating).toFixed(1)}</span> : null}
               <span className="rounded-full border border-white/10 px-3 py-1.5">{category.rated} rated</span>
             </div>
+            <button type="button" onClick={() => onShare?.(top)} className="mt-4 rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share {category.singular.toLowerCase()}</button>
           </>
         ) : (
           <div className="mt-6 flex flex-col gap-5">
@@ -223,6 +232,8 @@ export default function Home() {
   const [context, setContext] = useState(() => ({ type: getActiveGroup() ? 'group' : 'personal', name: getActiveGroup()?.name || 'My Library', groupId: getActiveGroup()?.id || null }))
   const [media, setMedia] = useState({ movies: [], series: [], games: [] })
   const [message, setMessage] = useState('')
+  const [shareNotice, setShareNotice] = useState('')
+  const [sharingItem, setSharingItem] = useState(null)
 
   useEffect(() => {
     if (routeGroupId) setActiveGroup(routeGroupId)
@@ -293,6 +304,15 @@ export default function Home() {
     navigate(`/invite/${encodeURIComponent(code)}`)
   }
 
+  function openShare(item) {
+    setSharingItem(item)
+  }
+
+  function handleShareMessage(text) {
+    setShareNotice(text)
+    setTimeout(() => setShareNotice(''), 2600)
+  }
+
   return (
     <PageShell active={context.type === 'group' ? 'cliques' : 'library'}>
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
@@ -301,12 +321,13 @@ export default function Home() {
             <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-6xl">{context.name}</h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400 sm:text-lg">{context.type === 'group' ? 'Shared movie, series, and game picks for this clique.' : 'Your private picks before you send them into a clique.'}</p>
             {status === 'signed-out' ? <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join cliques.</p> : null}
-            <LibrarySummaryPanel items={loading ? [] : allItems} loading={loading} />
+            <LibrarySummaryPanel items={loading ? [] : allItems} loading={loading} onShare={openShare} />
           </div>
-          <LibraryShowcase items={loading ? [] : allItems} loading={loading} />
+          <LibraryShowcase items={loading ? [] : allItems} loading={loading} onShare={openShare} />
         </div>
       </section>
 
+      {shareNotice ? <div className="mt-5 rounded-2xl border border-emerald-400/30 bg-emerald-950/30 p-4 text-sm text-emerald-100">{shareNotice}</div> : null}
       {message ? <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-950/30 p-4 text-sm text-rose-100">{message}</div> : null}
 
       <section className="mt-5 grid gap-3 md:grid-cols-3">
@@ -323,9 +344,11 @@ export default function Home() {
           <h2 className="mt-1 text-3xl font-black text-white">Category leaders</h2>
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
-          {categories.map((category) => <CategoryTopCard key={category.title} category={category} loading={loading} />)}
+          {categories.map((category) => <CategoryTopCard key={category.title} category={category} loading={loading} onShare={openShare} />)}
         </div>
       </section>
+
+      <MemberShareModal item={sharingItem} type={sharingItem?.type?.toLowerCase()} onClose={() => setSharingItem(null)} onMessage={handleShareMessage} />
     </PageShell>
   )
 }
