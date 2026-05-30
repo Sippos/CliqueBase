@@ -71,10 +71,17 @@ export function getActiveGroup() {
 
 export function setActiveGroup(groupId) {
   const id = clean(groupId)
+  const currentId = getActiveGroupId()
+
   if (!id) {
+    if (!currentId) return null
     localStorage.removeItem(ACTIVE_GROUP_STORAGE_KEY)
     emitGroupsChanged()
     return null
+  }
+
+  if (id === currentId) {
+    return getGroups().find((group) => group.id === id) || null
   }
 
   localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, id)
@@ -112,8 +119,10 @@ export function joinGroup(inviteCode, handle = 'anonymous') {
     const nextGroups = groups.slice()
     nextGroups[existingIndex] = updated
     saveGroups(nextGroups)
-    localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, updated.id)
-    emitGroupsChanged()
+    if (getActiveGroupId() !== updated.id) {
+      localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, updated.id)
+      emitGroupsChanged()
+    }
     return updated
   }
 
