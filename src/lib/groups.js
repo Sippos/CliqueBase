@@ -45,7 +45,7 @@ function normalizeGroup(group) {
 }
 
 export function parseInviteCode(value) {
-  return clean(value).replace(/^.*\/invite\//, '').replace(/^.*\/g\//, '').replace(/[?#].*$/, '')
+  return clean(value).replace(/^.*\/invite\//, '').replace(/^.*\/g\//, '').replace(/^.*\/cliques\//, '').replace(/[?#].*$/, '')
 }
 
 export function getGroups() {
@@ -133,11 +133,11 @@ export function joinGroup(inviteCode, handle = 'anonymous') {
 }
 
 export function getGroupInvitePath(group) {
-  return group?.inviteCode ? `/invite/${group.inviteCode}` : '/groups'
+  return group?.inviteCode ? `/invite/${group.inviteCode}` : '/cliques'
 }
 
 export function getGroupOpenPath(group) {
-  return group?.id ? `/g/${group.id}` : '/groups'
+  return group?.id ? `/cliques/${group.id}` : '/cliques'
 }
 
 export function getGroupInviteUrl(group) {
