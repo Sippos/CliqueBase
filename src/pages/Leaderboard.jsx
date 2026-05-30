@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react'
 import PageShell from '../components/PageShell.jsx'
-import { demoGames, demoMovies, demoSeries, demoVideos } from '../lib/demoMovies.js'
 import { getCommunityLeaderboard, hasSupabase } from '../lib/supabaseClient.js'
-
-const demoCategories = [
-  { label: 'Movies', items: demoMovies },
-  { label: 'Series', items: demoSeries },
-  { label: 'Games', items: demoGames },
-  { label: 'Videos', items: demoVideos },
-]
 
 function StatCard({ label, value, detail }) {
   return (
@@ -45,6 +37,15 @@ function Metric({ value, label, detail }) {
       <div className="text-lg font-black text-white">{value}</div>
       <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">{label}</div>
       {detail ? <div className="mt-1 text-xs text-neutral-400">{detail}</div> : null}
+    </div>
+  )
+}
+
+function EmptyPanel({ title, description }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-white/15 p-5 text-sm text-neutral-400">
+      <strong className="block text-base text-white">{title}</strong>
+      <span className="mt-1 block leading-6">{description}</span>
     </div>
   )
 }
@@ -102,26 +103,17 @@ function GroupCard({ group }) {
   )
 }
 
-function DemoLeaderboard() {
-  const allItems = demoCategories.flatMap((category) => category.items.map((item) => ({ ...item, category: category.label })))
-  const contentRanking = allItems.slice().sort((a, b) => b.score - a.score || b.picks - a.picks).slice(0, 8)
-  const totalSubmitted = allItems.length
-  const totalPicks = allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0)
-  const topContent = contentRanking[0]
-
+function FreshLeaderboard() {
   return (
     <>
       <section className="mb-5 grid gap-3 md:grid-cols-4">
-        <StatCard label="Top content" value={topContent?.title || 'No content yet'} detail={topContent ? `${topContent.category} · ${topContent.picks} picks · score ${topContent.score}` : 'Add picks to start the board.'} />
-        <StatCard label="Mode" value="Demo" detail="Connect Supabase for public group discovery." />
-        <StatCard label="Submitted" value={totalSubmitted} detail="Across movies, series, games, and videos" />
-        <StatCard label="Group picks" value={totalPicks} detail="Total support across demo content" />
+        <StatCard label="Top public group" value="None yet" detail="Create a group and make it public to appear here." />
+        <StatCard label="Top public item" value="None yet" detail="Public rankings start after real ratings exist." />
+        <StatCard label="Public groups" value="0" detail="No fake demo groups shown." />
+        <StatCard label="Public picks" value="0" detail="Start fresh with your own database." />
       </section>
-
-      <Panel eyebrow="Content" title="Demo content ranking" aside="Ranked by score, then picks">
-        <div className="space-y-3">
-          {contentRanking.map((item, index) => <ContentRow key={`${item.category}-${item.id}`} item={{ ...item, rank: index + 1, icon: 'C' }} />)}
-        </div>
+      <Panel eyebrow="Fresh start" title="No leaderboard data yet" aside="Real content only">
+        <EmptyPanel title="Build the board from zero" description="The leaderboard no longer shows demo rankings. Once your group adds and rates movies, series, or games, public rankings can appear here." />
       </Panel>
     </>
   )
@@ -164,6 +156,7 @@ function CommunityLeaderboard() {
 
   if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading community leaderboard...</div>
   if (message) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
+  if (!groups.length && !topContent.length) return <FreshLeaderboard />
 
   return (
     <>
@@ -177,13 +170,13 @@ function CommunityLeaderboard() {
       <section className="mb-5 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
         <Panel eyebrow="Scout groups" title="Best rated public groups" aside="Only opted-in groups">
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            {groups.length ? groups.slice(0, 8).map((group) => <GroupCard key={group.id} group={group} />) : <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-neutral-500">No public group rankings yet.</p>}
+            {groups.length ? groups.slice(0, 8).map((group) => <GroupCard key={group.id} group={group} />) : <EmptyPanel title="No public groups yet" description="Make a group public when you are ready for people to scout it." />}
           </div>
         </Panel>
 
         <Panel eyebrow="Across public groups" title="Overall top public content" aside="Movies · Series · Games">
           <div className="space-y-3">
-            {topContent.length ? topContent.slice(0, 10).map((item) => <ContentRow key={`${item.category}-${item.groupId}-${item.id}`} item={item} />) : <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-neutral-500">No public ranked content yet.</p>}
+            {topContent.length ? topContent.slice(0, 10).map((item) => <ContentRow key={`${item.category}-${item.groupId}-${item.id}`} item={item} />) : <EmptyPanel title="No ranked content yet" description="Ratings from public groups will fill this list." />}
           </div>
         </Panel>
       </section>
@@ -212,7 +205,7 @@ export default function Leaderboard() {
         <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400">Scout public groups, discover their rated content, and see the top movies, series, and games across groups that opted into community discovery.</p>
       </section>
 
-      {hasSupabase ? <CommunityLeaderboard /> : <DemoLeaderboard />}
+      {hasSupabase ? <CommunityLeaderboard /> : <FreshLeaderboard />}
     </PageShell>
   )
 }
