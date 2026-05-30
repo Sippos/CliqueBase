@@ -187,7 +187,7 @@ export async function signUpWithEmail(email, password, displayName = '') {
     },
   })
   if (error) throw error
-  if (data.session?.user) await saveProfile(displayName || profileNameFromUser(data.session.user))
+  if (data.session?.user) saveProfile(displayName || profileNameFromUser(data.session.user)).catch((error) => console.warn('Profile sync failed:', error))
   return data
 }
 
@@ -195,7 +195,7 @@ export async function signInWithEmail(email, password) {
   const client = requireSupabase()
   const { data, error } = await client.auth.signInWithPassword({ email: clean(email), password })
   if (error) throw error
-  await ensureProfile()
+  ensureProfile().catch((error) => console.warn('Profile sync failed:', error))
   return data
 }
 
