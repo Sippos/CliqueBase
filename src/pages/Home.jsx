@@ -32,62 +32,41 @@ function normalizeItems(rows, type, code, to) {
   })).sort((a, b) => b.sortValue - a.sortValue)
 }
 
-function MiniPosterStack({ items }) {
-  const visible = items.slice(0, 3)
-
-  if (!visible.length) {
-    return (
-      <div className="flex h-20 items-center justify-center rounded-3xl border border-dashed border-white/10 bg-white/[0.03] text-xs font-semibold text-neutral-500">
-        Empty
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex h-20 items-end -space-x-4 overflow-hidden rounded-3xl bg-black/25 px-4 pb-3 pt-2">
-      {visible.map((item, index) => {
-        const image = item.poster || item.backdrop
-        return (
-          <div key={`${item.type}-${item.id}`} className="h-16 w-11 shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-neutral-900 shadow-xl shadow-black/30" style={{ zIndex: visible.length - index }}>
-            {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-white/10" />}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
 function LibrarySectionCard({ category, loading }) {
   const picks = category.items.reduce((sum, item) => sum + Number(item.picks || 0), 0)
-  const topTitle = category.top?.title || `Add your first ${category.singular.toLowerCase()}`
+  const top = category.top
+  const image = top?.backdrop || top?.poster
+  const topTitle = top?.title || `No ${category.title.toLowerCase()} yet`
 
   return (
-    <Link to={category.to} className="group flex min-h-[13rem] flex-col justify-between rounded-[1.6rem] border border-white/10 bg-white/[0.06] p-4 text-white transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white hover:text-neutral-950">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-neutral-950 group-hover:bg-neutral-950 group-hover:text-white">
-            <AppIcon name={category.icon} size={19} strokeWidth={2.4} />
+    <Link to={category.to} className="group relative min-h-[15rem] overflow-hidden rounded-[1.6rem] border border-white/10 bg-neutral-950 text-white transition hover:-translate-y-0.5 hover:border-white/25">
+      {image ? (
+        <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 transition duration-500 group-hover:scale-105" />
+      ) : (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+
+      <div className="relative flex h-full min-h-[15rem] flex-col justify-between p-4">
+        <div className="flex items-start justify-between gap-3">
+          <span className="inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-black text-neutral-950">
+            <AppIcon name={category.icon} size={15} strokeWidth={2.4} />
+            {category.title}
           </span>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] opacity-55">Open list</p>
-            <h3 className="text-lg font-black leading-tight">{category.title}</h3>
+          <span className="rounded-2xl border border-white/15 bg-black/50 px-3 py-2 text-right text-xs font-bold text-white backdrop-blur">
+            <strong className="mr-1 text-base leading-none">{loading ? '…' : category.count}</strong>
+            items
+          </span>
+        </div>
+
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-300">Top {category.singular}</p>
+          <h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{loading ? 'Loading section…' : topTitle}</h3>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-white">
+            <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">{loading ? '…' : category.rated} rated</span>
+            <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">{loading ? '…' : picks} picks</span>
+            <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">Open list</span>
           </div>
-        </div>
-        <div className="text-right">
-          <p className="text-4xl font-black leading-none">{loading ? '…' : category.count}</p>
-          <p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] opacity-55">items</p>
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <MiniPosterStack items={category.items} />
-      </div>
-
-      <div className="mt-4 space-y-3">
-        <p className="line-clamp-1 text-sm font-black">{loading ? 'Loading section…' : topTitle}</p>
-        <div className="grid grid-cols-2 gap-2 text-xs font-black">
-          <span className="rounded-2xl border border-current/10 bg-black/10 px-3 py-2 text-center group-hover:bg-neutral-950 group-hover:text-white">{loading ? '…' : category.rated} rated</span>
-          <span className="rounded-2xl border border-current/10 bg-black/10 px-3 py-2 text-center group-hover:bg-neutral-950 group-hover:text-white">{loading ? '…' : picks} picks</span>
         </div>
       </div>
     </Link>
@@ -124,7 +103,7 @@ function LibraryOverviewPanel({ items, categories, loading }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500">Library overview</p>
-          <h2 className="mt-1 text-2xl font-black text-white">Open a section</h2>
+          <h2 className="mt-1 text-2xl font-black text-white">Category overview</h2>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-right">
           <p className="text-2xl font-black text-white">{loading ? '…' : items.length}</p>
