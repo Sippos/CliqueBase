@@ -30,9 +30,9 @@ function FeaturedPick({ item }) {
     return (
       <div className="relative flex min-h-[320px] items-end overflow-hidden bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Empty dashboard</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Empty workspace</p>
           <h2 className="mt-2 text-3xl font-black text-white">Add the first pick</h2>
-          <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Once this context has movies, series, or games, the strongest pick will be featured here.</p>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Once this workspace has movies, series, or games, the strongest pick will be featured here.</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Link to="/movies" className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Add movie</Link>
             <Link to="/games" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Add game</Link>
@@ -93,7 +93,7 @@ function CategoryTopCard({ category, loading }) {
         ) : top ? (
           <>
             <Link to={category.to} className="mt-6 block text-2xl font-black leading-tight text-white hover:underline">{top.title}</Link>
-            <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-400">{top.overview || `Leading ${category.singular.toLowerCase()} by score and picks in this context.`}</p>
+            <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-400">{top.overview || `Leading ${category.singular.toLowerCase()} by score and picks in this workspace.`}</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
               <span className="rounded-full border border-white/10 px-3 py-1.5">Score {top.score || 0}</span>
               <span className="rounded-full border border-white/10 px-3 py-1.5">{top.picks || 0} picks</span>
@@ -103,7 +103,7 @@ function CategoryTopCard({ category, loading }) {
           </>
         ) : (
           <div className="mt-6 flex flex-col gap-5">
-            <p className="text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} have been submitted here yet. Start this rubric with the first real pick.</p>
+            <p className="text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} have been submitted here yet. Start this workspace with the first real pick.</p>
             <Link to={category.to} className="inline-flex w-fit rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Add {category.singular.toLowerCase()}</Link>
           </div>
         )}
@@ -118,8 +118,8 @@ function InviteCard({ inviteDraft, setInviteDraft, inviteError, setInviteError, 
       <div className="grid gap-4 md:grid-cols-[0.75fr_1.25fr] md:items-center">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Join by invite</p>
-          <h2 className="mt-1 text-2xl font-black text-white">Got a group link?</h2>
-          <p className="mt-2 text-sm leading-6 text-neutral-400">Paste an invite link or code to join a friend’s group.</p>
+          <h2 className="mt-1 text-2xl font-black text-white">Got a clique link?</h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-400">Paste an invite link or code to join a friend’s shared voting space.</p>
         </div>
         <form onSubmit={onSubmit} className="rounded-3xl border border-white/10 bg-neutral-950/80 p-3">
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -139,7 +139,7 @@ export default function Home() {
   const [inviteError, setInviteError] = useState('')
   const [loading, setLoading] = useState(hasSupabase)
   const [status, setStatus] = useState(hasSupabase ? 'checking' : 'local')
-  const [context, setContext] = useState(() => ({ type: getActiveGroup() ? 'group' : 'personal', name: getActiveGroup()?.name || 'Personal library', groupId: getActiveGroup()?.id || null }))
+  const [context, setContext] = useState(() => ({ type: getActiveGroup() ? 'group' : 'personal', name: getActiveGroup()?.name || 'My Library', groupId: getActiveGroup()?.id || null }))
   const [media, setMedia] = useState({ movies: [], series: [], games: [] })
   const [message, setMessage] = useState('')
 
@@ -169,7 +169,7 @@ export default function Home() {
     setMessage('')
     if (!hasSupabase) {
       const group = getActiveGroup()
-      setContext({ type: group ? 'group' : 'personal', name: group?.name || 'Personal library', groupId: group?.id || null })
+      setContext({ type: group ? 'group' : 'personal', name: group?.name || 'My Library', groupId: group?.id || null })
       setMedia({ movies: [], series: [], games: [] })
       setStatus('local')
       setLoading(false)
@@ -179,7 +179,7 @@ export default function Home() {
       const session = await getCurrentSession()
       if (!session?.user) {
         setStatus('signed-out')
-        setContext({ type: 'personal', name: 'Personal library', groupId: null })
+        setContext({ type: 'personal', name: 'My Library', groupId: null })
         setMedia({ movies: [], series: [], games: [] })
         setLoading(false)
         return
@@ -188,13 +188,13 @@ export default function Home() {
       const activeId = getActiveGroupId()
       const group = remoteGroups.find((item) => item.id === activeId) || null
       const groupId = group?.id || null
-      setContext({ type: group ? 'group' : 'personal', name: group?.name || 'Personal library', groupId })
+      setContext({ type: group ? 'group' : 'personal', name: group?.name || 'My Library', groupId })
       const [movies, seriesRows, games] = await Promise.all([getMovies(groupId), getSeries(groupId), getGames(groupId)])
       setMedia({ movies, series: seriesRows, games })
       setStatus('ready')
     } catch (error) {
       setStatus('error')
-      setMessage(error.message || 'Could not load dashboard.')
+      setMessage(error.message || 'Could not load My Library.')
       setMedia({ movies: [], series: [], games: [] })
     } finally {
       setLoading(false)
@@ -212,14 +212,14 @@ export default function Home() {
   }
 
   return (
-    <PageShell active="home">
+    <PageShell active="library">
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
         <div className="grid gap-0 md:grid-cols-[1.05fr_0.95fr]">
           <div className="p-5 sm:p-8">
-            <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">{context.type === 'group' ? 'Group dashboard' : 'Personal dashboard'}</p>
+            <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">{context.type === 'group' ? 'Clique dashboard' : 'My Library'}</p>
             <h1 className="mt-3 max-w-3xl text-4xl font-black tracking-tight text-white sm:text-6xl">{context.name}</h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400 sm:text-lg">{context.type === 'group' ? 'Shared movie, series, and game picks for this group.' : 'Your private library before you send picks into a group.'}</p>
-            {status === 'signed-out' ? <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join groups.</p> : null}
+            <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400 sm:text-lg">{context.type === 'group' ? 'Shared movie, series, and game picks for this clique.' : 'Your private picks before you send them into a clique.'}</p>
+            {status === 'signed-out' ? <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join cliques.</p> : null}
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
               <Link to="/movies" className="rounded-2xl bg-white px-5 py-3 text-center font-semibold text-neutral-950 transition hover:bg-neutral-200">Add movie</Link>
               <Link to="/series" className="rounded-2xl border border-white/10 px-5 py-3 text-center font-semibold text-white transition hover:bg-white hover:text-neutral-950">Add series</Link>
