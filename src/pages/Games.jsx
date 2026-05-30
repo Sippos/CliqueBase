@@ -6,7 +6,8 @@ import { getSavedHandle } from '../lib/handle.js'
 import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
 import { demoGames } from '../lib/demoMovies.js'
 import { getGameDetails, searchGames } from '../lib/tmdb.js'
-import { getCurrentSession, getGames, hasSupabase, markGamePlayed, rateGame as saveGameRating, saveGame, voteGame } from '../lib/supabaseClient.js'
+import { markGamePlayed, rateGame as saveGameRating, saveGame } from '../lib/gamesSupabase.js'
+import { getCurrentSession, getGames, hasSupabase, voteGame } from '../lib/supabaseClient.js'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
