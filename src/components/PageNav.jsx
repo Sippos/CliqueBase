@@ -218,11 +218,18 @@ export default function PageNav({ active = 'home' }) {
       return
     }
 
+    if (authMode === 'sign-up' && !draft.trim()) {
+      flash('Add a profile name for your account.')
+      return
+    }
+
     setAuthLoading(true)
     try {
-      const displayName = draft || handle || authEmail.split('@')[0]
+      const displayName = (draft || handle || authEmail.split('@')[0]).trim()
       if (authMode === 'sign-up') {
         const result = await signUpWithEmail(authEmail, authPassword, displayName)
+        saveSharedHandle(displayName)
+        setHandle(displayName)
         flash(result.session ? 'Account created and signed in.' : 'Account created. Check your email to confirm, then sign in.')
       } else {
         await signInWithEmail(authEmail, authPassword)
@@ -328,7 +335,7 @@ export default function PageNav({ active = 'home' }) {
                 <div>
                   <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Account</div>
                   <h3 className="mt-1 text-xl font-bold text-white">{session?.user ? 'Signed in' : 'Supabase Auth'}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">{hasSupabase ? 'Use email and password to sync your groups across devices.' : 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real accounts.'}</p>
+                  <p className="mt-1 text-sm text-neutral-400">{hasSupabase ? 'Create an account with a profile name, email, and password to sync groups across devices.' : 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real accounts.'}</p>
                 </div>
                 {session?.user ? <button type="button" onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Sign out</button> : null}
               </div>
@@ -343,8 +350,24 @@ export default function PageNav({ active = 'home' }) {
                     <button type="button" onClick={() => setAuthMode('sign-in')} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button>
                     <button type="button" onClick={() => setAuthMode('sign-up')} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button>
                   </div>
-                  <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                  <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+
+                  {authMode === 'sign-up' ? (
+                    <label className="grid gap-1 text-sm font-semibold text-neutral-300">
+                      Profile name
+                      <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                    </label>
+                  ) : null}
+
+                  <label className="grid gap-1 text-sm font-semibold text-neutral-300">
+                    Email
+                    <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                  </label>
+
+                  <label className="grid gap-1 text-sm font-semibold text-neutral-300">
+                    Password
+                    <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                  </label>
+
                   <button disabled={authLoading} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black disabled:opacity-60">{authLoading ? 'Working...' : authMode === 'sign-up' ? 'Create account' : 'Sign in'}</button>
                 </form>
               ) : null}
