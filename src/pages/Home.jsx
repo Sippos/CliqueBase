@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, parseInviteCode, setActiveGroup } from '../lib/groups.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
 
 const TYPE_ICONS = {
-  Movie: '🎬',
-  Series: '📺',
-  Game: '🎮',
+  Movie: 'movies',
+  Series: 'series',
+  Game: 'games',
 }
 
 function StatCard({ label, value, detail }) {
@@ -33,7 +34,7 @@ function normalizeItems(rows, type, code, to) {
 
 function LibraryMiniTile({ item }) {
   const image = item.poster || item.backdrop
-  const icon = TYPE_ICONS[item.type] || '★'
+  const icon = TYPE_ICONS[item.type] || 'dashboard'
 
   return (
     <Link to={item.to} className="flex min-w-0 items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.07] p-2.5 text-left text-white transition hover:bg-white hover:text-neutral-950">
@@ -42,7 +43,7 @@ function LibraryMiniTile({ item }) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] opacity-65">
-          <span aria-hidden="true">{icon}</span>
+          <AppIcon name={icon} size={13} strokeWidth={2.4} />
           <span>{item.type}</span>
         </div>
         <div className="mt-1 truncate text-sm font-black">{item.title}</div>
@@ -58,7 +59,7 @@ function LibrarySummaryPanel({ items, loading }) {
     <div className="mt-6 rounded-[1.75rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20 sm:p-4">
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {[0, 1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-[1.35rem] bg-white/[0.06]" />)}
+          {[0, 1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-[1.35rem] bg-white/[0.06] />)}
         </div>
       ) : previewItems.length ? (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -148,7 +149,7 @@ function CategoryTopCard({ category, loading }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
         <Link to={category.to} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
         <span className="absolute left-4 top-4 z-10 inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-black tracking-[0.16em] text-neutral-950">
-          <span aria-hidden="true">{category.icon}</span>
+          <AppIcon name={category.icon} size={13} strokeWidth={2.4} />
           {category.title}
         </span>
         <Link to={category.to} className="absolute right-4 top-4 z-10 rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">+ Add</Link>
