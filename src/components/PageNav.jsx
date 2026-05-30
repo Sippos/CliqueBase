@@ -80,6 +80,7 @@ export default function PageNav({ active = 'home' }) {
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
+  const [signOutLoading, setSignOutLoading] = useState(false)
 
   const activeLink = links.find((link) => link.key === active)
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
@@ -161,7 +162,7 @@ export default function PageNav({ active = 'home' }) {
       if (session?.user) await saveProfile(saved)
       setHandle(saved)
       setDraft(saved)
-      flash(`Continuing as ${saved}`)
+      flash(`Profile updated to ${saved}`)
       await refreshGroups()
       return saved
     } catch (error) {
@@ -287,13 +288,18 @@ export default function PageNav({ active = 'home' }) {
   }
 
   async function handleSignOut() {
+    setSignOutLoading(true)
     try {
-      await signOut()
+      await signOut().catch(() => null)
       setSession(null)
-      await refreshGroups()
+      setGroups(getGroups())
+      setActiveGroupState(getActiveGroup())
+      setAuthNotice(null)
+      setAuthEmail('')
+      setAuthPassword('')
       flash('Signed out.')
-    } catch (error) {
-      flash(error.message || 'Could not sign out.')
+    } finally {
+      setSignOutLoading(false)
     }
   }
 
@@ -319,7 +325,7 @@ export default function PageNav({ active = 'home' }) {
             </button>
             <button type="button" onClick={() => { refreshGroups(); setEditing(true) }} aria-label="Open profile and groups" className="flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
               <span className="sm:mr-1.5">👤</span>
-              <span className="hidden max-w-[6rem] truncate sm:inline">{handle || 'Profile'}</span>
+              <span className="hidden max-w-[6rem] truncate sm:inline">{session?.user ? (handle || 'Account') : (handle || 'Profile')}</span>
             </button>
           </div>
         </div>
@@ -339,8 +345,8 @@ export default function PageNav({ active = 'home' }) {
             <button type="button" onClick={() => { setMenuOpen(false); refreshGroups(); setEditing(true) }} className="mt-5 flex w-full items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-left transition hover:bg-white hover:text-neutral-950">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-lg text-neutral-950">👤</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-white">{handle || session?.user?.email || 'Profile'}</span>
-                <span className="block truncate text-xs text-neutral-500">{activeGroup ? activeGroup.name : 'Open profile, account, and groups'}</span>
+                <span className="block truncate text-sm font-bold text-white">{session?.user ? (handle || session.user.email) : (handle || 'Profile')}</span>
+                <span className="block truncate text-xs text-neutral-500">{activeGroup ? activeGroup.name : 'Account, profile, and groups'}</span>
               </span>
               <span className="text-neutral-500">›</span>
             </button>
@@ -362,9 +368,9 @@ export default function PageNav({ active = 'home' }) {
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/40">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Profile & groups</div>
-                <h2 className="mt-1 text-2xl font-bold text-white">Your clique setup</h2>
-                <p className="mt-2 text-sm text-neutral-400">Create an account for real shared groups, or keep using local demo mode while Supabase is not configured.</p>
+                <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Account & groups</div>
+                <h2 className="mt-1 text-2xl font-bold text-white">Your CliqueBase setup</h2>
+                <p className="mt-2 text-sm text-neutral-400">Manage your account, profile name, personal library, and shared groups.</p>
               </div>
               <button type="button" onClick={() => setEditing(false)} className="text-2xl text-neutral-400 hover:text-white">×</button>
             </div>
@@ -372,16 +378,29 @@ export default function PageNav({ active = 'home' }) {
             {savedMessage ? <p className="mt-4 rounded-2xl bg-emerald-700 p-3 text-sm text-white">{savedMessage}</p> : null}
 
             <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0 flex-1">
                   <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Account</div>
-                  <h3 className="mt-1 text-xl font-bold text-white">{session?.user ? 'Signed in' : 'Supabase Auth'}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">{hasSupabase ? 'Create an account with a profile name, email, and password to sync groups across devices.' : 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real accounts.'}</p>
+                  <h3 className="mt-1 text-xl font-bold text-white">{session?.user ? handle || 'Signed in' : 'Sign in or create account'}</h3>
+                  <p className="mt-1 truncate text-sm text-neutral-400">{session?.user?.email || (hasSupabase ? 'Use an account to sync your personal library and groups.' : 'Supabase is not configured yet.')}</p>
                 </div>
-                {session?.user ? <button type="button" onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Sign out</button> : null}
+                {session?.user ? (
+                  <button type="button" disabled={signOutLoading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">
+                    {signOutLoading ? 'Signing out...' : 'Sign out'}
+                  </button>
+                ) : null}
               </div>
 
-              {hasSupabase && session?.user ? <p className="mt-4 rounded-2xl bg-neutral-900 p-3 text-sm text-neutral-300">{session.user.email}</p> : null}
+              {session?.user || !hasSupabase ? (
+                <div className="mt-4 rounded-2xl bg-neutral-900 p-3">
+                  <label className="block text-sm font-semibold text-neutral-300">Profile name</label>
+                  <div className="mt-2 flex gap-2">
+                    <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+                    <button type="button" onClick={saveHandle} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black">Save</button>
+                  </div>
+                  <p className="mt-2 text-xs text-neutral-500">This name is shown on your picks, groups, and personal library.</p>
+                </div>
+              ) : null}
 
               {authNotice ? (
                 <div className="mt-4 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-4 text-sm text-yellow-100">
@@ -419,22 +438,12 @@ export default function PageNav({ active = 'home' }) {
               ) : null}
             </section>
 
-            {(session?.user || !hasSupabase) ? (
-              <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-                <label className="block text-sm font-semibold text-neutral-300">Profile name</label>
-                <div className="mt-2 flex gap-2">
-                  <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                  <button type="button" onClick={saveHandle} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black">Save</button>
-                </div>
-              </section>
-            ) : null}
-
             <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Active group</div>
                   <h3 className="mt-1 text-xl font-bold text-white">{activeGroup?.name || 'No group selected'}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">Votes and saved content can use this group context.</p>
+                  <p className="mt-1 text-sm text-neutral-400">Use groups for shared voting. Your personal library works without a group.</p>
                 </div>
                 {activeGroup ? <button type="button" onClick={() => copyInvite(activeGroup)} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Copy invite</button> : null}
               </div>
