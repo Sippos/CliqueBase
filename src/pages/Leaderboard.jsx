@@ -192,10 +192,10 @@ function copyPayload(item) {
   }
 }
 
-function formatDate(value) {
+function formatMonthYear(value) {
   if (!value) return null
   try {
-    return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(value))
+    return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short' }).format(new Date(value))
   } catch {
     return value
   }
@@ -212,9 +212,54 @@ function DetailRow({ label, value }) {
   if (!normalized) return null
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
       <dt className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">{label}</dt>
       <dd className="mt-1 text-sm font-semibold leading-5 text-white">{normalized}</dd>
+    </div>
+  )
+}
+
+function GenreChips({ genres }) {
+  const values = Array.isArray(genres)
+    ? genres.filter(Boolean)
+    : detailValue(genres)?.split(',').map((genre) => genre.trim()).filter(Boolean) || []
+
+  if (!values.length) return null
+
+  return (
+    <section className="mt-5">
+      <h3 className="text-[10px] font-bold uppercase tracking-[0.22em] text-neutral-500">Genres</h3>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {values.map((genre) => (
+          <span key={genre} className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-bold text-neutral-200">
+            {genre}
+          </span>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function SourcePanel({ groupName, nominatedBy }) {
+  return (
+    <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.035] p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-neutral-500">Public recommendation</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <AppIcon name="users" size={14} strokeWidth={2.2} />
+            Clique
+          </div>
+          <p className="mt-1 truncate text-sm font-black text-white">{groupName || 'Public clique'}</p>
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            <AppIcon name="user" size={14} strokeWidth={2.2} />
+            Suggested by
+          </div>
+          <p className="mt-1 truncate text-sm font-black text-white">{nominatedBy || 'Someone'}</p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -281,14 +326,14 @@ function DetailModal({ item, saving, onCopy, onClose }) {
 
   const displayItem = mergePublicItem(item, details)
   const meta = getCategoryMeta(displayItem.category)
-  const releaseLabel = displayItem.category === 'Games' ? 'Released' : 'Release'
   const sourceRating = displayItem.tmdbRating ?? displayItem.rawgRating
   const creator = displayItem.director || displayItem.regie || displayItem.creator || displayItem.createdBy || displayItem.developer
+  const releaseValue = formatMonthYear(displayItem.released) || displayItem.year
   const showEmptyMetadata = !detailsLoading && !hasMetadata(displayItem)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <article className="grid max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/50 md:grid-cols-[0.8fr_1fr]">
+      <article className="grid max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950/95 shadow-2xl shadow-black/50 md:grid-cols-[0.82fr_1fr]">
         <div className="relative min-h-72 bg-neutral-900">
           {displayItem.poster ? (
             <img src={displayItem.poster} alt="" className="h-full max-h-[90vh] w-full object-cover" />
@@ -302,15 +347,16 @@ function DetailModal({ item, saving, onCopy, onClose }) {
           </div>
         </div>
 
-        <div className="flex max-h-[90vh] flex-col overflow-y-auto p-5">
+        <div className="flex max-h-[90vh] flex-col overflow-y-auto p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">{meta.label} info</p>
               <h2 className="mt-2 text-3xl font-black leading-tight text-white">{displayItem.title}</h2>
-              <p className="mt-2 text-sm text-neutral-400">{displayItem.groupName || 'Public clique'}{displayItem.nominatedBy ? ` · Added by ${displayItem.nominatedBy}` : ''}</p>
             </div>
             <button type="button" onClick={onClose} className="text-2xl text-neutral-400 transition hover:text-white">×</button>
           </div>
+
+          <SourcePanel groupName={displayItem.groupName} nominatedBy={displayItem.nominatedBy} />
 
           <div className="mt-5 flex flex-wrap gap-2">
             <MetricPill>Score {displayItem.score || 0}</MetricPill>
@@ -324,15 +370,15 @@ function DetailModal({ item, saving, onCopy, onClose }) {
           {detailsError && !hasMetadata(displayItem) ? <p className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs leading-5 text-yellow-100">{detailsError}</p> : null}
 
           <dl className="mt-5 grid grid-cols-2 gap-2">
-            <DetailRow label="Year" value={displayItem.year} />
-            <DetailRow label={releaseLabel} value={formatDate(displayItem.released)} />
-            <DetailRow label="Genres" value={displayItem.genres} />
-            <DetailRow label="Director / Regie" value={creator} />
+            <DetailRow label="Released" value={releaseValue} />
             <DetailRow label="Runtime" value={displayItem.runtime ? `${displayItem.runtime} min` : null} />
+            <DetailRow label="Director / Regie" value={creator} />
             <DetailRow label="Seasons" value={displayItem.seasons} />
             <DetailRow label="Episodes" value={displayItem.episodes} />
             <DetailRow label="Platforms" value={displayItem.platforms || displayItem.platform} />
           </dl>
+
+          <GenreChips genres={displayItem.genres} />
 
           {showEmptyMetadata ? (
             <p className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-neutral-400">
