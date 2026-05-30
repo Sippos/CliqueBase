@@ -86,7 +86,7 @@ const logoIconPath = 'M 391 339 L 380 372 L 371 387 L 354 403 L 332 414 L 311 41
 function LogoMark() {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <svg viewBox="120 0 560 690" aria-hidden="true" className="h-10 w-10 shrink-0 text-white sm:h-12 sm:w-12">
+      <svg viewBox="250 20 440 670" aria-hidden="true" className="h-9 w-9 shrink-0 text-white sm:h-10 sm:w-10">
         <path d={logoIconPath} fill="currentColor" fillRule="evenodd" clipRule="evenodd" />
       </svg>
       <span className="block text-2xl font-black tracking-tight text-white sm:text-3xl">CliqueBase</span>
