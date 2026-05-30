@@ -84,52 +84,68 @@ export default function PageNav({ active = 'home' }) {
 
   const activeLink = links.find((link) => link.key === active)
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
+  const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : (hasSupabase ? 'Profile' : (handle || 'Profile'))
+  const menuProfileLabel = session?.user ? (handle || session.user.email || 'Account') : (hasSupabase ? 'Sign in' : (handle || 'Profile'))
 
   function flash(message) {
     setSavedMessage(message)
     setTimeout(() => setSavedMessage(''), 2400)
   }
 
-  async function refreshGroups() {
-    const saved = getSavedHandle()
-    setHandle(saved)
-    setDraft((current) => current || saved)
+  function clearSupabaseSessionUi() {
+    setSession(null)
+    setHandle('')
+    setDraft('')
+    setGroups([])
+    setActiveGroupState(null)
+    setActiveGroup('')
+  }
 
+  async function refreshGroups() {
     if (hasSupabase) {
       try {
         const nextSession = await getCurrentSession()
         setSession(nextSession)
 
-        if (nextSession?.user) {
-          setAuthNotice(null)
-          const profile = await getProfile().catch(() => null)
-          const displayName = getSessionName(nextSession, profile, saved)
-          if (displayName) {
-            saveSharedHandle(displayName)
-            setHandle(displayName)
-            setDraft(displayName)
-          }
-
-          const remoteGroups = await getRemoteGroups()
-          setGroups(remoteGroups)
-
-          const activeId = getActiveGroupId()
-          const nextActive = remoteGroups.find((group) => group.id === activeId) || remoteGroups[0] || null
-          setActiveGroupState(nextActive)
-
-          if (nextActive && activeId !== nextActive.id) {
-            setActiveGroup(nextActive.id)
-          } else if (!nextActive && activeId) {
-            setActiveGroup('')
-          }
-
+        if (!nextSession?.user) {
+          clearSupabaseSessionUi()
           return
         }
+
+        setAuthNotice(null)
+        const saved = getSavedHandle()
+        const profile = await getProfile().catch(() => null)
+        const displayName = getSessionName(nextSession, profile, saved)
+        if (displayName) {
+          saveSharedHandle(displayName)
+          setHandle(displayName)
+          setDraft(displayName)
+        }
+
+        const remoteGroups = await getRemoteGroups().catch(() => [])
+        setGroups(remoteGroups)
+
+        const activeId = getActiveGroupId()
+        const nextActive = remoteGroups.find((group) => group.id === activeId) || remoteGroups[0] || null
+        setActiveGroupState(nextActive)
+
+        if (nextActive && activeId !== nextActive.id) {
+          setActiveGroup(nextActive.id)
+        } else if (!nextActive && activeId) {
+          setActiveGroup('')
+        }
+
+        return
       } catch (error) {
+        clearSupabaseSessionUi()
         flash(error.message || 'Could not sync your account.')
+        return
       }
     }
 
+    const saved = getSavedHandle()
+    setHandle(saved)
+    setDraft((current) => current || saved)
     setSession(null)
     setGroups(getGroups())
     setActiveGroupState(getActiveGroup())
@@ -143,7 +159,10 @@ export default function PageNav({ active = 'home' }) {
     }
 
     window.addEventListener(GROUPS_CHANGED_EVENT, handleGroupsChanged)
-    const unsubscribe = hasSupabase ? onAuthStateChanged(() => refreshGroups()) : () => {}
+    const unsubscribe = hasSupabase ? onAuthStateChanged((nextSession) => {
+      if (!nextSession?.user) clearSupabaseSessionUi()
+      else refreshGroups()
+    }) : () => {}
 
     return () => {
       window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupsChanged)
@@ -163,7 +182,7 @@ export default function PageNav({ active = 'home' }) {
       setHandle(saved)
       setDraft(saved)
       flash(`Profile updated to ${saved}`)
-      await refreshGroups()
+      refreshGroups()
       return saved
     } catch (error) {
       flash(error.message || 'Could not save your profile.')
@@ -186,7 +205,7 @@ export default function PageNav({ active = 'home' }) {
 
       setActiveGroup(group.id)
       setGroupDraft('')
-      await refreshGroups()
+      refreshGroups()
       flash(`${group.name} created and active.`)
     } catch (error) {
       flash(error.message || 'Could not create the group.')
@@ -208,7 +227,7 @@ export default function PageNav({ active = 'home' }) {
 
       setActiveGroup(joined.id)
       setInviteDraft('')
-      await refreshGroups()
+      refreshGroups()
       flash(`Joined ${joined.name}.`)
     } catch (error) {
       flash(error.message || 'Could not join that group.')
@@ -234,7 +253,7 @@ export default function PageNav({ active = 'home' }) {
 
     try {
       await setGroupPublic(group.id, !group.isPublic)
-      await refreshGroups()
+      refreshGroups()
       flash(!group.isPublic ? `${group.name} is public on the leaderboard.` : `${group.name} is private again.`)
     } catch (error) {
       flash(error.message || 'Could not update public discovery.')
@@ -258,28 +277,41 @@ export default function PageNav({ active = 'home' }) {
     setAuthLoading(true)
     try {
       const email = authEmail.trim()
-      const displayName = (draft || handle || email.split('@')[0]).trim()
+      const displayName = (draft || email.split('@')[0]).trim()
       if (authMode === 'sign-up') {
         const result = await signUpWithEmail(email, authPassword, displayName)
-        saveSharedHandle(displayName)
-        setHandle(displayName)
-        if (result.session) {
+        if (result.session?.user) {
+          setSession(result.session)
+          saveSharedHandle(displayName)
+          setHandle(displayName)
+          setDraft(displayName)
+          setAuthPassword('')
+          setAuthNotice(null)
           flash('Account created and signed in.')
+          refreshGroups()
         } else {
           setAuthNotice({
             title: 'Confirm your email',
             text: `We sent a confirmation link to ${email}. Open the email, confirm your account, then come back here and sign in.`,
           })
+          setAuthPassword('')
           flash('Check your email to finish creating the account.')
         }
       } else {
-        await signInWithEmail(email, authPassword)
+        const data = await signInWithEmail(email, authPassword)
+        if (!data.session?.user) throw new Error('Sign in did not return a session. Confirm your email first, then try again.')
+        setSession(data.session)
+        const displayNameAfterLogin = data.session.user.user_metadata?.display_name || data.session.user.email?.split('@')[0] || ''
+        if (displayNameAfterLogin) {
+          saveSharedHandle(displayNameAfterLogin)
+          setHandle(displayNameAfterLogin)
+          setDraft(displayNameAfterLogin)
+        }
+        setAuthPassword('')
         setAuthNotice(null)
         flash('Signed in.')
+        refreshGroups()
       }
-
-      setAuthPassword('')
-      await refreshGroups()
     } catch (error) {
       flash(error.message || 'Authentication failed.')
     } finally {
@@ -290,10 +322,8 @@ export default function PageNav({ active = 'home' }) {
   async function handleSignOut() {
     setSignOutLoading(true)
     try {
+      clearSupabaseSessionUi()
       await signOut().catch(() => null)
-      setSession(null)
-      setGroups(getGroups())
-      setActiveGroupState(getActiveGroup())
       setAuthNotice(null)
       setAuthEmail('')
       setAuthPassword('')
@@ -325,7 +355,7 @@ export default function PageNav({ active = 'home' }) {
             </button>
             <button type="button" onClick={() => { refreshGroups(); setEditing(true) }} aria-label="Open profile and groups" className="flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
               <span className="sm:mr-1.5">👤</span>
-              <span className="hidden max-w-[6rem] truncate sm:inline">{session?.user ? (handle || 'Account') : (handle || 'Profile')}</span>
+              <span className="hidden max-w-[6rem] truncate sm:inline">{profileLabel}</span>
             </button>
           </div>
         </div>
@@ -345,7 +375,7 @@ export default function PageNav({ active = 'home' }) {
             <button type="button" onClick={() => { setMenuOpen(false); refreshGroups(); setEditing(true) }} className="mt-5 flex w-full items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-left transition hover:bg-white hover:text-neutral-950">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-lg text-neutral-950">👤</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-white">{session?.user ? (handle || session.user.email) : (handle || 'Profile')}</span>
+                <span className="block truncate text-sm font-bold text-white">{menuProfileLabel}</span>
                 <span className="block truncate text-xs text-neutral-500">{activeGroup ? activeGroup.name : 'Account, profile, and groups'}</span>
               </span>
               <span className="text-neutral-500">›</span>
