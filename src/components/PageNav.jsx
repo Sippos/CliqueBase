@@ -85,19 +85,9 @@ function cleanName(value) {
   return String(value || '').trim()
 }
 
-function emailProfileFallback(session) {
-  return cleanName(session?.user?.email?.split('@')[0])
-}
-
-function isEmailFallbackName(value, session) {
-  const name = cleanName(value)
-  const fallback = emailProfileFallback(session)
-  return Boolean(name && fallback && name.toLowerCase() === fallback.toLowerCase())
-}
-
 function sessionName(session, profile, fallback = '') {
   const candidates = [profile?.display_name, fallback, session?.user?.user_metadata?.display_name]
-  return candidates.map(cleanName).find((name) => name && !isEmailFallbackName(name, session)) || ''
+  return candidates.map(cleanName).find(Boolean) || ''
 }
 
 function LogoMark() {
@@ -514,8 +504,8 @@ export default function PageNav({ active = 'library' }) {
           </div>
 
           <div className="flex justify-end">
-            <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="inline-flex h-11 max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-2 pr-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-neutral-950"><AppIcon name="user" size={16} /></span>
+            <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="inline-flex h-11 max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black">
+              <AppIcon name="user" size={17} />
               <span className="hidden min-w-0 truncate sm:inline">{navProfileLabel}</span>
             </button>
           </div>
