@@ -5,18 +5,44 @@ import { getCommunityLeaderboard, hasSupabase } from '../lib/supabaseClient.js'
 
 const featuredCategories = ['Movies', 'Series', 'Games']
 
+const categoryMeta = {
+  Movies: { icon: '🎬', label: 'Movie', plural: 'Movies' },
+  Series: { icon: '📺', label: 'Series', plural: 'Series' },
+  Games: { icon: '🎮', label: 'Game', plural: 'Games' },
+}
+
+function getCategoryMeta(category = 'Pick') {
+  return categoryMeta[category] || { icon: '★', label: category || 'Pick', plural: category || 'Picks' }
+}
+
+function CategoryBadge({ category }) {
+  const meta = getCategoryMeta(category)
+
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-lg shadow-black/30 backdrop-blur">
+      <span className="text-sm leading-none" aria-hidden="true">{meta.icon}</span>
+      {meta.label}
+    </span>
+  )
+}
+
+function MetricPill({ children }) {
+  return <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold text-neutral-200">{children}</span>
+}
+
 function EmptyState() {
   return (
     <section className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.02] p-6 text-neutral-400">
-      <h2 className="text-2xl font-black text-white">No public Explore data yet</h2>
-      <p className="mt-2 max-w-2xl text-sm leading-6">Explore stays clean until a clique is made public and has rated movies, series, or games.</p>
+      <h2 className="text-2xl font-black text-white">No public rankings yet</h2>
+      <p className="mt-2 max-w-2xl text-sm leading-6">The Explore dashboard will fill with the best rated public clique picks once movies, series, or games get votes.</p>
       <Link to="/groups" className="mt-5 inline-flex rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Manage cliques</Link>
     </section>
   )
 }
 
 function PickPoster({ item, large = false }) {
-  const sizeClass = large ? 'h-72 sm:h-80' : 'h-56'
+  const sizeClass = large ? 'h-64 sm:h-72 lg:h-80' : 'h-52 sm:h-56'
+  const meta = getCategoryMeta(item?.category)
 
   if (item?.poster) {
     return <img src={item.poster} alt="" className={`${sizeClass} w-full object-cover`} />
@@ -25,46 +51,32 @@ function PickPoster({ item, large = false }) {
   return (
     <div className={`${sizeClass} flex w-full items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950`}>
       <div className="text-center">
-        <div className="text-5xl">{item?.icon || '★'}</div>
-        <p className="mt-3 text-xs uppercase tracking-[0.3em] text-neutral-500">{item?.category || 'Pick'}</p>
+        <div className="text-5xl" aria-hidden="true">{item?.icon || meta.icon}</div>
+        <p className="mt-3 text-xs uppercase tracking-[0.3em] text-neutral-500">{meta.plural}</p>
       </div>
     </div>
   )
 }
 
 function FeaturedPickCard({ item }) {
-  if (!item) {
-    return (
-      <article className="overflow-hidden rounded-[2rem] border border-dashed border-white/15 bg-white/[0.02] p-5">
-        <p className="text-xs uppercase tracking-[0.28em] text-neutral-500">No pick yet</p>
-        <h3 className="mt-4 text-2xl font-black text-white">Waiting for public ratings</h3>
-        <p className="mt-2 text-sm leading-6 text-neutral-400">Once a public clique rates something in this category, the best pick appears here.</p>
-      </article>
-    )
-  }
+  if (!item) return null
 
   return (
-    <article className="overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20">
+    <article className="group overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/20">
       <div className="relative">
         <PickPoster item={item} large />
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/70 to-transparent p-5">
-          <p className="text-xs uppercase tracking-[0.28em] text-neutral-300">Best {item.category}</p>
-          <h3 className="mt-2 text-3xl font-black leading-tight text-white">{item.title}</h3>
-          <p className="mt-1 text-sm text-neutral-300">{item.groupName || 'Public clique'}{item.nominatedBy ? ` · Added by ${item.nominatedBy}` : ''}</p>
+        <div className="absolute left-4 top-4">
+          <CategoryBadge category={item.category} />
         </div>
-      </div>
-      <div className="grid grid-cols-3 gap-2 p-4 text-center text-sm">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
-          <div className="text-lg font-black text-white">{item.score || 0}</div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Score</div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
-          <div className="text-lg font-black text-white">{item.picks || 0}</div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Picks</div>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3">
-          <div className="text-lg font-black text-white">{item.rating ? Number(item.rating).toFixed(1) : '—'}</div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Rating</div>
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/75 to-transparent p-5">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-300">#{item.rank || '—'} global pick</p>
+          <h3 className="mt-2 line-clamp-2 text-3xl font-black leading-tight text-white">{item.title}</h3>
+          <p className="mt-1 truncate text-sm text-neutral-300">{item.groupName || 'Public clique'}{item.nominatedBy ? ` · Added by ${item.nominatedBy}` : ''}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <MetricPill>Score {item.score || 0}</MetricPill>
+            <MetricPill>{item.picks || 0} picks</MetricPill>
+            {item.rating ? <MetricPill>★ {Number(item.rating).toFixed(1)}</MetricPill> : null}
+          </div>
         </div>
       </div>
     </article>
@@ -73,35 +85,24 @@ function FeaturedPickCard({ item }) {
 
 function ContentCard({ item }) {
   return (
-    <article className="overflow-hidden rounded-3xl border border-white/10 bg-neutral-900 transition hover:border-white/20">
-      <PickPoster item={item} />
-      <div className="p-4">
-        <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">#{item.rank || '—'} · {item.category} · {item.groupName || 'Public clique'}</p>
-        <h3 className="mt-1 line-clamp-2 text-xl font-black text-white">{item.title}</h3>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
-          <span className="rounded-full border border-white/10 px-3 py-1">Score {item.score || 0}</span>
-          <span className="rounded-full border border-white/10 px-3 py-1">{item.picks || 0} picks</span>
-          {item.rating ? <span className="rounded-full border border-white/10 px-3 py-1">★ {Number(item.rating).toFixed(1)}</span> : null}
-          {item.completed ? <span className="rounded-full border border-white/10 px-3 py-1">Completed</span> : null}
+    <article className="group overflow-hidden rounded-3xl border border-white/10 bg-neutral-900 transition hover:-translate-y-0.5 hover:border-white/20">
+      <div className="relative">
+        <PickPoster item={item} />
+        <div className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/70 px-3 py-1 text-xs font-black text-white shadow-lg shadow-black/30 backdrop-blur">
+          #{item.rank || '—'}
         </div>
-        {item.nominatedBy ? <p className="mt-3 text-xs text-neutral-500">Added by {item.nominatedBy}</p> : null}
+        <div className="absolute right-3 top-3">
+          <CategoryBadge category={item.category} />
+        </div>
       </div>
-    </article>
-  )
-}
-
-function GroupCard({ group }) {
-  return (
-    <article className="rounded-3xl border border-white/10 bg-neutral-900 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Public clique #{group.rank}</p>
-          <h3 className="mt-1 truncate text-xl font-black text-white">{group.name}</h3>
-          <p className="mt-1 text-sm text-neutral-400">{group.memberCount} members · {group.itemCount} items</p>
-        </div>
-        <div className="rounded-2xl border border-white/10 px-3 py-2 text-right">
-          <div className="text-lg font-black text-white">{Number(group.averageRating || 0).toFixed(1)}</div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Avg</div>
+      <div className="p-4">
+        <h3 className="line-clamp-2 text-xl font-black leading-tight text-white">{item.title}</h3>
+        <p className="mt-2 truncate text-sm text-neutral-400">{item.groupName || 'Public clique'}{item.nominatedBy ? ` · Added by ${item.nominatedBy}` : ''}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <MetricPill>Score {item.score || 0}</MetricPill>
+          <MetricPill>{item.picks || 0} picks</MetricPill>
+          {item.rating ? <MetricPill>★ {Number(item.rating).toFixed(1)}</MetricPill> : null}
+          {item.completed ? <MetricPill>Completed</MetricPill> : null}
         </div>
       </div>
     </article>
@@ -133,9 +134,7 @@ function ExploreBoard() {
     return () => { cancelled = true }
   }, [])
 
-  const groups = board.groups || []
   const topContent = board.topContent || []
-  const totals = board.totals || {}
   const bestByCategory = useMemo(() => {
     const map = new Map()
     topContent.forEach((item) => {
@@ -143,54 +142,43 @@ function ExploreBoard() {
     })
     return map
   }, [topContent])
+  const featuredItems = featuredCategories
+    .map((category) => bestByCategory.get(category))
+    .filter(Boolean)
 
   if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading Explore...</div>
   if (message) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
-  if (!groups.length && !topContent.length) return <EmptyState />
+  if (!topContent.length) return <EmptyState />
 
   return (
     <>
-      <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-6">
+      <section className="mb-5 px-1">
         <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">Explore</p>
-        <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">Global dashboard</h1>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-neutral-400">The best public clique picks by content type, ranked by score, picks, and ratings.</p>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center text-xs text-neutral-400 sm:min-w-80">
-            <div className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-3"><strong className="block text-lg text-white">{totals.publicGroups || totals.groups || 0}</strong>Cliques</div>
-            <div className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-3"><strong className="block text-lg text-white">{totals.items || 0}</strong>Items</div>
-            <div className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-3"><strong className="block text-lg text-white">{totals.score || 0}</strong>Score</div>
-          </div>
-        </div>
+        <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">Community rankings</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">The best movies, series, and games from public cliques, ranked globally by score, picks, and ratings.</p>
       </section>
 
-      <section className="mb-5 grid gap-4 lg:grid-cols-3">
-        {featuredCategories.map((category) => <FeaturedPickCard key={category} item={bestByCategory.get(category)} />)}
-      </section>
-
-      <section className="grid gap-5 lg:grid-cols-[1fr_0.72fr]">
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
-          <div className="mb-4 flex items-end justify-between gap-3">
+      {featuredItems.length ? (
+        <section className="mb-6">
+          <div className="mb-3 flex items-end justify-between gap-3 px-1">
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Ranked public picks</p>
-              <h2 className="mt-1 text-2xl font-black text-white">Best picks across all cliques</h2>
+              <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Best by category</p>
+              <h2 className="mt-1 text-2xl font-black text-white">Top public picks</h2>
             </div>
-            <span className="hidden text-sm text-neutral-500 sm:inline">Movies · Series · Games</span>
           </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            {topContent.slice(0, 8).map((item) => <ContentCard key={`${item.category}-${item.groupId}-${item.id}`} item={item} />)}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {featuredItems.map((item) => <FeaturedPickCard key={`${item.category}-${item.groupId}-${item.id}`} item={item} />)}
           </div>
-        </div>
+        </section>
+      ) : null}
 
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
-          <div className="mb-4">
-            <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Public discovery</p>
-            <h2 className="mt-1 text-2xl font-black text-white">Top public cliques</h2>
-          </div>
-          <div className="space-y-3">
-            {groups.slice(0, 6).map((group) => <GroupCard key={group.id} group={group} />)}
-          </div>
+      <section className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+        <div className="mb-4 px-1">
+          <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Global ranking</p>
+          <h2 className="mt-1 text-2xl font-black text-white">Best ranked content</h2>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {topContent.slice(0, 12).map((item) => <ContentCard key={`${item.category}-${item.groupId}-${item.id}`} item={item} />)}
         </div>
       </section>
     </>
