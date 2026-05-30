@@ -29,13 +29,13 @@ import {
 } from '../lib/supabaseClient.js'
 
 const links = [
-  { key: 'home', to: '/', label: 'Dashboard', icon: 'DB' },
-  { key: 'movies', to: '/movies', label: 'Movies', icon: 'MV' },
-  { key: 'series', to: '/series', label: 'Series', icon: 'SR' },
-  { key: 'games', to: '/games', label: 'Games', icon: 'GM' },
-  { key: 'videos', to: '/videos', label: 'Videos', icon: 'VD' },
-  { key: 'music', to: '/music', label: 'Music', icon: 'MS' },
-  { key: 'leaderboard', to: '/explore', label: 'Explore', icon: 'EX' },
+  { key: 'home', to: '/', label: 'Dashboard' },
+  { key: 'movies', to: '/movies', label: 'Movies' },
+  { key: 'series', to: '/series', label: 'Series' },
+  { key: 'games', to: '/games', label: 'Games' },
+  { key: 'videos', to: '/videos', label: 'Videos' },
+  { key: 'music', to: '/music', label: 'Music' },
+  { key: 'leaderboard', to: '/explore', label: 'Explore' },
 ]
 
 async function copyToClipboard(value) {
@@ -350,7 +350,6 @@ export default function PageNav({ active = 'home' }) {
           <div className="relative flex min-w-0 justify-center">
             <div className="flex w-full min-w-0 max-w-xl flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
               <button type="button" onClick={() => { setNavOpen((value) => !value); setGroupsOpen(false) }} className="flex min-w-0 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-neutral-950 shadow-lg shadow-white/5 transition hover:bg-neutral-200">
-                <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-neutral-950 px-2 text-[10px] font-black tracking-[0.12em] text-white">{activeLink?.icon || 'DB'}</span>
                 <span className="truncate">{activeLink?.label || 'Dashboard'}</span>
                 <span className="text-neutral-500">⌄</span>
               </button>
@@ -362,12 +361,11 @@ export default function PageNav({ active = 'home' }) {
             </div>
 
             {navOpen ? (
-              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,24rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
-                <div className="grid gap-2 sm:grid-cols-2">
+              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,22rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
+                <div className="grid gap-2">
                   {links.map((link) => (
-                    <Link key={link.key} to={link.to} onClick={closeSwitchers} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
-                      <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-[10px] font-black tracking-[0.12em] ${active === link.key ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{link.icon}</span>
-                      <span>{link.label}</span>
+                    <Link key={link.key} to={link.to} onClick={closeSwitchers} className={`rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
+                      {link.label}
                     </Link>
                   ))}
                 </div>
@@ -405,10 +403,6 @@ export default function PageNav({ active = 'home' }) {
                     </div>
                   ))}
                   {!groups.length ? <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">Create a group or join an invite from Manage.</p> : null}
-                </div>
-
-                <div className="mt-4 border-t border-white/10 px-2 pt-4 text-sm text-neutral-400">
-                  Looking for public groups and global rankings? <Link to="/explore" onClick={closeSwitchers} className="font-semibold text-white underline decoration-white/30 underline-offset-4">Open Explore</Link>.
                 </div>
               </div>
             ) : null}
