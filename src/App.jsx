@@ -12,17 +12,25 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Leaderboard />} />
+      <Route path="/explore" element={<Leaderboard />} />
+      <Route path="/leaderboard" element={<Leaderboard />} />
+
+      <Route path="/library" element={<Home />} />
       <Route path="/dashboard" element={<Home />} />
+      <Route path="/library/movies" element={<Movies />} />
+      <Route path="/library/series" element={<Series />} />
+      <Route path="/library/games" element={<Games />} />
       <Route path="/movies" element={<Movies />} />
       <Route path="/series" element={<Series />} />
       <Route path="/games" element={<Games />} />
       <Route path="/videos" element={<Videos />} />
       <Route path="/music" element={<Music />} />
+
+      <Route path="/cliques" element={<Groups />} />
+      <Route path="/cliques/:groupId" element={<Groups />} />
       <Route path="/groups" element={<Groups />} />
       <Route path="/g/:groupId" element={<Groups />} />
       <Route path="/invite/:code" element={<Groups inviteMode />} />
-      <Route path="/explore" element={<Leaderboard />} />
-      <Route path="/leaderboard" element={<Leaderboard />} />
     </Routes>
   )
 }
