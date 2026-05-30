@@ -18,6 +18,63 @@ button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.6; }
 #root { min-height: 100vh; }
 
+header.sticky {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.035)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 24px 70px rgba(0, 0, 0, 0.42) !important;
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+}
+
+header.sticky::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.18), transparent 34%);
+  opacity: 0.7;
+}
+
+header.sticky > * {
+  position: relative;
+  z-index: 1;
+}
+
+header.sticky button,
+header.sticky a[aria-label^="CliqueBase"] {
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+
+header.sticky button[class*="bg-white"] {
+  border: 1px solid rgba(255, 255, 255, 0.34) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 12px 35px rgba(255, 255, 255, 0.08) !important;
+}
+
+header.sticky button[class*="bg-white/["],
+header.sticky button[class*="bg-white/"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+header.sticky div[class*="absolute"][class*="top-full"] {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  background: rgba(15, 15, 15, 0.72) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 28px 80px rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(26px) saturate(145%);
+  -webkit-backdrop-filter: blur(26px) saturate(145%);
+}
+
 a[aria-label^="CliqueBase"] > div > svg {
   display: block;
   color: transparent;
