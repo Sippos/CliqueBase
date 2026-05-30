@@ -27,9 +27,9 @@ export default function App() {
       <Route path="/music" element={<Music />} />
 
       <Route path="/cliques" element={<Groups />} />
-      <Route path="/cliques/:groupId" element={<Groups />} />
+      <Route path="/cliques/:groupId" element={<Home />} />
       <Route path="/groups" element={<Groups />} />
-      <Route path="/g/:groupId" element={<Groups />} />
+      <Route path="/g/:groupId" element={<Home />} />
       <Route path="/invite/:code" element={<Groups inviteMode />} />
     </Routes>
   )
