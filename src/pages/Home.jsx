@@ -4,30 +4,6 @@ import PageShell from '../components/PageShell.jsx'
 import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, parseInviteCode } from '../lib/groups.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
 
-const sections = [
-  { title: 'Movies', to: '/movies', code: 'MOV', description: 'Search, submit, vote, and rate movies.' },
-  { title: 'Series', to: '/series', code: 'SER', description: 'Build a watchlist and rate finished shows.' },
-  { title: 'Games', to: '/games', code: 'GAM', description: 'Search the games API and add real suggestions.' },
-  { title: 'Videos', to: '/videos', code: 'VID', description: 'Drop links into a fresh group feed.' },
-  { title: 'Music', to: '/music', code: 'MUS', description: 'Paste song links into a simple feed.' },
-  { title: 'Board', to: '/leaderboard', code: 'BRD', description: 'Explore public groups and global rankings.' },
-]
-
-function StartCard({ section }) {
-  return (
-    <Link to={section.to} className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 transition hover:-translate-y-0.5 hover:bg-white/[0.06]">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-xs font-black tracking-[0.18em] text-neutral-950">{section.code}</div>
-        <div className="min-w-0">
-          <h2 className="text-2xl font-black text-white">{section.title}</h2>
-          <p className="mt-2 text-sm leading-6 text-neutral-400">{section.description}</p>
-          <span className="mt-4 inline-flex rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-neutral-200">Open {section.title}</span>
-        </div>
-      </div>
-    </Link>
-  )
-}
-
 function StatCard({ label, value, detail }) {
   return (
     <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
@@ -35,19 +11,6 @@ function StatCard({ label, value, detail }) {
       <h2 className="mt-2 text-3xl font-black text-white">{value}</h2>
       <p className="mt-1 text-sm text-neutral-400">{detail}</p>
     </div>
-  )
-}
-
-function ContentRow({ item }) {
-  return (
-    <Link to={item.to} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3 transition hover:bg-neutral-800">
-      {item.poster ? <img src={item.poster} alt="" className="h-14 w-10 rounded-lg object-cover" /> : <div className="flex h-14 w-10 items-center justify-center rounded-lg bg-white/[0.06] text-[10px] font-black text-neutral-400">{item.code}</div>}
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-bold text-white">{item.title}</div>
-        <div className="mt-1 text-xs text-neutral-500">{item.type} · score {item.score || 0} · {item.picks || 0} picks</div>
-      </div>
-      {item.rating ? <div className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-neutral-300">★ {Number(item.rating).toFixed(1)}</div> : null}
-    </Link>
   )
 }
 
@@ -89,6 +52,57 @@ function FeaturedPick({ item }) {
   )
 }
 
+function CategoryTopCard({ category, loading }) {
+  const top = category.top
+  const image = top?.backdrop || top?.poster
+
+  return (
+    <article className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03]">
+      <div className="grid min-h-full md:grid-cols-[0.78fr_1fr] lg:grid-cols-1 xl:grid-cols-[0.78fr_1fr]">
+        <Link to={category.to} className="relative min-h-52 overflow-hidden bg-neutral-900">
+          {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+          <span className="absolute left-4 top-4 rounded-2xl bg-white px-3 py-2 text-xs font-black tracking-[0.18em] text-neutral-950">{category.code}</span>
+          {!top ? <span className="absolute bottom-4 left-4 right-4 text-sm font-semibold text-neutral-300">No {category.title.toLowerCase()} yet</span> : null}
+        </Link>
+
+        <div className="flex flex-col p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Top {category.singular}</p>
+              <h3 className="mt-1 text-3xl font-black text-white">{category.title}</h3>
+            </div>
+            <div className="rounded-2xl border border-white/10 px-3 py-2 text-right text-xs text-neutral-400">
+              <strong className="block text-lg text-white">{category.count}</strong>
+              items
+            </div>
+          </div>
+
+          {loading ? (
+            <p className="mt-6 rounded-2xl border border-white/10 p-4 text-sm text-neutral-400">Loading {category.title.toLowerCase()}...</p>
+          ) : top ? (
+            <>
+              <Link to={category.to} className="mt-6 text-2xl font-black leading-tight text-white hover:underline">{top.title}</Link>
+              <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-400">{top.overview || `Leading ${category.singular.toLowerCase()} by score and picks in this context.`}</p>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
+                <span className="rounded-full border border-white/10 px-3 py-1.5">Score {top.score || 0}</span>
+                <span className="rounded-full border border-white/10 px-3 py-1.5">{top.picks || 0} picks</span>
+                {top.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(top.rating).toFixed(1)}</span> : null}
+                <span className="rounded-full border border-white/10 px-3 py-1.5">{category.rated} rated</span>
+              </div>
+            </>
+          ) : (
+            <div className="mt-6 flex flex-1 flex-col justify-between gap-5">
+              <p className="text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} have been submitted here yet. Start this rubric with the first real pick.</p>
+              <Link to={category.to} className="inline-flex w-fit rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Add {category.singular.toLowerCase()}</Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+}
+
 function InviteCard({ inviteDraft, setInviteDraft, inviteError, setInviteError, onSubmit }) {
   return (
     <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
@@ -118,7 +132,7 @@ function normalizeItems(rows, type, code, to) {
     to,
     rating: item.rating || null,
     sortValue: Number(item.score || 0) * 10 + Number(item.picks || 0) + Number(item.rating || 0),
-  }))
+  })).sort((a, b) => b.sortValue - a.sortValue)
 }
 
 export default function Home() {
@@ -142,11 +156,15 @@ export default function Home() {
     return () => window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
   }, [])
 
-  const allItems = useMemo(() => [
-    ...normalizeItems(media.movies, 'Movie', 'MOV', '/movies'),
-    ...normalizeItems(media.series, 'Series', 'SER', '/series'),
-    ...normalizeItems(media.games, 'Game', 'GAM', '/games'),
-  ].sort((a, b) => b.sortValue - a.sortValue), [media])
+  const movieItems = useMemo(() => normalizeItems(media.movies, 'Movie', 'MOV', '/movies'), [media.movies])
+  const seriesItems = useMemo(() => normalizeItems(media.series, 'Series', 'SER', '/series'), [media.series])
+  const gameItems = useMemo(() => normalizeItems(media.games, 'Game', 'GAM', '/games'), [media.games])
+  const allItems = useMemo(() => [...movieItems, ...seriesItems, ...gameItems].sort((a, b) => b.sortValue - a.sortValue), [movieItems, seriesItems, gameItems])
+  const categories = useMemo(() => [
+    { title: 'Movies', singular: 'Movie', code: 'MOV', to: '/movies', top: movieItems[0], count: movieItems.length, rated: movieItems.filter((item) => item.rating).length },
+    { title: 'Series', singular: 'Series', code: 'SER', to: '/series', top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
+    { title: 'Games', singular: 'Game', code: 'GAM', to: '/games', top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
+  ], [movieItems, seriesItems, gameItems])
 
   const featuredItem = allItems[0] || null
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
@@ -249,27 +267,17 @@ export default function Home() {
         <InviteCard inviteDraft={inviteDraft} setInviteDraft={setInviteDraft} inviteError={inviteError} setInviteError={setInviteError} onSubmit={openInvite} />
       ) : null}
 
-      <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_0.8fr]">
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Ranking</p>
-              <h2 className="mt-1 text-3xl font-black text-white">Top picks</h2>
-            </div>
+      <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Best by section</p>
+            <h2 className="mt-1 text-3xl font-black text-white">Category leaders</h2>
           </div>
-          <div className="mt-4 space-y-3">
-            {loading ? <p className="rounded-2xl border border-white/10 p-4 text-neutral-400">Loading dashboard...</p> : allItems.length ? allItems.slice(0, 8).map((item) => <ContentRow key={`${item.type}-${item.id}`} item={item} />) : (
-              <p className="rounded-2xl border border-dashed border-white/15 p-5 text-neutral-400">No picks yet. Add the first movie, series, or game to start building this dashboard.</p>
-            )}
-          </div>
+          <Link to="/leaderboard" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Explore global Board</Link>
         </div>
 
-        <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Explore</p>
-          <h2 className="mt-1 text-3xl font-black text-white">Sections</h2>
-          <div className="mt-4 grid gap-3">
-            {sections.map((section) => <StartCard key={section.title} section={section} />)}
-          </div>
+        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+          {categories.map((category) => <CategoryTopCard key={category.title} category={category} loading={loading} />)}
         </div>
       </section>
     </PageShell>
