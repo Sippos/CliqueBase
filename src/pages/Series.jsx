@@ -271,12 +271,6 @@ export default function Series() {
           </label>
         ) : <button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset local demo</button>}
       >
-        {hasSupabase && canUseLibrary ? (
-          <p className="mt-4 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
-            Current destination: <strong className="text-white">{destinationLabel}</strong>.
-          </p>
-        ) : null}
-
         <form onSubmit={handleSearch} className="mt-4">
           <div className="flex gap-2">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a series..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
