@@ -4,6 +4,12 @@ import PageShell from '../components/PageShell.jsx'
 import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, parseInviteCode, setActiveGroup } from '../lib/groups.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
 
+const TYPE_ICONS = {
+  Movie: '🎬',
+  Series: '📺',
+  Game: '🎮',
+}
+
 function StatCard({ label, value, detail }) {
   return (
     <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
@@ -27,55 +33,40 @@ function normalizeItems(rows, type, code, to) {
 
 function LibraryMiniTile({ item }) {
   const image = item.poster || item.backdrop
+  const icon = TYPE_ICONS[item.type] || '★'
 
   return (
-    <Link to={item.to} className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] p-1.5 text-left text-white transition hover:bg-white hover:text-neutral-950">
-      <div className="h-12 w-9 shrink-0 overflow-hidden rounded-xl bg-neutral-900">
+    <Link to={item.to} className="flex min-w-0 items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.07] p-2.5 text-left text-white transition hover:bg-white hover:text-neutral-950">
+      <div className="h-16 w-12 shrink-0 overflow-hidden rounded-2xl bg-neutral-900">
         {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-white/10" />}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] font-black uppercase tracking-[0.18em] opacity-60">{item.code}</div>
-        <div className="truncate text-xs font-black">{item.title}</div>
+        <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] opacity-65">
+          <span aria-hidden="true">{icon}</span>
+          <span>{item.type}</span>
+        </div>
+        <div className="mt-1 truncate text-sm font-black">{item.title}</div>
       </div>
     </Link>
   )
 }
 
-function LibrarySummaryPanel({ items, categories, loading }) {
+function LibrarySummaryPanel({ items, loading }) {
   const previewItems = items.slice(0, 4)
 
   return (
-    <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">In library</p>
-        <div className="flex flex-wrap gap-1.5">
-          {categories.map((category) => (
-            <span key={category.code} className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-[10px] font-black text-neutral-300">
-              {category.code} {loading ? '…' : category.count}
-            </span>
-          ))}
-        </div>
-      </div>
-
+    <div className="mt-6 rounded-[1.75rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20 sm:p-4">
       {loading ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {[0, 1, 2, 3].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-white/[0.06]" />)}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[0, 1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-[1.35rem] bg-white/[0.06]" />)}
         </div>
       ) : previewItems.length ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {previewItems.map((entry) => <LibraryMiniTile key={`${entry.type}-${entry.id}`} item={entry} />)}
         </div>
       ) : (
-        <p className="mt-3 rounded-2xl border border-dashed border-white/10 p-3 text-sm leading-6 text-neutral-400">No saved picks yet. Start with a movie, series, or game below.</p>
+        <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm leading-6 text-neutral-400">No saved picks yet. Use the add buttons on Movies, Series, or Games to start your library.</p>
       )}
-
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        {categories.map((category) => (
-          <Link key={category.to} to={category.to} className={`${category.code === 'MOV' ? 'bg-white text-neutral-950 hover:bg-neutral-200' : 'border border-white/10 text-white hover:bg-white hover:text-neutral-950'} inline-flex items-center justify-center rounded-2xl px-3 py-2 text-sm font-black transition`}>
-            + {category.singular}
-          </Link>
-        ))}
-      </div>
     </div>
   )
 }
@@ -152,13 +143,17 @@ function CategoryTopCard({ category, loading }) {
 
   return (
     <article className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03]">
-      <Link to={category.to} className="relative block min-h-52 overflow-hidden bg-neutral-900">
+      <div className="relative min-h-52 overflow-hidden bg-neutral-900">
         {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-        <span className="absolute left-4 top-4 rounded-2xl bg-white px-3 py-2 text-xs font-black tracking-[0.18em] text-neutral-950">{category.code}</span>
-        <Link to={category.to} className="absolute right-4 top-4 rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">+ Add</Link>
-        {!top ? <span className="absolute bottom-4 left-4 right-4 text-sm font-semibold text-neutral-300">No {category.title.toLowerCase()} yet</span> : null}
-      </Link>
+        <Link to={category.to} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
+        <span className="absolute left-4 top-4 z-10 inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-black tracking-[0.16em] text-neutral-950">
+          <span aria-hidden="true">{category.icon}</span>
+          {category.title}
+        </span>
+        <Link to={category.to} className="absolute right-4 top-4 z-10 rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">+ Add</Link>
+        {!top ? <span className="absolute bottom-4 left-4 right-4 z-10 text-sm font-semibold text-neutral-300">No {category.title.toLowerCase()} yet</span> : null}
+      </div>
 
       <div className="p-5">
         <div className="flex items-start justify-between gap-3">
@@ -166,12 +161,9 @@ function CategoryTopCard({ category, loading }) {
             <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Top {category.singular}</p>
             <h3 className="mt-1 text-3xl font-black text-white">{category.title}</h3>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="rounded-2xl border border-white/10 px-3 py-2 text-right text-xs text-neutral-400">
-              <strong className="block text-lg text-white">{category.count}</strong>
-              items
-            </div>
-            <Link to={category.to} className="rounded-2xl bg-white px-3 py-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200">Add {category.singular.toLowerCase()}</Link>
+          <div className="rounded-2xl border border-white/10 px-3 py-2 text-right text-xs text-neutral-400">
+            <strong className="block text-lg text-white">{category.count}</strong>
+            items
           </div>
         </div>
 
@@ -244,9 +236,9 @@ export default function Home() {
   const gameItems = useMemo(() => normalizeItems(media.games, 'Game', 'GAM', '/games'), [media.games])
   const allItems = useMemo(() => [...movieItems, ...seriesItems, ...gameItems].sort((a, b) => b.sortValue - a.sortValue), [movieItems, seriesItems, gameItems])
   const categories = useMemo(() => [
-    { title: 'Movies', singular: 'Movie', code: 'MOV', to: '/movies', top: movieItems[0], count: movieItems.length, rated: movieItems.filter((item) => item.rating).length },
-    { title: 'Series', singular: 'Series', code: 'SER', to: '/series', top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
-    { title: 'Games', singular: 'Game', code: 'GAM', to: '/games', top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
+    { title: 'Movies', singular: 'Movie', code: 'MOV', icon: TYPE_ICONS.Movie, to: '/movies', top: movieItems[0], count: movieItems.length, rated: movieItems.filter((item) => item.rating).length },
+    { title: 'Series', singular: 'Series', code: 'SER', icon: TYPE_ICONS.Series, to: '/series', top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
+    { title: 'Games', singular: 'Game', code: 'GAM', icon: TYPE_ICONS.Game, to: '/games', top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
   ], [movieItems, seriesItems, gameItems])
 
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
@@ -305,11 +297,10 @@ export default function Home() {
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
         <div className="grid gap-0 md:grid-cols-[1.05fr_0.95fr]">
           <div className="p-5 sm:p-8">
-            <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">{context.type === 'group' ? 'Clique dashboard' : 'My Library'}</p>
-            <h1 className="mt-3 max-w-3xl text-4xl font-black tracking-tight text-white sm:text-6xl">{context.name}</h1>
+            <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-6xl">{context.name}</h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400 sm:text-lg">{context.type === 'group' ? 'Shared movie, series, and game picks for this clique.' : 'Your private picks before you send them into a clique.'}</p>
             {status === 'signed-out' ? <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join cliques.</p> : null}
-            <LibrarySummaryPanel items={loading ? [] : allItems} categories={categories} loading={loading} />
+            <LibrarySummaryPanel items={loading ? [] : allItems} loading={loading} />
           </div>
           <LibraryShowcase items={loading ? [] : allItems} loading={loading} />
         </div>
