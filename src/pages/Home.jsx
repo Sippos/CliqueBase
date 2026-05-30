@@ -33,43 +33,38 @@ function normalizeItems(rows, type, code, to) {
 }
 
 function LibrarySectionCard({ category, loading }) {
-  const picks = category.items.reduce((sum, item) => sum + Number(item.picks || 0), 0)
   const top = category.top
   const image = top?.backdrop || top?.poster
   const topTitle = top?.title || `No ${category.title.toLowerCase()} yet`
 
   return (
-    <Link to={category.to} className="group relative min-h-[15rem] overflow-hidden rounded-[1.6rem] border border-white/10 bg-neutral-950 text-white transition hover:-translate-y-0.5 hover:border-white/25">
+    <article className="group relative min-h-[15rem] overflow-hidden rounded-[1.6rem] border border-white/10 bg-neutral-950 text-white transition hover:-translate-y-0.5 hover:border-white/25">
       {image ? (
-        <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 transition duration-500 group-hover:scale-105" />
+        <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-74 transition duration-500 group-hover:scale-105" />
       ) : (
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+      <Link to={category.to} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
 
-      <div className="relative flex h-full min-h-[15rem] flex-col justify-between p-4">
+      <div className="relative z-10 flex h-full min-h-[15rem] flex-col justify-between p-4 pointer-events-none">
         <div className="flex items-start justify-between gap-3">
-          <span className="inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-black text-neutral-950">
+          <div className="inline-flex items-center gap-2 text-xs font-black text-white drop-shadow">
             <AppIcon name={category.icon} size={15} strokeWidth={2.4} />
             {category.title}
-          </span>
-          <span className="rounded-2xl border border-white/15 bg-black/50 px-3 py-2 text-right text-xs font-bold text-white backdrop-blur">
-            <strong className="mr-1 text-base leading-none">{loading ? '…' : category.count}</strong>
-            items
-          </span>
+          </div>
+          <Link
+            to={category.to}
+            aria-label={`Open ${category.title}`}
+            className="pointer-events-auto rounded-full bg-black/45 px-3 py-1.5 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"
+          >
+            {loading ? '…' : category.count}
+          </Link>
         </div>
 
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-300">Top {category.singular}</p>
-          <h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{loading ? 'Loading section…' : topTitle}</h3>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-white">
-            <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">{loading ? '…' : category.rated} rated</span>
-            <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">{loading ? '…' : picks} picks</span>
-            <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">Open list</span>
-          </div>
-        </div>
+        <h3 className="line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg">{loading ? 'Loading section…' : topTitle}</h3>
       </div>
-    </Link>
+    </article>
   )
 }
 
