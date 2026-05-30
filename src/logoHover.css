@@ -38,28 +38,28 @@ header.sticky a[aria-label^="CliqueBase"] > div::after {
   left: 1.58rem;
   top: 50%;
   display: block;
-  width: 2.55rem;
-  height: 2.55rem;
+  width: 1.22rem;
+  height: 1.22rem;
   background-image: var(--cb-logo-icon-movies);
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
-  filter: drop-shadow(0 8px 15px rgba(0, 0, 0, 0.42));
+  filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.45));
   opacity: 0;
-  transform: translate(-50%, -50%) scale(0.76) rotate(-10deg);
+  transform: translate(-50%, -50%) scale(0.7) rotate(-8deg);
   transition: opacity 160ms ease, transform 220ms ease;
 }
 
 header.sticky a[aria-label^="CliqueBase"]:hover > div::before,
 header.sticky a[aria-label^="CliqueBase"]:focus-visible > div::before {
   filter: drop-shadow(0 14px 24px rgba(255, 255, 255, 0.13)) drop-shadow(0 18px 34px rgba(0, 0, 0, 0.46));
-  opacity: 0.32;
-  transform: scale(1.06) rotate(-2deg);
+  opacity: 0.82;
+  transform: scale(1.04) rotate(-1deg);
 }
 
 header.sticky a[aria-label^="CliqueBase"]:hover > div::after,
 header.sticky a[aria-label^="CliqueBase"]:focus-visible > div::after {
-  opacity: 1;
+  opacity: 0.95;
   transform: translate(-50%, -50%) scale(1) rotate(0deg);
   animation: cliquebase-logo-icon-cycle 1.85s steps(1, end) infinite;
 }
@@ -86,8 +86,8 @@ header.sticky a[aria-label^="CliqueBase"]:focus-visible > div::after {
 
   header.sticky a[aria-label^="CliqueBase"] > div::after {
     left: 1.72rem;
-    width: 2.9rem;
-    height: 2.9rem;
+    width: 1.35rem;
+    height: 1.35rem;
   }
 }
 
