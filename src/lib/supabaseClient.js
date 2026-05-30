@@ -127,6 +127,17 @@ function moviePayload(movie, nominatedBy = 'anonymous', groupId = null, ownerId 
   return mediaPayload(movie, 'movie_id', nominatedBy, groupId, ownerId)
 }
 
+function watchedMoviePayload(movie, nominatedBy = 'anonymous', ownerId = null, rating = null) {
+  const payload = {
+    ...moviePayload(movie, nominatedBy, null, ownerId),
+    watched: true,
+    updated_at: new Date().toISOString(),
+  }
+
+  if (rating !== null && rating !== undefined) payload.my_rating = rating
+  return payload
+}
+
 function seriesPayload(series, nominatedBy = 'anonymous', groupId = null, ownerId = null) {
   return {
     ...mediaPayload(series, 'series_id', nominatedBy, groupId, ownerId),
@@ -154,6 +165,16 @@ async function getScopeUserId(groupId) {
 function applyScope(query, groupId, ownerId) {
   if (groupId) return query.eq('group_id', groupId)
   return query.is('group_id', null).eq('owner_id', ownerId)
+}
+
+async function upsertPersonalWatchedMovie(client, movie, rating = null, nominatedBy = 'anonymous') {
+  const user = await getCurrentUser()
+  if (!user) throw new Error('Sign in to use your personal library.')
+
+  const payload = watchedMoviePayload(movie, nominatedBy || movie.nominated_by || 'anonymous', user.id, rating)
+  const { data, error } = await client.from('movies').upsert(payload, { onConflict: 'owner_id,movie_id' }).select().single()
+  if (error) throw error
+  return normalizeMovie(data)
 }
 
 export async function getCurrentSession() {
@@ -317,10 +338,16 @@ export async function voteMovie(movie, vote, groupId = null) {
 export async function markMovieWatched(movie, rating = null, groupId = null) {
   const client = requireSupabase()
   const ownerId = await getScopeUserId(groupId)
-  let query = applyScope(client.from('movies').update({ watched: true, my_rating: rating, updated_at: new Date().toISOString() }), groupId, ownerId)
+  const update = { watched: true, updated_at: new Date().toISOString() }
+  if (rating !== null && rating !== undefined) update.my_rating = rating
+
+  let query = applyScope(client.from('movies').update(update), groupId, ownerId)
   const { data, error } = await query.eq('movie_id', String(movie.id)).select().single()
   if (error) throw error
-  return normalizeMovie(data)
+
+  const watchedMovie = normalizeMovie(data)
+  if (groupId) await upsertPersonalWatchedMovie(client, watchedMovie, rating, watchedMovie.nominated_by)
+  return watchedMovie
 }
 
 export async function rateMovie(movie, rating, groupId = null) {
@@ -329,7 +356,10 @@ export async function rateMovie(movie, rating, groupId = null) {
   let query = applyScope(client.from('movies').update({ my_rating: rating, updated_at: new Date().toISOString() }), groupId, ownerId)
   const { data, error } = await query.eq('movie_id', String(movie.id)).select().single()
   if (error) throw error
-  return normalizeMovie(data)
+
+  const ratedMovie = normalizeMovie(data)
+  if (groupId) await upsertPersonalWatchedMovie(client, ratedMovie, rating, ratedMovie.nominated_by)
+  return ratedMovie
 }
 
 export async function getSeries(groupId = null) {
