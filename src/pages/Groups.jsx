@@ -57,46 +57,39 @@ function itemLibraryPayload(item) {
   }
 }
 
-function GroupCard({ group, active, onActivate, onCopy }) {
+function GroupCard({ group, onCopy }) {
   return (
-    <article className={`rounded-[1.6rem] border p-4 transition ${active ? 'border-white bg-white text-neutral-950 shadow-2xl shadow-white/10' : 'border-white/10 bg-white/[0.03] text-white hover:border-white/20 hover:bg-white/[0.045]'}`}>
+    <article className="rounded-[1.6rem] border border-white/10 bg-white/[0.03] p-4 text-white transition hover:border-white/20 hover:bg-white/[0.045]">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className={`text-[10px] font-black uppercase tracking-[0.26em] ${active ? 'text-neutral-500' : 'text-neutral-500'}`}>{group.isPublic ? 'Public clique' : 'Private clique'}</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">{group.isPublic ? 'Public clique' : 'Private clique'}</p>
           <h2 className="mt-1 truncate text-2xl font-black">{group.name}</h2>
-          <p className={`mt-1 text-sm ${active ? 'text-neutral-600' : 'text-neutral-400'}`}>{group.members?.length || 1} members</p>
+          <p className="mt-1 text-sm text-neutral-400">{group.members?.length || 1} members</p>
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => onActivate(group)}
-            className={`inline-flex h-11 items-center gap-2 rounded-2xl px-4 text-sm font-black transition ${active ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950 hover:bg-neutral-200'}`}
-          >
-            <AppIcon name="users" size={16} />
-            {active ? 'Active' : 'Use'}
-          </button>
-          <button
-            type="button"
             onClick={() => onCopy(group)}
             aria-label={`Copy invite for ${group.name}`}
-            className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${active ? 'border-neutral-300 text-neutral-950 hover:bg-neutral-100' : 'border-white/10 text-white hover:bg-white hover:text-neutral-950'}`}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 text-white transition hover:bg-white hover:text-neutral-950"
           >
             <AppIcon name="link" size={17} />
           </button>
           <Link
             to={getGroupOpenPath(group)}
             aria-label={`Open ${group.name}`}
-            className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${active ? 'border-neutral-300 text-neutral-950 hover:bg-neutral-100' : 'border-white/10 text-white hover:bg-white hover:text-neutral-950'}`}
+            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"
           >
             <AppIcon name="explore" size={17} />
+            Open
           </Link>
         </div>
       </div>
 
-      <div className={`mt-4 flex flex-wrap gap-2 rounded-2xl p-3 text-sm ${active ? 'bg-neutral-100 text-neutral-700' : 'bg-neutral-900 text-neutral-300'}`}>
+      <div className="mt-4 flex flex-wrap gap-2 rounded-2xl bg-neutral-900 p-3 text-sm text-neutral-300">
         {group.members?.length ? group.members.map((member) => (
-          <span key={member} className={`rounded-full px-3 py-1 text-xs font-semibold ${active ? 'bg-white text-neutral-700' : 'bg-white/[0.06] text-neutral-300'}`}>{member}</span>
+          <span key={member} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-neutral-300">{member}</span>
         )) : <span>Members appear here after people join.</span>}
       </div>
     </article>
@@ -234,7 +227,7 @@ function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy, onCopy
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Clique overview</p>
           <div className="mt-2 flex flex-wrap items-center gap-3">
-            <h2 className="truncate text-3xl font-black text-white">{group?.name || 'No active clique'}</h2>
+            <h2 className="truncate text-3xl font-black text-white">{group?.name || 'Choose a clique'}</h2>
             {group ? (
               <Link to={getGroupOpenPath(group)} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-200 transition hover:bg-white hover:text-neutral-950">
                 <AppIcon name="explore" size={14} />
@@ -243,7 +236,7 @@ function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy, onCopy
             ) : null}
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">
-            {group ? 'See what this clique has actually picked, voted for, and rated.' : 'Choose a clique below or create one to see its shared picks here.'}
+            {group ? 'See what this clique has actually picked, voted for, and rated.' : 'Open a clique below or create one to see its shared picks here.'}
           </p>
         </div>
 
@@ -314,7 +307,7 @@ function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy, onCopy
           </div>
         ) : (
           <div className="rounded-3xl border border-dashed border-white/10 bg-neutral-950/50 p-5 text-sm leading-6 text-neutral-400">
-            {group ? 'No shared picks in this clique yet. Open Movies, Series, or Games above and add the first pick.' : 'Select a clique below to show its voted movies, series, and games.'}
+            {group ? 'No shared picks in this clique yet. Open Movies, Series, or Games above and add the first pick.' : 'Open a clique below to show its voted movies, series, and games.'}
           </div>
         )}
       </div>
@@ -521,14 +514,6 @@ export default function Groups({ inviteMode = false }) {
     }
   }
 
-  function activate(group) {
-    loadedItemsKeyRef.current = ''
-    setCliqueItems([])
-    const next = setActiveGroup(group.id)
-    setActiveGroupState(next || group)
-    showMessage(`${group.name} is now active.`)
-  }
-
   async function copyInvite(group) {
     const copied = await copyToClipboard(getGroupInviteUrl(group))
     showMessage(copied ? 'Invite link copied.' : `Invite path: ${getGroupInvitePath(group)}`)
@@ -566,9 +551,9 @@ export default function Groups({ inviteMode = false }) {
           {hasSupabase && !session?.user ? (
             <>This invite is ready. Sign in from <strong className="text-white">Profile</strong>, then come back to this link and press Join.</>
           ) : inviteGroup ? (
-            <>Invite found for <strong className="text-white">{inviteGroup.name}</strong>. Press Join to activate it.</>
+            <>Invite found for <strong className="text-white">{inviteGroup.name}</strong>. Press Join to add it to your cliques.</>
           ) : (
-            <>Press Join to accept this invite. The clique will become your active context.</>
+            <>Press Join to accept this invite. The clique will be added to your cliques.</>
           )}
         </section>
       ) : null}
@@ -579,13 +564,13 @@ export default function Groups({ inviteMode = false }) {
         <div className="flex items-end justify-between gap-3 px-1">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Your cliques</p>
-            <h2 className="mt-1 text-2xl font-black text-white">Switch space</h2>
+            <h2 className="mt-1 text-2xl font-black text-white">Joined cliques</h2>
           </div>
           <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{groups.length} total</span>
         </div>
 
         {groups.length ? groups.map((group) => (
-          <GroupCard key={group.id} group={group} active={activeGroup?.id === group.id} onActivate={activate} onCopy={copyInvite} />
+          <GroupCard key={group.id} group={group} onCopy={copyInvite} />
         )) : (
           <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-neutral-400">
             Create your first clique or join a friend’s invite link.
