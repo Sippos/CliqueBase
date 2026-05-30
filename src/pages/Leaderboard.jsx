@@ -23,6 +23,10 @@ function itemKey(item, prefix = '') {
   return `${prefix}${item.groupId || item.groupName || 'global'}-${item.category}-${item.id}`
 }
 
+function getNominator(item) {
+  return item?.nominatedBy || item?.nominated_by || ''
+}
+
 function sortByRank(items = []) {
   return items.slice().sort((a, b) => (
     (Number(a.categoryRank || a.rank || 9999) - Number(b.categoryRank || b.rank || 9999))
@@ -32,8 +36,50 @@ function sortByRank(items = []) {
   ))
 }
 
-function getNominator(item) {
-  return item?.nominatedBy || item?.nominated_by || ''
+function copyPayload(item) {
+  return {
+    ...item,
+    id: String(item.id),
+    nominated_by: getNominator(item) || 'public clique',
+  }
+}
+
+function formatMonthYear(value) {
+  if (!value) return null
+  try {
+    return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short' }).format(new Date(value))
+  } catch {
+    return value
+  }
+}
+
+function detailValue(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).join(', ')
+  if (value === null || value === undefined || value === '') return null
+  return String(value)
+}
+
+function hasMetadata(item) {
+  return Boolean(
+    item?.year || item?.released || item?.genres?.length || item?.runtime || item?.seasons || item?.episodes || item?.platform || item?.platforms?.length || item?.overview || item?.description || item?.tmdbRating || item?.rawgRating
+  )
+}
+
+function mergePublicItem(base, details) {
+  if (!details) return base
+  return {
+    ...base,
+    ...details,
+    id: base.id,
+    category: base.category,
+    groupId: base.groupId,
+    groupName: base.groupName,
+    nominatedBy: getNominator(base),
+    score: base.score,
+    picks: base.picks,
+    rating: base.rating,
+    completed: base.completed,
+  }
 }
 
 function CategoryBadge({ category }) {
@@ -191,20 +237,33 @@ function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy, cla
 }
 
 function FeaturedPickPile({ category, items, flippedKey, saving, onToggle, onInfo, onCopy, onOpenLadder }) {
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [category, items.length])
+
   if (!items.length) return null
 
-  const [topItem] = items
   const meta = getCategoryMeta(category)
-  const topKey = itemKey(topItem, 'featured-')
-  const nextItems = items.slice(1, 3)
+  const safeIndex = ((activeIndex % items.length) + items.length) % items.length
+  const activeItem = items[safeIndex]
+  const activeKey = itemKey(activeItem, 'featured-')
+  const canStep = items.length > 1
+
+  function stepCard(delta) {
+    if (!canStep) return
+    setActiveIndex((current) => ((current + delta) % items.length + items.length) % items.length)
+  }
 
   return (
     <div className="relative pt-3 pr-3">
       <div className="pointer-events-none absolute right-0 top-0 h-[20rem] w-[92%] rounded-[2rem] border border-white/10 bg-white/[0.035] shadow-2xl shadow-black/20" />
       <div className="pointer-events-none absolute right-3 top-3 h-[20rem] w-[94%] rounded-[2rem] border border-white/10 bg-white/[0.045] shadow-2xl shadow-black/20" />
       <FeaturedPickCard
-        item={topItem}
-        flipped={flippedKey === topKey}
+        key={activeKey}
+        item={activeItem}
+        flipped={flippedKey === activeKey}
         saving={saving}
         onToggle={(nextItem) => onToggle(nextItem, 'featured-')}
         onInfo={onInfo}
@@ -213,27 +272,46 @@ function FeaturedPickPile({ category, items, flippedKey, saving, onToggle, onInf
       />
 
       <div className="relative z-20 -mt-2 rounded-[1.5rem] border border-white/10 bg-black/35 p-3 backdrop-blur">
-        <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex min-w-0 items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
-            <AppIcon name={meta.icon} size={14} />
-            {items.length} {meta.plural} ranked
-          </span>
-          <button
-            type="button"
-            onClick={() => onOpenLadder(category)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-neutral-950 transition hover:bg-neutral-200"
-          >
-            Ladder
-            <AppIcon name="explore" size={13} />
-          </button>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 pt-0.5">
+            <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
+              <AppIcon name={meta.icon} size={14} />
+              {items.length} {meta.plural} ranked
+            </span>
+            <p className="mt-2 truncate text-xs text-neutral-500">Showing #{activeItem.categoryRank || activeItem.rank || safeIndex + 1} of {items.length}</p>
+          </div>
+
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <button
+              type="button"
+              onClick={() => onOpenLadder(category)}
+              className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-neutral-950 transition hover:bg-neutral-200"
+            >
+              Ladder
+              <AppIcon name="explore" size={11} />
+            </button>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={() => stepCard(-1)}
+                disabled={!canStep}
+                aria-label={`Show previous ${meta.label.toLowerCase()} pick`}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-base font-black leading-none text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-white/[0.04] disabled:hover:text-white"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => stepCard(1)}
+                disabled={!canStep}
+                aria-label={`Show next ${meta.label.toLowerCase()} pick`}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-base font-black leading-none text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-white/[0.04] disabled:hover:text-white"
+              >
+                ›
+              </button>
+            </div>
+          </div>
         </div>
-        {nextItems.length ? (
-          <p className="mt-2 truncate text-xs text-neutral-500">
-            Next: {nextItems.map((item) => `#${item.categoryRank || item.rank || '—'} ${item.title}`).join(' · ')}
-          </p>
-        ) : (
-          <p className="mt-2 text-xs text-neutral-500">More {meta.plural.toLowerCase()} will appear here as the category grows.</p>
-        )}
       </div>
     </div>
   )
@@ -428,29 +506,6 @@ function GroupSummaryCard({ group, onInfo, onCopy, saving, flippedKey, onToggle 
   )
 }
 
-function copyPayload(item) {
-  return {
-    ...item,
-    id: String(item.id),
-    nominated_by: getNominator(item) || 'public clique',
-  }
-}
-
-function formatMonthYear(value) {
-  if (!value) return null
-  try {
-    return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short' }).format(new Date(value))
-  } catch {
-    return value
-  }
-}
-
-function detailValue(value) {
-  if (Array.isArray(value)) return value.filter(Boolean).join(', ')
-  if (value === null || value === undefined || value === '') return null
-  return String(value)
-}
-
 function DetailRow({ label, value }) {
   const normalized = detailValue(value)
   if (!normalized) return null
@@ -507,29 +562,6 @@ function WatchedLabel({ category }) {
   if (category === 'Series') return 'Finished'
   if (category === 'Games') return 'Played'
   return 'Watched'
-}
-
-function hasMetadata(item) {
-  return Boolean(
-    item?.year || item?.released || item?.genres?.length || item?.runtime || item?.seasons || item?.episodes || item?.platform || item?.platforms?.length || item?.overview || item?.description || item?.tmdbRating || item?.rawgRating
-  )
-}
-
-function mergePublicItem(base, details) {
-  if (!details) return base
-  return {
-    ...base,
-    ...details,
-    id: base.id,
-    category: base.category,
-    groupId: base.groupId,
-    groupName: base.groupName,
-    nominatedBy: getNominator(base),
-    score: base.score,
-    picks: base.picks,
-    rating: base.rating,
-    completed: base.completed,
-  }
 }
 
 function DetailModal({ item, saving, onCopy, onClose }) {
@@ -753,7 +785,7 @@ function ExploreBoard() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Explore</p>
               <h1 className="mt-1 text-3xl font-black text-white">Top public picks</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Best public pick per media type. Open a ladder on any card to see what is ranked second, third, and beyond.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Best public pick per media type. Use the arrows to preview second and third picks, or open the full ladder.</p>
             </div>
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300">
               <AppIcon name="explore" size={15} />
