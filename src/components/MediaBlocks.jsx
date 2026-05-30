@@ -63,7 +63,7 @@ export function ResultRow({ item, onInfo, onAdd, onDone, addLabel = 'Add', doneL
   )
 }
 
-export function TopRankingSection({ eyebrow = 'Group pick', title, items, votes = {}, limit = 6, onInfo, onDone, doneLabel = 'Done', imageClass = 'h-14 w-10' }) {
+export function TopRankingSection({ eyebrow = 'Group pick', title, items, votes = {}, limit = 6, onInfo, onDone, onShare, doneLabel = 'Done', imageClass = 'h-14 w-10' }) {
   const visible = items.slice(0, limit)
 
   return (
@@ -82,7 +82,7 @@ export function TopRankingSection({ eyebrow = 'Group pick', title, items, votes 
             const score = (item.score || 0) + (votes[item.id] === 'like' ? 1 : 0)
 
             return (
-              <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
+              <div key={item.id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">{index + 1}</div>
                 {item.poster ? <button type="button" onClick={() => onInfo?.(item)} className="shrink-0 overflow-hidden rounded-lg"><img src={item.poster} alt="" className={`${imageClass} object-cover transition hover:opacity-80`} /></button> : null}
                 <div className="min-w-0 flex-1">
@@ -90,6 +90,7 @@ export function TopRankingSection({ eyebrow = 'Group pick', title, items, votes 
                   <div className="mt-1 text-xs text-neutral-400">{picks} picks · score {score}</div>
                 </div>
                 <button type="button" onClick={() => onInfo?.(item)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">Details</button>
+                {onShare ? <button type="button" onClick={() => onShare(item)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">Share</button> : null}
                 <button type="button" onClick={() => onDone?.(item)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">{doneLabel}</button>
               </div>
             )
@@ -100,7 +101,7 @@ export function TopRankingSection({ eyebrow = 'Group pick', title, items, votes 
   )
 }
 
-export function RatedHistorySection({ eyebrow, title, countText, emptyLabel, items, ratings = {}, editingRating, onToggleRating, onRate, onInfo, detailsLabel = 'Details', imageClass = 'h-28 w-20', renderPills = null, renderMeta = null }) {
+export function RatedHistorySection({ eyebrow, title, countText, emptyLabel, items, ratings = {}, editingRating, onToggleRating, onRate, onInfo, onShare, detailsLabel = 'Details', imageClass = 'h-28 w-20', renderPills = null, renderMeta = null }) {
   return (
     <section className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
       <div className="mb-4 flex items-end justify-between gap-3">
@@ -139,10 +140,13 @@ export function RatedHistorySection({ eyebrow, title, countText, emptyLabel, ite
                     {renderMeta ? <div className="mt-1 text-xs text-neutral-500">{renderMeta(item)}</div> : null}
                     {renderPills ? <div className="mt-3 flex flex-wrap gap-2">{renderPills(item)}</div> : null}
                     {item.genres?.length ? <div className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-400">{item.genres.join(' · ')}</div> : null}
-                    <button type="button" onClick={() => onInfo?.(item)} className="mt-3 inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">
-                      <span aria-hidden="true">ⓘ</span>
-                      {detailsLabel}
-                    </button>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => onInfo?.(item)} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">
+                        <span aria-hidden="true">ⓘ</span>
+                        {detailsLabel}
+                      </button>
+                      {onShare ? <button type="button" onClick={() => onShare(item)} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+                    </div>
                     {isRatingOpen ? (
                       <div className="mt-3 grid grid-cols-5 gap-1.5">
                         {RATINGS.map((nextRating) => (
