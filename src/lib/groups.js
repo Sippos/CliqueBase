@@ -1,5 +1,12 @@
 export const GROUPS_STORAGE_KEY = 'cliquebase_groups'
 export const ACTIVE_GROUP_STORAGE_KEY = 'cliquebase_active_group'
+export const GROUPS_CHANGED_EVENT = 'cliquebase:groups-changed'
+
+function emitGroupsChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(GROUPS_CHANGED_EVENT))
+  }
+}
 
 function safeParse(value, fallback) {
   try {
@@ -33,7 +40,12 @@ function normalizeGroup(group) {
     createdBy: clean(group?.createdBy) || 'anonymous',
     createdAt: group?.createdAt || new Date().toISOString(),
     members: Array.from(new Set((group?.members || []).map(clean).filter(Boolean))),
+    source: group?.source || 'local',
   }
+}
+
+export function parseInviteCode(value) {
+  return clean(value).replace(/^.*\/invite\//, '').replace(/^.*\/g\//, '').replace(/[?#].*$/, '')
 }
 
 export function getGroups() {
@@ -44,6 +56,7 @@ export function getGroups() {
 export function saveGroups(groups) {
   const normalized = groups.map(normalizeGroup)
   localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify(normalized))
+  emitGroupsChanged()
   return normalized
 }
 
@@ -60,10 +73,12 @@ export function setActiveGroup(groupId) {
   const id = clean(groupId)
   if (!id) {
     localStorage.removeItem(ACTIVE_GROUP_STORAGE_KEY)
+    emitGroupsChanged()
     return null
   }
 
   localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, id)
+  emitGroupsChanged()
   return getGroups().find((group) => group.id === id) || null
 }
 
@@ -79,11 +94,12 @@ export function createGroup(name, createdBy = 'anonymous') {
 
   const groups = saveGroups([group, ...getGroups()])
   localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, group.id)
+  emitGroupsChanged()
   return groups.find((item) => item.id === group.id) || group
 }
 
 export function joinGroup(inviteCode, handle = 'anonymous') {
-  const code = clean(inviteCode)
+  const code = parseInviteCode(inviteCode)
   if (!code) return null
 
   const groups = getGroups()
@@ -97,6 +113,7 @@ export function joinGroup(inviteCode, handle = 'anonymous') {
     nextGroups[existingIndex] = updated
     saveGroups(nextGroups)
     localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, updated.id)
+    emitGroupsChanged()
     return updated
   }
 
@@ -111,6 +128,7 @@ export function joinGroup(inviteCode, handle = 'anonymous') {
 
   saveGroups([joined, ...groups])
   localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, joined.id)
+  emitGroupsChanged()
   return joined
 }
 
