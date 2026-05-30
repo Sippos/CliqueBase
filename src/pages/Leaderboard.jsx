@@ -391,40 +391,40 @@ function GroupStat({ icon, children }) {
 function GroupRubricTile({ summary, onOpenList }) {
   const meta = getCategoryMeta(summary.category)
   const topItem = summary.items[0]
-  const posterItems = summary.items.slice(0, 3)
+  const ratingLabel = topItem?.rating ? ` · Rating ${Number(topItem.rating).toFixed(1)}` : ''
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-3 shadow-xl shadow-black/20 transition hover:border-white/20 hover:bg-white/[0.055]">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-neutral-950/70 text-white">
-          <AppIcon name={meta.icon} size={17} strokeWidth={2.2} />
-        </span>
+    <div className="relative pt-2 pr-2">
+      {summary.count > 1 ? <div className="pointer-events-none absolute right-0 top-0 h-[11rem] w-[94%] rounded-2xl border border-white/10 bg-white/[0.035] shadow-xl shadow-black/20" /> : null}
+      {summary.count > 2 ? <div className="pointer-events-none absolute right-2 top-2 h-[10.25rem] w-[91%] rounded-2xl border border-white/10 bg-white/[0.03] shadow-xl shadow-black/20" /> : null}
+
+      <article className="group relative min-h-[11rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/20">
+        {topItem?.poster ? (
+          <img src={topItem.poster} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-neutral-400">
+            <AppIcon name={meta.icon} size={34} strokeWidth={1.7} />
+          </div>
+        )}
+
+        <div className="absolute left-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-white/15 bg-black/45 text-white shadow-lg shadow-black/30 backdrop-blur-sm">
+          <AppIcon name={meta.icon} size={15} strokeWidth={2.2} />
+        </div>
         <button
           type="button"
           onClick={() => onOpenList(summary)}
           aria-label={`Show all ${meta.plural.toLowerCase()} in this clique`}
-          className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200"
+          className="absolute right-3 top-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-xs font-black text-neutral-950 shadow-lg shadow-black/30 transition hover:bg-neutral-200"
         >
           {summary.count}
         </button>
-      </div>
 
-      <div className="relative mb-3 h-16">
-        {posterItems.length ? posterItems.map((item, index) => (
-          <div key={`${item.id}-${index}`} className="absolute top-0 h-16 w-12 overflow-hidden rounded-xl border border-white/10 bg-neutral-900 shadow-lg shadow-black/20" style={{ left: `${index * 1.55}rem`, zIndex: 10 - index }}>
-            {item.poster ? <img src={item.poster} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-neutral-500"><AppIcon name={meta.icon} size={18} /></div>}
-          </div>
-        )) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-white/10 text-neutral-500"><AppIcon name={meta.icon} size={22} /></div>
-        )}
-      </div>
-
-      <h4 className="text-base font-black text-white">{meta.plural}</h4>
-      <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-neutral-400">{topItem ? `#1 ${topItem.title}` : 'No picks yet'}</p>
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <span className="rounded-full border border-white/10 bg-neutral-950/45 px-2 py-1 text-[10px] font-bold text-neutral-300">Score {summary.score || 0}</span>
-        {topItem?.rating ? <span className="rounded-full border border-white/10 bg-neutral-950/45 px-2 py-1 text-[10px] font-bold text-neutral-300">Top rating {Number(topItem.rating).toFixed(1)}</span> : null}
-      </div>
+        <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-black/45 p-2 shadow-lg shadow-black/30 backdrop-blur-sm">
+          <h4 className="text-base font-black leading-tight text-white">{meta.plural}</h4>
+          <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-neutral-300">{topItem ? `#1 ${topItem.title}` : 'No picks yet'}</p>
+          <p className="mt-1 text-[10px] font-bold text-neutral-400">Score {summary.score || 0}{ratingLabel}</p>
+        </div>
+      </article>
     </div>
   )
 }
