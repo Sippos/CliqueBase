@@ -30,7 +30,7 @@ import {
 } from '../lib/supabaseClient.js'
 
 const links = [
-  { key: 'home', to: '/', label: 'Dashboard', icon: 'dashboard' },
+  { key: 'home', to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'movies', to: '/movies', label: 'Movies', icon: 'movies' },
   { key: 'series', to: '/series', label: 'Series', icon: 'series' },
   { key: 'games', to: '/games', label: 'Games', icon: 'games' },
@@ -344,7 +344,7 @@ export default function PageNav({ active = 'home' }) {
     <>
       <header className="relative z-40 mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur sm:px-4">
         <div className="grid gap-3 md:grid-cols-[auto_1fr_auto] md:items-center">
-          <Link to="/" aria-label="CliqueBase home" className="min-w-0 rounded-[1.4rem] px-2 py-1 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-white/30" onClick={closeSwitchers}>
+          <Link to="/" aria-label="CliqueBase global Explore" className="min-w-0 rounded-[1.4rem] px-2 py-1 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-white/30" onClick={closeSwitchers}>
             <LogoMark />
           </Link>
 
