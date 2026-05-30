@@ -12,13 +12,13 @@ const MOVIES_SCOPE_STORAGE_KEY = 'cliquebase_movies_scope'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
-  if (state === 'signed-out') return 'Sign in from Profile to build your personal movie library and save picks to groups.'
+  if (state === 'signed-out') return 'Sign in from Profile to build your personal movie library and save picks to cliques.'
   return null
 }
 
 function scopeLabel(scope, groups) {
   if (scope === 'personal') return 'Personal library'
-  return groups.find((group) => group.id === scope)?.name || 'Selected group'
+  return groups.find((group) => group.id === scope)?.name || 'Selected clique'
 }
 
 function getInitialScope() {
@@ -47,7 +47,8 @@ export default function Movies() {
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
   const canUseLibrary = !hasSupabase || setupState === 'ready'
-  const selectedGroupId = selectedScope === 'personal' ? null : selectedScope
+  const isPersonalScope = selectedScope === 'personal'
+  const selectedGroupId = isPersonalScope ? null : selectedScope
   const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => movies.filter((movie) => !votes[movie.id] && !watched.includes(movie.id)), [movies, votes, watched])
@@ -289,13 +290,13 @@ export default function Movies() {
   return (
     <PageShell active="movies">
       <PageHero
-        eyebrow="Movie night"
-        title="Pick what to watch"
-        description="Search movies, save them to your personal library or a group, vote through the pile, and keep a watched ranking with ratings."
+        eyebrow={isPersonalScope ? 'My Library' : 'Clique picks'}
+        title={isPersonalScope ? 'Your watched movies' : 'Pick what to watch'}
+        description={isPersonalScope ? 'Search movies, mark the ones you watched, and keep your personal ratings here. Swipe voting stays inside cliques.' : 'Search movies, save them to this clique, vote through the pile, and keep a shared watch ranking.'}
         warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your picks under one name.' : null)}
         actions={hasSupabase ? (
           <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
-            Save to
+            Library space
             <select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value)} disabled={!canUseLibrary} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-semibold normal-case tracking-normal text-white outline-none disabled:opacity-50">
               <option value="personal">Personal library</option>
               {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
@@ -315,24 +316,28 @@ export default function Movies() {
       <StatusMessage message={message} />
 
       {hasResults ? (
-        <SearchResultsSection onClear={clearSearch}>
+        <SearchResultsSection clearLabel={isPersonalScope ? 'Back to watched movies' : 'Back to clique picks'} onClear={clearSearch}>
           <div className="space-y-2">
-            {results.map((movie) => <ResultRow key={movie.id} item={movie} onInfo={openMovieInfo} onAdd={addMovie} onDone={markWatched} doneLabel="Watched" />)}
+            {results.map((movie) => <ResultRow key={movie.id} item={movie} onInfo={openMovieInfo} onAdd={addMovie} addLabel={isPersonalScope ? 'Add' : 'Add pick'} onDone={markWatched} doneLabel="Watched" />)}
           </div>
         </SearchResultsSection>
       ) : null}
 
-      <section ref={deckRef} className="mb-8">
-        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="movies" emptyLabel={canUseLibrary ? 'No movies here yet. Search and add your first pick.' : 'Sign in to start your movie library.'} likeLabel="Watch" dislikeLabel="Pass" infoType="movie" loadDetails={getMovieDetails} />
-      </section>
+      {!isPersonalScope ? (
+        <>
+          <section ref={deckRef} className="mb-8">
+            <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="movies" emptyLabel={canUseLibrary ? 'No movies here yet. Search and add your first pick.' : 'Sign in to start your movie library.'} likeLabel="Watch" dislikeLabel="Pass" infoType="movie" loadDetails={getMovieDetails} />
+          </section>
 
-      <TopRankingSection title="Next movies" items={ranking} votes={votes} onInfo={openMovieInfo} onDone={markWatched} doneLabel="Watched" />
+          <TopRankingSection title="Next movies" items={ranking} votes={votes} onInfo={openMovieInfo} onDone={markWatched} doneLabel="Watched" />
+        </>
+      ) : null}
 
       <RatedHistorySection
-        eyebrow="After watching"
-        title="Watched ranking"
+        eyebrow={isPersonalScope ? 'Personal history' : 'After watching'}
+        title={isPersonalScope ? 'Watched movies' : 'Watched ranking'}
         countText={`${watchedMovies.length} watched`}
-        emptyLabel="No watched movies yet."
+        emptyLabel="No watched movies yet. Search a movie and mark it watched to start your library."
         items={watchedMovies}
         ratings={ratings}
         editingRating={editingRating}
