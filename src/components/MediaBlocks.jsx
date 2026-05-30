@@ -13,6 +13,14 @@ export function displayYear(value) {
   return year || ''
 }
 
+function inferShareType(...values) {
+  const text = values.filter(Boolean).join(' ').toLowerCase()
+  if (text.includes('movie')) return 'movie'
+  if (text.includes('series') || text.includes('binge')) return 'series'
+  if (text.includes('game') || text.includes('play')) return 'game'
+  return ''
+}
+
 export function PageHero({ eyebrow, title, description, warning, actions = null, children }) {
   return (
     <section className="mb-5 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20 sm:rounded-[1.75rem] md:p-5">
@@ -69,7 +77,8 @@ export function ResultRow({ item, onInfo, onAdd, onDone, addLabel = 'Add', doneL
 export function TopRankingSection({ eyebrow = '', title, items, votes = {}, limit = 6, onInfo, onDone, onShare, shareType = '', onShareMessage, doneLabel = 'Done', imageClass = 'h-14 w-10' }) {
   const [sharingItem, setSharingItem] = useState(null)
   const visible = items.slice(0, limit)
-  const canShare = Boolean(onShare || shareType)
+  const inferredShareType = shareType || inferShareType(eyebrow, title, doneLabel)
+  const canShare = Boolean(onShare || inferredShareType)
 
   function handleShare(item) {
     if (onShare) onShare(item)
@@ -109,14 +118,15 @@ export function TopRankingSection({ eyebrow = '', title, items, votes = {}, limi
           </div>
         )}
       </section>
-      <MemberShareModal item={sharingItem} type={shareType} onClose={() => setSharingItem(null)} onMessage={onShareMessage} />
+      <MemberShareModal item={sharingItem} type={inferredShareType} onClose={() => setSharingItem(null)} onMessage={onShareMessage} />
     </>
   )
 }
 
 export function RatedHistorySection({ eyebrow, title, countText, emptyLabel, items, ratings = {}, editingRating, onToggleRating, onRate, onInfo, onShare, shareType = '', onShareMessage, detailsLabel = 'Details', imageClass = 'h-28 w-20', renderPills = null, renderMeta = null }) {
   const [sharingItem, setSharingItem] = useState(null)
-  const canShare = Boolean(onShare || shareType)
+  const inferredShareType = shareType || inferShareType(eyebrow, title, detailsLabel)
+  const canShare = Boolean(onShare || inferredShareType)
 
   function handleShare(item) {
     if (onShare) onShare(item)
@@ -184,7 +194,7 @@ export function RatedHistorySection({ eyebrow, title, countText, emptyLabel, ite
           </div>
         )}
       </section>
-      <MemberShareModal item={sharingItem} type={shareType} onClose={() => setSharingItem(null)} onMessage={onShareMessage} />
+      <MemberShareModal item={sharingItem} type={inferredShareType} onClose={() => setSharingItem(null)} onMessage={onShareMessage} />
     </>
   )
 }
