@@ -75,6 +75,7 @@ export default function PageNav({ active = 'home' }) {
   const [groupDraft, setGroupDraft] = useState('')
   const [inviteDraft, setInviteDraft] = useState('')
   const [savedMessage, setSavedMessage] = useState('')
+  const [authNotice, setAuthNotice] = useState(null)
   const [authMode, setAuthMode] = useState('sign-in')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
@@ -99,6 +100,7 @@ export default function PageNav({ active = 'home' }) {
         setSession(nextSession)
 
         if (nextSession?.user) {
+          setAuthNotice(null)
           const profile = await getProfile().catch(() => null)
           const displayName = getSessionName(nextSession, profile, saved)
           if (displayName) {
@@ -240,6 +242,7 @@ export default function PageNav({ active = 'home' }) {
 
   async function handleAuthSubmit(event) {
     event.preventDefault()
+    setAuthNotice(null)
 
     if (!authEmail.trim() || !authPassword) {
       flash('Add an email and password first.')
@@ -253,14 +256,24 @@ export default function PageNav({ active = 'home' }) {
 
     setAuthLoading(true)
     try {
-      const displayName = (draft || handle || authEmail.split('@')[0]).trim()
+      const email = authEmail.trim()
+      const displayName = (draft || handle || email.split('@')[0]).trim()
       if (authMode === 'sign-up') {
-        const result = await signUpWithEmail(authEmail, authPassword, displayName)
+        const result = await signUpWithEmail(email, authPassword, displayName)
         saveSharedHandle(displayName)
         setHandle(displayName)
-        flash(result.session ? 'Account created and signed in.' : 'Account created. Check your email to confirm, then sign in.')
+        if (result.session) {
+          flash('Account created and signed in.')
+        } else {
+          setAuthNotice({
+            title: 'Confirm your email',
+            text: `We sent a confirmation link to ${email}. Open the email, confirm your account, then come back here and sign in.`,
+          })
+          flash('Check your email to finish creating the account.')
+        }
       } else {
-        await signInWithEmail(authEmail, authPassword)
+        await signInWithEmail(email, authPassword)
+        setAuthNotice(null)
         flash('Signed in.')
       }
 
@@ -278,7 +291,7 @@ export default function PageNav({ active = 'home' }) {
       await signOut()
       setSession(null)
       await refreshGroups()
-      flash('Signed out. Local demo groups are still available.')
+      flash('Signed out.')
     } catch (error) {
       flash(error.message || 'Could not sign out.')
     }
@@ -326,7 +339,7 @@ export default function PageNav({ active = 'home' }) {
             <button type="button" onClick={() => { setMenuOpen(false); refreshGroups(); setEditing(true) }} className="mt-5 flex w-full items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-left transition hover:bg-white hover:text-neutral-950">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-lg text-neutral-950">👤</span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-bold text-white group-hover:text-neutral-950">{handle || session?.user?.email || 'Profile'}</span>
+                <span className="block truncate text-sm font-bold text-white">{handle || session?.user?.email || 'Profile'}</span>
                 <span className="block truncate text-xs text-neutral-500">{activeGroup ? activeGroup.name : 'Open profile, account, and groups'}</span>
               </span>
               <span className="text-neutral-500">›</span>
@@ -370,11 +383,18 @@ export default function PageNav({ active = 'home' }) {
 
               {hasSupabase && session?.user ? <p className="mt-4 rounded-2xl bg-neutral-900 p-3 text-sm text-neutral-300">{session.user.email}</p> : null}
 
+              {authNotice ? (
+                <div className="mt-4 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-4 text-sm text-yellow-100">
+                  <div className="font-bold">{authNotice.title}</div>
+                  <p className="mt-1 leading-6 text-yellow-100/90">{authNotice.text}</p>
+                </div>
+              ) : null}
+
               {hasSupabase && !session?.user ? (
                 <form onSubmit={handleAuthSubmit} className="mt-4 grid gap-3">
                   <div className="flex rounded-2xl border border-white/10 bg-neutral-900 p-1">
-                    <button type="button" onClick={() => setAuthMode('sign-in')} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button>
-                    <button type="button" onClick={() => setAuthMode('sign-up')} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button>
+                    <button type="button" onClick={() => { setAuthMode('sign-in'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button>
+                    <button type="button" onClick={() => { setAuthMode('sign-up'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button>
                   </div>
 
                   {authMode === 'sign-up' ? (
@@ -414,7 +434,7 @@ export default function PageNav({ active = 'home' }) {
                 <div>
                   <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Active group</div>
                   <h3 className="mt-1 text-xl font-bold text-white">{activeGroup?.name || 'No group selected'}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">Votes and saved content use this group context.</p>
+                  <p className="mt-1 text-sm text-neutral-400">Votes and saved content can use this group context.</p>
                 </div>
                 {activeGroup ? <button type="button" onClick={() => copyInvite(activeGroup)} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Copy invite</button> : null}
               </div>
