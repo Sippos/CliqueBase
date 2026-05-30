@@ -392,60 +392,51 @@ function GroupStat({ icon, children }) {
   )
 }
 
-function GroupMiniTile({ item, flipped, saving, onToggle, onInfo, onCopy }) {
-  const meta = getCategoryMeta(item?.category)
-
-  function handleKeyDown(event) {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      onToggle(item)
-    }
-  }
+function GroupRubricTile({ summary }) {
+  const meta = getCategoryMeta(summary.category)
+  const topItem = summary.items[0]
+  const nextItem = summary.items[1]
+  const hasStack = summary.count > 1
 
   return (
-    <div
-      tabIndex={0}
-      role="button"
-      aria-pressed={flipped}
-      aria-label={`${flipped ? 'Hide actions for' : 'Show actions for'} ${item.title}`}
-      onClick={() => onToggle(item)}
-      onKeyDown={handleKeyDown}
-      className="min-w-[9rem] snap-start outline-none sm:min-w-[10rem]"
-      style={{ perspective: '800px' }}
-    >
-      <div
-        className="relative min-h-[10.5rem] rounded-2xl transition-transform duration-500 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white/50"
-        style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-      >
-        <div className="absolute inset-0 overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/70" style={{ backfaceVisibility: 'hidden' }}>
-          <div className="relative h-24 overflow-hidden bg-neutral-900">
-            {item?.poster ? (
-              <img src={item.poster} alt="" className="h-full w-full object-cover opacity-90" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-neutral-300">
-                <AppIcon name={meta.icon} size={28} strokeWidth={1.7} />
-              </div>
-            )}
-            <span className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white backdrop-blur">
-              <AppIcon name={meta.icon} size={14} strokeWidth={2.2} />
-            </span>
-            <InfoButton item={item} onInfo={onInfo} className="absolute right-2 top-2 h-7 w-7" />
-          </div>
-          <div className="p-2">
-            <p className="line-clamp-2 text-xs font-black leading-tight text-white">{item.title}</p>
-            <p className="mt-1 text-[11px] font-semibold text-neutral-500">Score {item.score || 0}</p>
-          </div>
+    <div className="relative min-h-[8.5rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/70 p-3 shadow-xl shadow-black/20">
+      {hasStack ? <div className="pointer-events-none absolute right-2 top-2 h-[78%] w-[78%] rounded-2xl border border-white/10 bg-white/[0.04]" /> : null}
+      {summary.count > 2 ? <div className="pointer-events-none absolute right-4 top-4 h-[70%] w-[70%] rounded-2xl border border-white/10 bg-white/[0.035]" /> : null}
+      {topItem?.poster ? <img src={topItem.poster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" /> : null}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/15" />
+
+      <div className="relative z-10 flex h-full min-h-[7rem] flex-col justify-between">
+        <div className="flex items-start justify-between gap-2">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/15 bg-black/55 text-white backdrop-blur">
+            <AppIcon name={meta.icon} size={17} strokeWidth={2.2} />
+          </span>
+          <span className="rounded-full border border-white/15 bg-black/55 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white backdrop-blur">{summary.count}</span>
         </div>
 
-        <FlipBack item={item} compact saving={saving} onCopy={onCopy} onInfo={onInfo} />
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-400">Rubric</p>
+          <h4 className="mt-0.5 text-base font-black text-white">{meta.plural}</h4>
+          <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-neutral-400">{topItem ? `Top: ${topItem.title}` : 'No picks yet'}</p>
+          {nextItem ? <p className="mt-0.5 line-clamp-1 text-[10px] text-neutral-600">Next: {nextItem.title}</p> : null}
+        </div>
       </div>
     </div>
   )
 }
 
-function GroupSummaryCard({ group, onInfo, onCopy, saving, flippedKey, onToggle }) {
+function GroupSummaryCard({ group }) {
   const allItems = group.publicItems || group.topItems || []
-  const displayItems = sortByRank(allItems).slice(0, 8)
+  const rubrics = featuredCategories
+    .map((category) => {
+      const items = sortByRank(allItems.filter((item) => item.category === category))
+      return {
+        category,
+        items,
+        count: items.length,
+        score: items.reduce((sum, item) => sum + Number(item.score || 0), 0),
+      }
+    })
+    .filter((summary) => summary.count > 0)
   const groupPath = getGroupOpenPath(group)
 
   return (
@@ -471,30 +462,16 @@ function GroupSummaryCard({ group, onInfo, onCopy, saving, flippedKey, onToggle 
         <div className="mb-3 flex items-center justify-between gap-3">
           <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">
             <AppIcon name="explore" size={13} />
-            Top picks
+            Rubrics
           </span>
-          <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black text-neutral-500">{allItems.length} in ladder</span>
+          <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black text-neutral-500">{rubrics.length} active</span>
         </div>
-        {displayItems.length ? (
-          <div className="flex snap-x gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
-            {displayItems.map((item) => {
-              const enrichedItem = { ...item, groupId: group.id, groupName: group.name }
-              const flipKey = itemKey(enrichedItem, 'mini-')
-              return (
-                <GroupMiniTile
-                  key={flipKey}
-                  item={enrichedItem}
-                  flipped={flippedKey === flipKey}
-                  saving={saving}
-                  onToggle={(nextItem) => onToggle(nextItem, 'mini-')}
-                  onInfo={onInfo}
-                  onCopy={onCopy}
-                />
-              )
-            })}
+        {rubrics.length ? (
+          <div className="grid gap-2 sm:grid-cols-3">
+            {rubrics.map((summary) => <GroupRubricTile key={summary.category} summary={summary} />)}
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/50 p-4 text-sm text-neutral-500">No public picks in this clique yet.</div>
+          <div className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/50 p-4 text-sm text-neutral-500">No public rubrics in this clique yet.</div>
         )}
       </div>
 
@@ -816,21 +793,13 @@ function ExploreBoard() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Public discovery</p>
               <h2 className="mt-1 text-3xl font-black text-white">Top Cliques</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Open a public clique to continue from the preview into its full shared ladder.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Open a public clique to continue from the rubric preview into its full shared ladder.</p>
             </div>
             <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300">{groups.length} public</span>
           </div>
           <div className="grid gap-4 xl:grid-cols-2">
             {groups.slice(0, 10).map((group) => (
-              <GroupSummaryCard
-                key={group.id}
-                group={group}
-                onInfo={setSelectedItem}
-                onCopy={copyToLibrary}
-                saving={savingItem}
-                flippedKey={flippedKey}
-                onToggle={toggleTile}
-              />
+              <GroupSummaryCard key={group.id} group={group} />
             ))}
           </div>
         </section>
