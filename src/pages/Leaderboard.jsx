@@ -217,15 +217,8 @@ function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy, cla
               <CategoryBadge category={item.category} />
             </div>
             <InfoButton item={item} onInfo={onInfo} className="absolute right-4 top-4" />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/75 to-transparent p-5">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/65 to-transparent p-5">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-300">#{displayRank} {rankLabel}</p>
-              <h3 className="mt-2 line-clamp-2 text-3xl font-black leading-tight text-white">{item.title}</h3>
-              <p className="mt-1 truncate text-sm text-neutral-300">{item.groupName || 'Public clique'}{getNominator(item) ? ` · Added by ${getNominator(item)}` : ''}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <MetricPill>Score {item.score || 0}</MetricPill>
-                <MetricPill>{item.picks || 0} picks</MetricPill>
-                {item.rating ? <MetricPill>Rating {Number(item.rating).toFixed(1)}</MetricPill> : null}
-              </div>
             </div>
           </div>
         </div>
@@ -250,6 +243,7 @@ function FeaturedPickPile({ category, items, flippedKey, saving, onToggle, onInf
   const activeItem = items[safeIndex]
   const activeKey = itemKey(activeItem, 'featured-')
   const canStep = items.length > 1
+  const displayRank = activeItem.categoryRank || activeItem.rank || safeIndex + 1
 
   function stepCard(delta) {
     if (!canStep) return
@@ -273,12 +267,14 @@ function FeaturedPickPile({ category, items, flippedKey, saving, onToggle, onInf
 
       <div className="relative z-20 -mt-2 rounded-[1.5rem] border border-white/10 bg-black/35 p-3 backdrop-blur">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 pt-0.5">
-            <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
-              <AppIcon name={meta.icon} size={14} />
-              {items.length} {meta.plural} ranked
-            </span>
-            <p className="mt-2 truncate text-xs text-neutral-500">Showing #{activeItem.categoryRank || activeItem.rank || safeIndex + 1} of {items.length}</p>
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-black leading-tight text-white">{activeItem.title}</h3>
+            <p className="mt-1 truncate text-xs text-neutral-500">Rank #{displayRank} of {items.length} · {activeItem.groupName || 'Public clique'}{getNominator(activeItem) ? ` · ${getNominator(activeItem)}` : ''}</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <MetricPill>Score {activeItem.score || 0}</MetricPill>
+              <MetricPill>{activeItem.picks || 0} picks</MetricPill>
+              {activeItem.rating ? <MetricPill>Rating {Number(activeItem.rating).toFixed(1)}</MetricPill> : null}
+            </div>
           </div>
 
           <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -317,7 +313,7 @@ function FeaturedPickPile({ category, items, flippedKey, saving, onToggle, onInf
   )
 }
 
-function CategoryLadderModal({ category, items, saving, onInfo, onCopy, onClose }) {
+function CategoryLadderModal({ category, items = [], title, subtitle, saving, onInfo, onCopy, onClose }) {
   if (!category) return null
 
   const meta = getCategoryMeta(category)
@@ -328,8 +324,8 @@ function CategoryLadderModal({ category, items, saving, onInfo, onCopy, onClose 
         <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.26em] text-neutral-500">Public ladder</p>
-            <h2 className="mt-1 text-3xl font-black text-white">Top {meta.plural}</h2>
-            <p className="mt-2 text-sm text-neutral-400">Browse the full ranked category without replacing the main Explore overview.</p>
+            <h2 className="mt-1 text-3xl font-black text-white">{title || `Top ${meta.plural}`}</h2>
+            <p className="mt-2 text-sm text-neutral-400">{subtitle || 'Browse the full ranked category without replacing the main Explore overview.'}</p>
           </div>
           <button type="button" onClick={onClose} className="text-2xl text-neutral-400 transition hover:text-white">×</button>
         </div>
@@ -392,43 +388,52 @@ function GroupStat({ icon, children }) {
   )
 }
 
-function GroupRubricTile({ summary }) {
+function GroupRubricTile({ summary, onOpenList }) {
   const meta = getCategoryMeta(summary.category)
   const topItem = summary.items[0]
-  const nextItem = summary.items[1]
-  const hasStack = summary.count > 1
+  const posterItems = summary.items.slice(0, 3)
 
   return (
-    <div className="relative min-h-[8.5rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/70 p-3 shadow-xl shadow-black/20">
-      {hasStack ? <div className="pointer-events-none absolute right-2 top-2 h-[78%] w-[78%] rounded-2xl border border-white/10 bg-white/[0.04]" /> : null}
-      {summary.count > 2 ? <div className="pointer-events-none absolute right-4 top-4 h-[70%] w-[70%] rounded-2xl border border-white/10 bg-white/[0.035]" /> : null}
-      {topItem?.poster ? <img src={topItem.poster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" /> : null}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/15" />
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] p-3 shadow-xl shadow-black/20 transition hover:border-white/20 hover:bg-white/[0.055]">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 bg-neutral-950/70 text-white">
+          <AppIcon name={meta.icon} size={17} strokeWidth={2.2} />
+        </span>
+        <button
+          type="button"
+          onClick={() => onOpenList(summary)}
+          aria-label={`Show all ${meta.plural.toLowerCase()} in this clique`}
+          className="inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200"
+        >
+          {summary.count}
+        </button>
+      </div>
 
-      <div className="relative z-10 flex h-full min-h-[7rem] flex-col justify-between">
-        <div className="flex items-start justify-between gap-2">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/15 bg-black/55 text-white backdrop-blur">
-            <AppIcon name={meta.icon} size={17} strokeWidth={2.2} />
-          </span>
-          <span className="rounded-full border border-white/15 bg-black/55 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white backdrop-blur">{summary.count}</span>
-        </div>
+      <div className="relative mb-3 h-16">
+        {posterItems.length ? posterItems.map((item, index) => (
+          <div key={`${item.id}-${index}`} className="absolute top-0 h-16 w-12 overflow-hidden rounded-xl border border-white/10 bg-neutral-900 shadow-lg shadow-black/20" style={{ left: `${index * 1.55}rem`, zIndex: 10 - index }}>
+            {item.poster ? <img src={item.poster} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-neutral-500"><AppIcon name={meta.icon} size={18} /></div>}
+          </div>
+        )) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-white/10 text-neutral-500"><AppIcon name={meta.icon} size={22} /></div>
+        )}
+      </div>
 
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-400">Rubric</p>
-          <h4 className="mt-0.5 text-base font-black text-white">{meta.plural}</h4>
-          <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-neutral-400">{topItem ? `Top: ${topItem.title}` : 'No picks yet'}</p>
-          {nextItem ? <p className="mt-0.5 line-clamp-1 text-[10px] text-neutral-600">Next: {nextItem.title}</p> : null}
-        </div>
+      <h4 className="text-base font-black text-white">{meta.plural}</h4>
+      <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-neutral-400">{topItem ? `#1 ${topItem.title}` : 'No picks yet'}</p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <span className="rounded-full border border-white/10 bg-neutral-950/45 px-2 py-1 text-[10px] font-bold text-neutral-300">Score {summary.score || 0}</span>
+        {topItem?.rating ? <span className="rounded-full border border-white/10 bg-neutral-950/45 px-2 py-1 text-[10px] font-bold text-neutral-300">Top rating {Number(topItem.rating).toFixed(1)}</span> : null}
       </div>
     </div>
   )
 }
 
-function GroupSummaryCard({ group }) {
+function GroupSummaryCard({ group, onOpenRubric }) {
   const allItems = group.publicItems || group.topItems || []
   const rubrics = featuredCategories
     .map((category) => {
-      const items = sortByRank(allItems.filter((item) => item.category === category))
+      const items = sortByRank(allItems.filter((item) => item.category === category)).map((item, index) => ({ ...item, categoryRank: index + 1, groupId: group.id, groupName: group.name }))
       return {
         category,
         items,
@@ -468,7 +473,7 @@ function GroupSummaryCard({ group }) {
         </div>
         {rubrics.length ? (
           <div className="grid gap-2 sm:grid-cols-3">
-            {rubrics.map((summary) => <GroupRubricTile key={summary.category} summary={summary} />)}
+            {rubrics.map((summary) => <GroupRubricTile key={summary.category} summary={summary} onOpenList={(nextSummary) => onOpenRubric(group, nextSummary)} />)}
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/50 p-4 text-sm text-neutral-500">No public rubrics in this clique yet.</div>
@@ -746,7 +751,28 @@ function ExploreBoard() {
       return { category, items }
     })
     .filter((pile) => pile.items.length), [topContent])
-  const activeLadderItems = useMemo(() => categoryPiles.find((pile) => pile.category === activeLadder)?.items || [], [activeLadder, categoryPiles])
+
+  function openCategoryLadder(category) {
+    const pile = categoryPiles.find((entry) => entry.category === category)
+    const meta = getCategoryMeta(category)
+    if (!pile) return
+    setActiveLadder({
+      category,
+      items: pile.items,
+      title: `Top ${meta.plural}`,
+      subtitle: `Full public ${meta.plural.toLowerCase()} ladder.`,
+    })
+  }
+
+  function openGroupRubric(group, summary) {
+    const meta = getCategoryMeta(summary.category)
+    setActiveLadder({
+      category: summary.category,
+      items: summary.items,
+      title: `${group.name} · ${meta.plural}`,
+      subtitle: `All ${meta.plural.toLowerCase()} ranked inside this public clique.`,
+    })
+  }
 
   if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading Explore...</div>
   if (message && !topContent.length && !groups.length) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
@@ -780,7 +806,7 @@ function ExploreBoard() {
                 onToggle={toggleTile}
                 onInfo={setSelectedItem}
                 onCopy={copyToLibrary}
-                onOpenLadder={setActiveLadder}
+                onOpenLadder={openCategoryLadder}
               />
             ))}
           </div>
@@ -799,15 +825,17 @@ function ExploreBoard() {
           </div>
           <div className="grid gap-4 xl:grid-cols-2">
             {groups.slice(0, 10).map((group) => (
-              <GroupSummaryCard key={group.id} group={group} />
+              <GroupSummaryCard key={group.id} group={group} onOpenRubric={openGroupRubric} />
             ))}
           </div>
         </section>
       ) : null}
 
       <CategoryLadderModal
-        category={activeLadder}
-        items={activeLadderItems}
+        category={activeLadder?.category}
+        items={activeLadder?.items || []}
+        title={activeLadder?.title}
+        subtitle={activeLadder?.subtitle}
         saving={savingItem}
         onInfo={(item) => { setActiveLadder(null); setSelectedItem(item) }}
         onCopy={copyToLibrary}
