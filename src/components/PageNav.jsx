@@ -106,6 +106,7 @@ export default function PageNav({ active = 'library' }) {
   const [mainOpen, setMainOpen] = useState(false)
   const [mediaOpen, setMediaOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
+  const [profileNameOpen, setProfileNameOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [groupDraft, setGroupDraft] = useState('')
   const [inviteDraft, setInviteDraft] = useState('')
@@ -139,6 +140,7 @@ export default function PageNav({ active = 'library' }) {
     setDraft('')
     setGroups([])
     setActiveGroupState(null)
+    setProfileNameOpen(false)
     setActiveGroup('')
   }
 
@@ -204,6 +206,24 @@ export default function PageNav({ active = 'library' }) {
       setDraft(saved)
     }
     return saved || handle || 'anonymous'
+  }
+
+  async function handleProfileNameSubmit(event) {
+    event.preventDefault()
+    if (!draft.trim()) {
+      flash('Add a profile name first.')
+      return
+    }
+    setLoading(true)
+    try {
+      await currentHandle()
+      setProfileNameOpen(false)
+      flash('Profile name updated.')
+    } catch (error) {
+      flash(error.message || 'Could not update your profile name.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   function usePersonalLibrary() {
@@ -399,9 +419,9 @@ export default function PageNav({ active = 'library' }) {
           </div>
 
           <div className="flex justify-end">
-            <button type="button" onClick={() => { closeMenus(); setAccountOpen(true) }} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black">
-              <AppIcon name="user" size={18} />
-              <span className="max-w-[7rem] truncate">{profileLabel}</span>
+            <button type="button" aria-label={`Open profile settings for ${profileLabel}`} onClick={() => { closeMenus(); setProfileNameOpen(false); setAccountOpen(true) }} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black">
+              <AppIcon name="settings" size={18} />
+              <span className="hidden sm:inline">Settings</span>
             </button>
           </div>
         </div>
@@ -414,9 +434,9 @@ export default function PageNav({ active = 'library' }) {
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/40">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Account & cliques</div>
-                <h2 className="mt-1 text-2xl font-black text-white">Setup</h2>
-                <p className="mt-2 text-sm text-neutral-400">Sign in, set your name, and manage private or public clique spaces.</p>
+                <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile settings</div>
+                <h2 className="mt-1 text-2xl font-black text-white">Account</h2>
+                <p className="mt-2 text-sm text-neutral-400">Update your profile details from the gear menu, then jump to your library or cliques when needed.</p>
               </div>
               <button type="button" onClick={() => setAccountOpen(false)} className="text-2xl text-neutral-400 hover:text-white">×</button>
             </div>
@@ -425,20 +445,32 @@ export default function PageNav({ active = 'library' }) {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile</p>
-                  <h3 className="mt-1 text-xl font-bold text-white">{session?.user ? handle || 'Signed in' : 'Sign in or create account'}</h3>
+                  <h3 className="mt-1 text-xl font-bold text-white">{session?.user ? profileLabel : 'Sign in or create account'}</h3>
                   <p className="mt-1 text-sm text-neutral-400">{session?.user?.email || (hasSupabase ? 'Use an account to sync libraries and cliques.' : 'Local profile mode')}</p>
                 </div>
                 {session?.user ? <button type="button" disabled={loading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Sign out</button> : null}
               </div>
 
               {session?.user ? (
-                <>
-                  <label className="mt-4 block text-sm font-semibold text-neutral-300">Profile name</label>
-                  <div className="mt-2 flex gap-2">
-                    <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                    <button type="button" onClick={currentHandle} className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950">Save</button>
-                  </div>
-                </>
+                <div className="mt-4 rounded-3xl border border-white/10 bg-neutral-900/70 p-2">
+                  <button type="button" onClick={() => setProfileNameOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-white/[0.06]">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-neutral-950">
+                      <AppIcon name="settings" size={18} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold text-white">Profile name</span>
+                      <span className="block truncate text-xs text-neutral-400">{handle || 'Choose the name people see in cliques.'}</span>
+                    </span>
+                    <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-neutral-200">{profileNameOpen ? 'Close' : 'Change'}</span>
+                  </button>
+
+                  {profileNameOpen ? (
+                    <form onSubmit={handleProfileNameSubmit} className="mt-2 flex flex-col gap-2 border-t border-white/10 p-3 sm:flex-row">
+                      <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+                      <button disabled={loading} className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 disabled:opacity-60">{loading ? 'Saving...' : 'Save'}</button>
+                    </form>
+                  ) : null}
+                </div>
               ) : null}
 
               {hasSupabase && !session?.user ? (
@@ -459,11 +491,14 @@ export default function PageNav({ active = 'library' }) {
             <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Current workspace</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Library & cliques</p>
                   <h3 className="mt-1 text-xl font-bold text-white">{spaceLabel}</h3>
                   <p className="mt-1 text-sm text-neutral-400">My Library is private. Public cliques appear in Explore.</p>
                 </div>
-                <button type="button" onClick={usePersonalLibrary} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Use My Library</button>
+                <div className="flex flex-wrap gap-2">
+                  <Link to="/dashboard" onClick={() => { usePersonalLibrary(); setAccountOpen(false) }} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">My Library</Link>
+                  <Link to="/groups" onClick={() => { closeMenus(); setAccountOpen(false) }} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Cliques</Link>
+                </div>
               </div>
             </section>
 
