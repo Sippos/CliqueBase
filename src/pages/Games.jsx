@@ -1,13 +1,15 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import SwipeDeck from '../components/SwipeDeck.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { DetailPill, InfoModal, PageHero, RatedHistorySection, ResultRow, SearchResultsSection, StatusMessage, TopRankingSection, displayYear } from '../components/MediaBlocks.jsx'
 import { getSavedHandle } from '../lib/handle.js'
+import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
 import { demoGames } from '../lib/demoMovies.js'
 import { getGameDetails, searchGames } from '../lib/tmdb.js'
+import { getGames, hasSupabase, markGamePlayed, rateGame as saveGameRating, saveGame, voteGame } from '../lib/supabaseClient.js'
 
 function makeId(title) {
-  return `game-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now()}`
+  return `custom-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now()}`
 }
 
 function splitList(value) {
@@ -26,14 +28,41 @@ export default function Games() {
   const [results, setResults] = useState([])
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
+  const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
   const [draft, setDraft] = useState({ title: '', year: '', poster: '', genres: '', platform: '', overview: '' })
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
+  const activeGroupId = activeGroup?.id || null
 
   const queue = useMemo(() => games.filter((game) => !votes[game.id] && !played.includes(game.id)), [games, votes, played])
   const ranking = useMemo(() => games.slice().sort((a, b) => (votes[b.id] === 'like') - (votes[a.id] === 'like') || (b.score || 0) - (a.score || 0) || (b.picks || 0) - (a.picks || 0)), [games, votes])
   const playedGames = useMemo(() => games.filter((game) => played.includes(game.id)), [games, played])
+
+  useEffect(() => {
+    if (!hasSupabase) return
+    loadGames(activeGroupId)
+  }, [activeGroupId])
+
+  useEffect(() => {
+    function handleGroupChange() {
+      setActiveGroupState(getActiveGroup())
+    }
+
+    window.addEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
+    return () => window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
+  }, [])
+
+  async function loadGames(groupId = activeGroupId) {
+    try {
+      const rows = await getGames(groupId)
+      setGames(rows)
+      setPlayed(rows.filter((game) => game.played).map((game) => game.id))
+      setRatings(Object.fromEntries(rows.filter((game) => game.rating).map((game) => [game.id, game.rating])))
+    } catch (error) {
+      setMessage({ type: 'error', text: `Could not load saved games: ${error.message}` })
+    }
+  }
 
   function showMessage(text, type = 'success') {
     setMessage({ type, text })
@@ -62,7 +91,7 @@ export default function Games() {
     }
   }
 
-  function addGame(event) {
+  async function addGame(event) {
     event.preventDefault()
     const title = draft.title.trim()
     if (!title) return
@@ -80,17 +109,33 @@ export default function Games() {
       score: 0,
     }
 
-    setGames((current) => [game, ...current])
-    setResults([game])
-    setDraft({ title: '', year: '', poster: '', genres: '', platform: '', overview: '' })
-    showMessage(`"${game.title}" added to the game pile.`)
+    try {
+      if (hasSupabase) {
+        const saved = await saveGame(game, activeHandle || 'anonymous', activeGroupId)
+        setGames((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current])
+      } else {
+        setGames((current) => [game, ...current])
+      }
+      setResults([game])
+      setDraft({ title: '', year: '', poster: '', genres: '', platform: '', overview: '' })
+      showMessage(`"${game.title}" added to the game pile.`)
+    } catch (error) {
+      showMessage(error.message || 'Could not save game.', 'error')
+    }
   }
 
   async function addExistingGame(game) {
     try {
       const details = await getGameDetails(game).catch(() => game)
       const fullGame = { ...(details || game), nominated_by: activeHandle || game.nominated_by || 'You' }
-      setGames((current) => current.some((item) => item.id === fullGame.id) ? current : [fullGame, ...current])
+
+      if (hasSupabase) {
+        const saved = await saveGame(fullGame, activeHandle || 'anonymous', activeGroupId)
+        setGames((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current])
+      } else {
+        setGames((current) => current.some((item) => item.id === fullGame.id) ? current : [fullGame, ...current])
+      }
+
       clearSearch()
       showMessage(`"${fullGame.title}" added to the swipe pile.`)
     } catch (error) {
@@ -98,21 +143,52 @@ export default function Games() {
     }
   }
 
-  function handleSwipe(vote, game) {
+  async function handleSwipe(vote, game) {
     setVotes((current) => ({ ...current, [game.id]: vote }))
+
+    if (hasSupabase) {
+      try {
+        await voteGame(game, vote, activeGroupId)
+        await loadGames(activeGroupId)
+      } catch (error) {
+        showMessage(error.message || 'Could not save vote.', 'error')
+        return
+      }
+    }
+
     showMessage(vote === 'like' ? `You voted to play "${game.title}".` : `You passed on "${game.title}".`)
   }
 
-  function markPlayed(game) {
+  async function markPlayed(game) {
     setPlayed((current) => current.includes(game.id) ? current : [...current, game.id])
     setVotes((current) => ({ ...current, [game.id]: 'like' }))
     setEditingRating(game.id)
+
+    if (hasSupabase) {
+      try {
+        await markGamePlayed(game, ratings[game.id] || null, activeGroupId)
+        await loadGames(activeGroupId)
+      } catch (error) {
+        showMessage(error.message || 'Could not save played game.', 'error')
+        return
+      }
+    }
+
     showMessage(`"${game.title}" moved to played.`)
   }
 
-  function rateGame(game, rating) {
+  async function rateGame(game, rating) {
     setRatings((current) => ({ ...current, [game.id]: rating }))
     setEditingRating(null)
+
+    if (hasSupabase) {
+      try {
+        await saveGameRating(game, rating, activeGroupId)
+        await loadGames(activeGroupId)
+      } catch (error) {
+        showMessage(error.message || 'Could not save rating.', 'error')
+      }
+    }
   }
 
   async function openGameInfo(game) {
@@ -150,6 +226,12 @@ export default function Games() {
         warning={!activeHandle ? 'Create a profile with the Profile button in the navbar to keep your game picks under one name.' : null}
         actions={<button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset</button>}
       >
+        {hasSupabase ? (
+          <p className="mt-4 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
+            Saving to {activeGroup ? <strong className="text-white">{activeGroup.name}</strong> : 'your default games pile'}.
+          </p>
+        ) : null}
+
         <form onSubmit={handleSearch} className="mt-5">
           <div className="flex gap-2">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a game..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
