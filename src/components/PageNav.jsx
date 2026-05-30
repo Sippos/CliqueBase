@@ -29,12 +29,13 @@ import {
 } from '../lib/supabaseClient.js'
 
 const links = [
-  { key: 'movies', to: '/movies', label: 'Movies', icon: '🎬', group: 'Vote' },
-  { key: 'series', to: '/series', label: 'Series', icon: '📺', group: 'Vote' },
-  { key: 'games', to: '/games', label: 'Games', icon: '🎮', group: 'Vote' },
-  { key: 'videos', to: '/videos', label: 'Videos', icon: '📹', group: 'Collect' },
-  { key: 'music', to: '/music', label: 'Music', icon: '🎵', group: 'Collect' },
-  { key: 'leaderboard', to: '/leaderboard', label: 'Community board', icon: '🏆', group: 'Discover' },
+  { key: 'home', to: '/', label: 'Home', icon: '⌂' },
+  { key: 'movies', to: '/movies', label: 'Movies', icon: '🎬' },
+  { key: 'series', to: '/series', label: 'Series', icon: '📺' },
+  { key: 'games', to: '/games', label: 'Games', icon: '🎮' },
+  { key: 'videos', to: '/videos', label: 'Videos', icon: '📹' },
+  { key: 'music', to: '/music', label: 'Music', icon: '🎵' },
+  { key: 'leaderboard', to: '/leaderboard', label: 'Board', icon: '🏆' },
 ]
 
 async function copyToClipboard(value) {
@@ -54,22 +55,11 @@ function getSessionName(session, profile, fallback = '') {
   return profile?.display_name || fallback || session?.user?.user_metadata?.display_name || session?.user?.email?.split('@')[0] || ''
 }
 
-function groupLinksBySection(items) {
-  return items.reduce((sections, item) => {
-    const next = { ...sections }
-    next[item.group] = [...(next[item.group] || []), item]
-    return next
-  }, {})
-}
-
 function LogoMark() {
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black tracking-tight text-neutral-950 shadow-lg shadow-white/10">CB</span>
-      <span className="min-w-0">
-        <span className="block text-xs uppercase tracking-[0.35em] text-neutral-500">CliqueBase</span>
-        <span className="block truncate text-lg font-black leading-tight text-white">Find the next pick</span>
-      </span>
+    <div className="min-w-0">
+      <span className="block text-2xl font-black tracking-tight text-white sm:text-3xl">CliqueBase</span>
+      <span className="block text-xs uppercase tracking-[0.28em] text-neutral-500">Find the next pick</span>
     </div>
   )
 }
@@ -92,7 +82,6 @@ export default function PageNav({ active = 'home' }) {
 
   const activeLink = links.find((link) => link.key === active)
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
-  const groupedLinks = groupLinksBySection(links)
 
   function flash(message) {
     setSavedMessage(message)
@@ -299,13 +288,13 @@ export default function PageNav({ active = 'home' }) {
     <>
       <header className="mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur sm:px-4">
         <div className="grid gap-3 md:grid-cols-[auto_1fr_auto] md:items-center">
-          <Link to="/" aria-label="CliqueBase home" className="min-w-0 rounded-[1.4rem] p-1 transition hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-white/30">
+          <Link to="/" aria-label="CliqueBase home" className="min-w-0 rounded-[1.4rem] px-2 py-1 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-white/30">
             <LogoMark />
           </Link>
 
           <div className="hidden min-w-0 justify-center md:flex">
             <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-neutral-300">
-              <span className="text-neutral-500">{activeLink ? activeLink.label : 'Home'}</span>
+              <span className="text-neutral-500">{activeLink?.label || 'Home'}</span>
               <span className="text-neutral-700">/</span>
               {activeGroup ? <strong className="truncate text-white">{activeGroup.name}</strong> : <span>No group selected</span>}
             </div>
@@ -329,34 +318,26 @@ export default function PageNav({ active = 'home' }) {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">CliqueBase</p>
-                <h2 className="mt-1 text-3xl font-black text-white">Navigate</h2>
+                <h2 className="mt-1 text-3xl font-black text-white">Menu</h2>
               </div>
               <button type="button" onClick={() => setMenuOpen(false)} className="text-3xl text-neutral-400 hover:text-white" aria-label="Close menu">×</button>
             </div>
 
-            <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Current context</p>
-              <h3 className="mt-2 truncate text-xl font-black text-white">{activeGroup?.name || 'No active group'}</h3>
-              <p className="mt-1 text-sm text-neutral-400">{session?.user?.email || handle || 'Open Profile to set up your account.'}</p>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => { setMenuOpen(false); refreshGroups(); setEditing(true) }} className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950">Profile</button>
-                <Link to="/leaderboard" onClick={() => setMenuOpen(false)} className="rounded-2xl border border-white/10 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Discover</Link>
-              </div>
-            </div>
+            <button type="button" onClick={() => { setMenuOpen(false); refreshGroups(); setEditing(true) }} className="mt-5 flex w-full items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-left transition hover:bg-white hover:text-neutral-950">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-lg text-neutral-950">👤</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-white group-hover:text-neutral-950">{handle || session?.user?.email || 'Profile'}</span>
+                <span className="block truncate text-xs text-neutral-500">{activeGroup ? activeGroup.name : 'Open profile, account, and groups'}</span>
+              </span>
+              <span className="text-neutral-500">›</span>
+            </button>
 
-            <nav className="mt-5 space-y-5 overflow-y-auto pr-1">
-              {Object.entries(groupedLinks).map(([section, items]) => (
-                <div key={section}>
-                  <p className="mb-2 px-1 text-xs uppercase tracking-[0.3em] text-neutral-500">{section}</p>
-                  <div className="space-y-2">
-                    {items.map((link) => (
-                      <Link key={link.key} to={link.to} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
-                        <span className="text-xl">{link.icon}</span>
-                        <span>{link.label}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+            <nav className="mt-6 space-y-2 overflow-y-auto pr-1">
+              {links.map((link) => (
+                <Link key={link.key} to={link.to} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
+                  <span className="text-xl">{link.icon}</span>
+                  <span>{link.label}</span>
+                </Link>
               ))}
             </nav>
           </div>
