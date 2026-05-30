@@ -25,14 +25,42 @@ function normalizeItems(rows, type, code, to) {
   })).sort((a, b) => b.sortValue - a.sortValue)
 }
 
-function FeaturedPick({ item }) {
-  if (!item) {
+function LibraryShowcase({ items, loading }) {
+  const [index, setIndex] = useState(0)
+  const ratedCount = items.filter((item) => item.rating).length
+  const totalPicks = items.reduce((sum, item) => sum + Number(item.picks || 0), 0)
+
+  useEffect(() => {
+    setIndex((current) => items.length ? Math.min(current, items.length - 1) : 0)
+  }, [items.length])
+
+  useEffect(() => {
+    if (items.length < 2) return undefined
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % items.length)
+    }, 4200)
+    return () => window.clearInterval(timer)
+  }, [items.length])
+
+  if (loading) {
+    return (
+      <div className="relative flex min-h-[320px] items-end overflow-hidden bg-neutral-950 p-5">
+        <div className="absolute inset-0 animate-pulse bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(0,0,0,0.45))]" />
+        <div className="relative">
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Library reel</p>
+          <h2 className="mt-2 text-3xl font-black text-white">Loading your picks…</h2>
+        </div>
+      </div>
+    )
+  }
+
+  if (!items.length) {
     return (
       <div className="relative flex min-h-[320px] items-end overflow-hidden bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Empty workspace</p>
           <h2 className="mt-2 text-3xl font-black text-white">Add the first pick</h2>
-          <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Once this workspace has movies, series, or games, the strongest pick will be featured here.</p>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Once this workspace has movies, series, or games, this corner becomes a slideshow of your library.</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Link to="/movies" className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Add movie</Link>
             <Link to="/games" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Add game</Link>
@@ -42,24 +70,39 @@ function FeaturedPick({ item }) {
     )
   }
 
+  const item = items[index] || items[0]
   const image = item.backdrop || item.poster
 
   return (
-    <Link to={item.to} className="group relative flex min-h-[320px] items-end overflow-hidden bg-neutral-900 p-5">
-      {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65 transition group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))]" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
-      <div className="relative max-w-md">
-        <p className="text-xs uppercase tracking-[0.3em] text-neutral-300">Featured {item.type}</p>
-        <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">{item.title}</h2>
-        <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-300">{item.overview || `Score ${item.score || 0} · ${item.picks || 0} picks`}</p>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-white">
-          <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">{item.type}</span>
-          <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">Score {item.score || 0}</span>
-          <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">{item.picks || 0} picks</span>
-          {item.rating ? <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
+    <div className="relative min-h-[320px] overflow-hidden bg-neutral-950">
+      <Link to={item.to} className="group absolute inset-0 flex items-end p-5">
+        {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65 transition duration-700 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))]" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+        <div className="absolute left-5 top-5 right-5 flex items-center justify-between gap-3">
+          <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">Library reel</span>
+          <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-bold text-neutral-200 backdrop-blur">{index + 1}/{items.length}</span>
+        </div>
+        <div className="relative max-w-md">
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-300">{item.type}</p>
+          <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">{item.title}</h2>
+          <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-300">{item.overview || `Score ${item.score || 0} · ${item.picks || 0} picks`}</p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-white">
+            <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">Score {item.score || 0}</span>
+            <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">{item.picks || 0} picks</span>
+            {item.rating ? <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
+          </div>
+        </div>
+      </Link>
+
+      <div className="absolute bottom-5 right-5 hidden rounded-[1.25rem] border border-white/10 bg-black/40 p-3 text-right backdrop-blur sm:block">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-400">Summary</p>
+        <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+          <span className="rounded-xl bg-white/10 px-3 py-2"><strong className="block text-lg text-white">{items.length}</strong><span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">Items</span></span>
+          <span className="rounded-xl bg-white/10 px-3 py-2"><strong className="block text-lg text-white">{totalPicks}</strong><span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">Votes</span></span>
+          <span className="rounded-xl bg-white/10 px-3 py-2"><strong className="block text-lg text-white">{ratedCount}</strong><span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">Rated</span></span>
         </div>
       </div>
-    </Link>
+    </div>
   )
 }
 
@@ -162,7 +205,6 @@ export default function Home() {
     { title: 'Games', singular: 'Game', code: 'GAM', to: '/games', top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
   ], [movieItems, seriesItems, gameItems])
 
-  const featuredItem = allItems[0] || null
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
   const totalPicks = useMemo(() => allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0), [allItems])
 
@@ -229,7 +271,7 @@ export default function Home() {
               <Link to="/games" className="rounded-2xl border border-white/10 px-5 py-3 text-center font-semibold text-white transition hover:bg-white hover:text-neutral-950">Add game</Link>
             </div>
           </div>
-          <FeaturedPick item={loading ? null : featuredItem} />
+          <LibraryShowcase items={loading ? [] : allItems} loading={loading} />
         </div>
       </section>
 
