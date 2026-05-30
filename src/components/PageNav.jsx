@@ -22,19 +22,19 @@ import {
   joinRemoteGroup,
   onAuthStateChanged,
   saveProfile,
+  setGroupPublic,
   signInWithEmail,
   signOut,
   signUpWithEmail,
 } from '../lib/supabaseClient.js'
 
 const links = [
-  { key: 'home', to: '/', label: 'Home', icon: '⌂' },
-  { key: 'movies', to: '/movies', label: 'Movies', icon: '🎬' },
-  { key: 'series', to: '/series', label: 'Series', icon: '📺' },
-  { key: 'games', to: '/games', label: 'Games', icon: '🎮' },
-  { key: 'videos', to: '/videos', label: 'Videos', icon: '📹' },
-  { key: 'music', to: '/music', label: 'Music', icon: '🎵' },
-  { key: 'leaderboard', to: '/leaderboard', label: 'Board', icon: '🏆' },
+  { key: 'movies', to: '/movies', label: 'Movies', icon: '🎬', group: 'Vote' },
+  { key: 'series', to: '/series', label: 'Series', icon: '📺', group: 'Vote' },
+  { key: 'games', to: '/games', label: 'Games', icon: '🎮', group: 'Vote' },
+  { key: 'videos', to: '/videos', label: 'Videos', icon: '📹', group: 'Collect' },
+  { key: 'music', to: '/music', label: 'Music', icon: '🎵', group: 'Collect' },
+  { key: 'leaderboard', to: '/leaderboard', label: 'Community board', icon: '🏆', group: 'Discover' },
 ]
 
 async function copyToClipboard(value) {
@@ -54,6 +54,26 @@ function getSessionName(session, profile, fallback = '') {
   return profile?.display_name || fallback || session?.user?.user_metadata?.display_name || session?.user?.email?.split('@')[0] || ''
 }
 
+function groupLinksBySection(items) {
+  return items.reduce((sections, item) => {
+    const next = { ...sections }
+    next[item.group] = [...(next[item.group] || []), item]
+    return next
+  }, {})
+}
+
+function LogoMark() {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black tracking-tight text-neutral-950 shadow-lg shadow-white/10">CB</span>
+      <span className="min-w-0">
+        <span className="block text-xs uppercase tracking-[0.35em] text-neutral-500">CliqueBase</span>
+        <span className="block truncate text-lg font-black leading-tight text-white">Find the next pick</span>
+      </span>
+    </div>
+  )
+}
+
 export default function PageNav({ active = 'home' }) {
   const [handle, setHandle] = useState('')
   const [activeGroup, setActiveGroupState] = useState(null)
@@ -70,9 +90,13 @@ export default function PageNav({ active = 'home' }) {
   const [authPassword, setAuthPassword] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
 
+  const activeLink = links.find((link) => link.key === active)
+  const usingRemoteGroups = hasSupabase && Boolean(session?.user)
+  const groupedLinks = groupLinksBySection(links)
+
   function flash(message) {
     setSavedMessage(message)
-    setTimeout(() => setSavedMessage(''), 2200)
+    setTimeout(() => setSavedMessage(''), 2400)
   }
 
   async function refreshGroups() {
@@ -210,6 +234,21 @@ export default function PageNav({ active = 'home' }) {
     flash(copied ? 'Invite link copied.' : `Invite: ${getGroupInvitePath(group)}`)
   }
 
+  async function handleTogglePublic(group) {
+    if (!session?.user || !hasSupabase) {
+      flash('Public discovery is available for signed-in Supabase groups.')
+      return
+    }
+
+    try {
+      await setGroupPublic(group.id, !group.isPublic)
+      await refreshGroups()
+      flash(!group.isPublic ? `${group.name} is public on the leaderboard.` : `${group.name} is private again.`)
+    } catch (error) {
+      flash(error.message || 'Could not update public discovery.')
+    }
+  }
+
   async function handleAuthSubmit(event) {
     event.preventDefault()
 
@@ -256,31 +295,29 @@ export default function PageNav({ active = 'home' }) {
     }
   }
 
-  const activeLink = links.find((link) => link.key === active)
-  const usingRemoteGroups = hasSupabase && Boolean(session?.user)
-
   return (
     <>
-      <header className="mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur sm:rounded-full sm:px-4">
-        <div className="flex items-center justify-between gap-3">
-          <Link to="/" className="min-w-0 rounded-full px-2 py-1 transition hover:bg-white/10">
-            <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">CliqueBase</div>
-            <div className="truncate text-lg font-black text-white sm:text-xl">{activeLink?.icon} {activeLink?.label || 'Home'}</div>
+      <header className="mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur sm:px-4">
+        <div className="grid gap-3 md:grid-cols-[auto_1fr_auto] md:items-center">
+          <Link to="/" aria-label="CliqueBase home" className="min-w-0 rounded-[1.4rem] p-1 transition hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-white/30">
+            <LogoMark />
           </Link>
 
-          <div className="hidden min-w-0 flex-1 justify-center px-4 md:flex">
-            <div className="truncate rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-neutral-300">
-              {activeGroup ? <>Group: <strong className="text-white">{activeGroup.name}</strong></> : 'No group selected'}
+          <div className="hidden min-w-0 justify-center md:flex">
+            <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-neutral-300">
+              <span className="text-neutral-500">{activeLink ? activeLink.label : 'Home'}</span>
+              <span className="text-neutral-700">/</span>
+              {activeGroup ? <strong className="truncate text-white">{activeGroup.name}</strong> : <span>No group selected</span>}
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center justify-between gap-2 md:justify-end">
             <button type="button" onClick={() => setMenuOpen(true)} className="rounded-full bg-white px-4 py-3 text-sm font-bold text-neutral-950 transition hover:bg-neutral-200" aria-label="Open menu">
               ☰ <span className="hidden sm:inline">Menu</span>
             </button>
-            <button type="button" onClick={() => { refreshGroups(); setEditing(true) }} aria-label="Profile" className="flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
+            <button type="button" onClick={() => { refreshGroups(); setEditing(true) }} aria-label="Open profile and groups" className="flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
               <span className="sm:mr-1.5">👤</span>
-              <span className="hidden max-w-[5.5rem] truncate sm:inline">{handle || 'Profile'}</span>
+              <span className="hidden max-w-[6rem] truncate sm:inline">{handle || 'Profile'}</span>
             </button>
           </div>
         </div>
@@ -288,30 +325,40 @@ export default function PageNav({ active = 'home' }) {
 
       {menuOpen ? (
         <div className="fixed inset-0 z-50 bg-black/70 p-4 backdrop-blur-sm">
-          <div className="ml-auto flex h-full w-full max-w-sm flex-col rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/40">
+          <div className="ml-auto flex h-full w-full max-w-md flex-col rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/40">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Navigation</div>
-                <h2 className="mt-1 text-3xl font-black text-white">Menu</h2>
+                <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">CliqueBase</p>
+                <h2 className="mt-1 text-3xl font-black text-white">Navigate</h2>
               </div>
               <button type="button" onClick={() => setMenuOpen(false)} className="text-3xl text-neutral-400 hover:text-white" aria-label="Close menu">×</button>
             </div>
 
-            <nav className="mt-6 space-y-2">
-              {links.map((link) => (
-                <Link key={link.key} to={link.to} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
-                  <span className="text-xl">{link.icon}</span>
-                  <span>{link.label}</span>
-                </Link>
+            <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Current context</p>
+              <h3 className="mt-2 truncate text-xl font-black text-white">{activeGroup?.name || 'No active group'}</h3>
+              <p className="mt-1 text-sm text-neutral-400">{session?.user?.email || handle || 'Open Profile to set up your account.'}</p>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => { setMenuOpen(false); refreshGroups(); setEditing(true) }} className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950">Profile</button>
+                <Link to="/leaderboard" onClick={() => setMenuOpen(false)} className="rounded-2xl border border-white/10 px-4 py-3 text-center text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Discover</Link>
+              </div>
+            </div>
+
+            <nav className="mt-5 space-y-5 overflow-y-auto pr-1">
+              {Object.entries(groupedLinks).map(([section, items]) => (
+                <div key={section}>
+                  <p className="mb-2 px-1 text-xs uppercase tracking-[0.3em] text-neutral-500">{section}</p>
+                  <div className="space-y-2">
+                    {items.map((link) => (
+                      <Link key={link.key} to={link.to} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
+                        <span className="text-xl">{link.icon}</span>
+                        <span>{link.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               ))}
             </nav>
-
-            <div className="mt-auto rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">{usingRemoteGroups ? 'Account' : 'Local profile'}</p>
-              <p className="mt-2 text-sm text-neutral-300">{session?.user?.email || handle || 'No profile name yet'}</p>
-              <p className="mt-1 text-sm text-neutral-500">{activeGroup ? `Active group: ${activeGroup.name}` : 'Create a group in Profile'}</p>
-              <button type="button" onClick={() => { setMenuOpen(false); refreshGroups(); setEditing(true) }} className="mt-4 w-full rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950">Open profile</button>
-            </div>
           </div>
         </div>
       ) : null}
@@ -340,9 +387,7 @@ export default function PageNav({ active = 'home' }) {
                 {session?.user ? <button type="button" onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Sign out</button> : null}
               </div>
 
-              {hasSupabase && session?.user ? (
-                <p className="mt-4 rounded-2xl bg-neutral-900 p-3 text-sm text-neutral-300">{session.user.email}</p>
-              ) : null}
+              {hasSupabase && session?.user ? <p className="mt-4 rounded-2xl bg-neutral-900 p-3 text-sm text-neutral-300">{session.user.email}</p> : null}
 
               {hasSupabase && !session?.user ? (
                 <form onSubmit={handleAuthSubmit} className="mt-4 grid gap-3">
@@ -388,11 +433,9 @@ export default function PageNav({ active = 'home' }) {
                 <div>
                   <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Active group</div>
                   <h3 className="mt-1 text-xl font-bold text-white">{activeGroup?.name || 'No group selected'}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">New movie links and votes use this group context.</p>
+                  <p className="mt-1 text-sm text-neutral-400">Votes and saved content use this group context.</p>
                 </div>
-                {activeGroup ? (
-                  <button type="button" onClick={() => copyInvite(activeGroup)} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Copy invite</button>
-                ) : null}
+                {activeGroup ? <button type="button" onClick={() => copyInvite(activeGroup)} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Copy invite</button> : null}
               </div>
             </section>
 
@@ -425,10 +468,11 @@ export default function PageNav({ active = 'home' }) {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
                         <div className="truncate font-semibold">{group.name}</div>
-                        <div className={`mt-1 text-xs ${activeGroup?.id === group.id ? 'text-neutral-600' : 'text-neutral-500'}`}>{group.members.length || 1} members · {group.inviteCode}</div>
+                        <div className={`mt-1 text-xs ${activeGroup?.id === group.id ? 'text-neutral-600' : 'text-neutral-500'}`}>{group.members.length || 1} members · {group.isPublic ? 'Public discovery' : 'Private'}</div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <button type="button" onClick={() => activateGroup(group)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{activeGroup?.id === group.id ? 'Active' : 'Use'}</button>
+                        {usingRemoteGroups ? <button type="button" onClick={() => handleTogglePublic(group)} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'border-neutral-300 text-neutral-950' : 'border-white/10 text-white'}`}>{group.isPublic ? 'Make private' : 'Make public'}</button> : null}
                         <button type="button" onClick={() => copyInvite(group)} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'border-neutral-300 text-neutral-950' : 'border-white/10 text-white'}`}>Invite</button>
                       </div>
                     </div>
