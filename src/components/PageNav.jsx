@@ -83,9 +83,17 @@ function sessionName(session, profile, fallback = '') {
 
 function LogoMark() {
   return (
-    <div className="min-w-0">
-      <span className="block text-2xl font-black tracking-tight text-white sm:text-3xl">CliqueBase</span>
-      <span className="block text-xs uppercase tracking-[0.28em] text-neutral-500">Find the next pick</span>
+    <div className="flex min-w-0 items-center gap-3">
+      <img
+        src="/cliquebase-logo-mark.png?v=3"
+        alt=""
+        aria-hidden="true"
+        className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
+      />
+      <div className="min-w-0">
+        <span className="block text-2xl font-black tracking-tight text-white sm:text-3xl">CliqueBase</span>
+        <span className="block text-xs uppercase tracking-[0.28em] text-neutral-500">Find the next pick</span>
+      </div>
     </div>
   )
 }
