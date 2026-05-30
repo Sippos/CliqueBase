@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
-import { getCommunityLeaderboard, hasSupabase } from '../lib/supabaseClient.js'
+import { getCommunityLeaderboard, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
 
 const featuredCategories = ['Movies', 'Series', 'Games']
 
@@ -29,6 +29,19 @@ function CategoryBadge({ category }) {
 
 function MetricPill({ children }) {
   return <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold text-neutral-200">{children}</span>
+}
+
+function InfoButton({ item, onInfo, className = '' }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onInfo(item)}
+      aria-label={`Show details for ${item.title}`}
+      className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white shadow-lg shadow-black/30 backdrop-blur transition hover:bg-white hover:text-neutral-950 ${className}`}
+    >
+      <AppIcon name="info" size={18} strokeWidth={2.2} />
+    </button>
+  )
 }
 
 function EmptyState() {
@@ -61,7 +74,7 @@ function PickPoster({ item, large = false }) {
   )
 }
 
-function FeaturedPickCard({ item }) {
+function FeaturedPickCard({ item, onInfo }) {
   if (!item) return null
 
   return (
@@ -71,6 +84,7 @@ function FeaturedPickCard({ item }) {
         <div className="absolute left-4 top-4">
           <CategoryBadge category={item.category} />
         </div>
+        <InfoButton item={item} onInfo={onInfo} className="absolute right-4 top-4" />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/75 to-transparent p-5">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-300">#{item.rank || '—'} global pick</p>
           <h3 className="mt-2 line-clamp-2 text-3xl font-black leading-tight text-white">{item.title}</h3>
@@ -95,7 +109,7 @@ function GroupStat({ icon, children }) {
   )
 }
 
-function GroupMiniTile({ item }) {
+function GroupMiniTile({ item, onInfo }) {
   const meta = getCategoryMeta(item?.category)
 
   return (
@@ -111,6 +125,7 @@ function GroupMiniTile({ item }) {
         <span className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white backdrop-blur">
           <AppIcon name={meta.icon} size={14} strokeWidth={2.2} />
         </span>
+        <InfoButton item={item} onInfo={onInfo} className="absolute right-2 top-2 h-7 w-7" />
       </div>
       <div className="p-2">
         <p className="truncate text-xs font-black text-white">{item.title}</p>
@@ -120,7 +135,7 @@ function GroupMiniTile({ item }) {
   )
 }
 
-function GroupSummaryCard({ group }) {
+function GroupSummaryCard({ group, onInfo }) {
   const allItems = group.publicItems || group.topItems || []
   const topItems = (group.topItems || allItems).slice(0, 4)
   const categoryCounts = featuredCategories.map((category) => ({
@@ -148,7 +163,7 @@ function GroupSummaryCard({ group }) {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        {topItems.length ? topItems.map((item) => <GroupMiniTile key={`${group.id}-${item.category}-${item.id}`} item={item} />) : (
+        {topItems.length ? topItems.map((item) => <GroupMiniTile key={`${group.id}-${item.category}-${item.id}`} item={{ ...item, groupName: group.name }} onInfo={onInfo} />) : (
           <div className="col-span-2 rounded-2xl border border-dashed border-white/10 bg-neutral-950/50 p-4 text-sm text-neutral-500">No public picks in this clique yet.</div>
         )}
       </div>
@@ -168,10 +183,78 @@ function GroupSummaryCard({ group }) {
   )
 }
 
+function copyPayload(item) {
+  return {
+    ...item,
+    id: String(item.id),
+    nominated_by: item.nominatedBy || item.nominated_by || 'public clique',
+  }
+}
+
+function DetailModal({ item, saving, onCopy, onClose }) {
+  if (!item) return null
+  const meta = getCategoryMeta(item.category)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <article className="grid max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/50 md:grid-cols-[0.8fr_1fr]">
+        <div className="relative min-h-72 bg-neutral-900">
+          {item.poster ? (
+            <img src={item.poster} alt="" className="h-full max-h-[90vh] w-full object-cover" />
+          ) : (
+            <div className="flex h-full min-h-72 items-center justify-center text-white">
+              <AppIcon name={meta.icon} size={72} strokeWidth={1.5} />
+            </div>
+          )}
+          <div className="absolute left-4 top-4">
+            <CategoryBadge category={item.category} />
+          </div>
+        </div>
+
+        <div className="flex max-h-[90vh] flex-col overflow-y-auto p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Public pick details</p>
+              <h2 className="mt-2 text-3xl font-black leading-tight text-white">{item.title}</h2>
+              <p className="mt-2 text-sm text-neutral-400">{item.groupName || 'Public clique'}{item.nominatedBy ? ` · Added by ${item.nominatedBy}` : ''}</p>
+            </div>
+            <button type="button" onClick={onClose} className="text-2xl text-neutral-400 transition hover:text-white">×</button>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <MetricPill>Score {item.score || 0}</MetricPill>
+            <MetricPill>{item.picks || 0} picks</MetricPill>
+            {item.rating ? <MetricPill>Rating {Number(item.rating).toFixed(1)}</MetricPill> : null}
+            {item.completed ? <MetricPill>Completed</MetricPill> : null}
+          </div>
+
+          {item.overview ? <p className="mt-5 text-sm leading-6 text-neutral-300">{item.overview}</p> : null}
+
+          <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-sm text-neutral-400">
+            Copying saves this public pick into your personal library so you can rate it, mark it watched/played, or add it to one of your own cliques later.
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onCopy(item)}
+            disabled={saving}
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60"
+          >
+            <AppIcon name="dashboard" size={18} />
+            {saving ? 'Copying...' : 'Copy to my library'}
+          </button>
+        </div>
+      </article>
+    </div>
+  )
+}
+
 function ExploreBoard() {
   const [board, setBoard] = useState({ groups: [], topContent: [], totals: {} })
   const [loading, setLoading] = useState(hasSupabase)
   const [message, setMessage] = useState(null)
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [savingItem, setSavingItem] = useState(false)
 
   useEffect(() => {
     if (!hasSupabase) return
@@ -193,6 +276,25 @@ function ExploreBoard() {
     return () => { cancelled = true }
   }, [])
 
+  async function copyToLibrary(item) {
+    setSavingItem(true)
+    try {
+      const payload = copyPayload(item)
+      if (item.category === 'Movies') await saveMovie(payload, payload.nominated_by)
+      else if (item.category === 'Series') await saveSeries(payload, payload.nominated_by)
+      else if (item.category === 'Games') await saveGame(payload, payload.nominated_by)
+      else throw new Error('This content type cannot be copied yet.')
+      setMessage(`${item.title} copied to your library.`)
+      setSelectedItem(null)
+      setTimeout(() => setMessage(null), 2500)
+    } catch (error) {
+      setMessage(error.message || 'Could not copy this pick.')
+      setTimeout(() => setMessage(null), 3500)
+    } finally {
+      setSavingItem(false)
+    }
+  }
+
   const groups = board.groups || []
   const topContent = board.topContent || []
   const bestByCategory = useMemo(() => {
@@ -207,16 +309,18 @@ function ExploreBoard() {
     .filter(Boolean)
 
   if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading Explore...</div>
-  if (message) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
+  if (message && !topContent.length && !groups.length) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
   if (!topContent.length && !groups.length) return <EmptyState />
 
   return (
     <>
+      {message ? <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}
+
       {featuredItems.length ? (
         <section className="mb-6 pt-1">
           <h1 className="mb-3 px-1 text-2xl font-black text-white sm:text-3xl">Top public picks</h1>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {featuredItems.map((item) => <FeaturedPickCard key={`${item.category}-${item.groupId}-${item.id}`} item={item} />)}
+            {featuredItems.map((item) => <FeaturedPickCard key={`${item.category}-${item.groupId}-${item.id}`} item={item} onInfo={setSelectedItem} />)}
           </div>
         </section>
       ) : null}
@@ -225,13 +329,15 @@ function ExploreBoard() {
         <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
           <div className="mb-4 px-1">
             <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Public cliques</p>
-            <h2 className="mt-1 text-2xl font-black text-white">Group summaries</h2>
+            <h2 className="mt-1 text-2xl font-black text-white">Public Cliques</h2>
           </div>
           <div className="grid gap-4 xl:grid-cols-2">
-            {groups.slice(0, 10).map((group) => <GroupSummaryCard key={group.id} group={group} />)}
+            {groups.slice(0, 10).map((group) => <GroupSummaryCard key={group.id} group={group} onInfo={setSelectedItem} />)}
           </div>
         </section>
       ) : null}
+
+      <DetailModal item={selectedItem} saving={savingItem} onCopy={copyToLibrary} onClose={() => setSelectedItem(null)} />
     </>
   )
 }
