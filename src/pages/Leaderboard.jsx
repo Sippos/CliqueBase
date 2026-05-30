@@ -191,13 +191,45 @@ function copyPayload(item) {
   }
 }
 
+function formatDate(value) {
+  if (!value) return null
+  try {
+    return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(value))
+  } catch {
+    return value
+  }
+}
+
+function detailValue(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).join(', ')
+  if (value === null || value === undefined || value === '') return null
+  return String(value)
+}
+
+function DetailRow({ label, value }) {
+  const normalized = detailValue(value)
+  if (!normalized) return null
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+      <dt className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">{label}</dt>
+      <dd className="mt-1 text-sm font-semibold leading-5 text-white">{normalized}</dd>
+    </div>
+  )
+}
+
 function DetailModal({ item, saving, onCopy, onClose }) {
+  const [copyHintOpen, setCopyHintOpen] = useState(false)
+
   if (!item) return null
   const meta = getCategoryMeta(item.category)
+  const releaseLabel = item.category === 'Games' ? 'Released' : 'Release'
+  const sourceRating = item.tmdbRating || item.rawgRating
+  const creator = item.director || item.regie || item.creator || item.createdBy || item.developer
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <article className="grid max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/50 md:grid-cols-[0.8fr_1fr]">
+      <article className="grid max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/50 md:grid-cols-[0.8fr_1fr]">
         <div className="relative min-h-72 bg-neutral-900">
           {item.poster ? (
             <img src={item.poster} alt="" className="h-full max-h-[90vh] w-full object-cover" />
@@ -214,7 +246,7 @@ function DetailModal({ item, saving, onCopy, onClose }) {
         <div className="flex max-h-[90vh] flex-col overflow-y-auto p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Public pick details</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">{meta.label} info</p>
               <h2 className="mt-2 text-3xl font-black leading-tight text-white">{item.title}</h2>
               <p className="mt-2 text-sm text-neutral-400">{item.groupName || 'Public clique'}{item.nominatedBy ? ` · Added by ${item.nominatedBy}` : ''}</p>
             </div>
@@ -224,25 +256,54 @@ function DetailModal({ item, saving, onCopy, onClose }) {
           <div className="mt-5 flex flex-wrap gap-2">
             <MetricPill>Score {item.score || 0}</MetricPill>
             <MetricPill>{item.picks || 0} picks</MetricPill>
-            {item.rating ? <MetricPill>Rating {Number(item.rating).toFixed(1)}</MetricPill> : null}
+            {item.rating ? <MetricPill>Your rating {Number(item.rating).toFixed(1)}</MetricPill> : null}
+            {sourceRating ? <MetricPill>{item.category === 'Games' ? 'RAWG' : 'TMDB'} {Number(sourceRating).toFixed(1)}</MetricPill> : null}
             {item.completed ? <MetricPill>Completed</MetricPill> : null}
           </div>
 
-          {item.overview ? <p className="mt-5 text-sm leading-6 text-neutral-300">{item.overview}</p> : null}
+          <dl className="mt-5 grid grid-cols-2 gap-2">
+            <DetailRow label="Year" value={item.year} />
+            <DetailRow label={releaseLabel} value={formatDate(item.released)} />
+            <DetailRow label="Genres" value={item.genres} />
+            <DetailRow label="Director / Regie" value={creator} />
+            <DetailRow label="Runtime" value={item.runtime ? `${item.runtime} min` : null} />
+            <DetailRow label="Seasons" value={item.seasons} />
+            <DetailRow label="Episodes" value={item.episodes} />
+            <DetailRow label="Platforms" value={item.platforms || item.platform} />
+          </dl>
 
-          <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-sm text-neutral-400">
-            Copying saves this public pick into your personal library so you can rate it, mark it watched/played, or add it to one of your own cliques later.
+          {item.overview || item.description ? (
+            <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+              <h3 className="text-xs uppercase tracking-[0.22em] text-neutral-500">Overview</h3>
+              <p className="mt-2 text-sm leading-6 text-neutral-300">{item.overview || item.description}</p>
+            </section>
+          ) : null}
+
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => onCopy(item)}
+              disabled={saving}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60"
+            >
+              <AppIcon name="dashboard" size={18} />
+              {saving ? 'Copying...' : 'Copy to my library'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCopyHintOpen((value) => !value)}
+              aria-label="What does copy to my library do?"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-neutral-200 transition hover:bg-white hover:text-neutral-950"
+            >
+              <AppIcon name="info" size={20} strokeWidth={2.2} />
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onCopy(item)}
-            disabled={saving}
-            className="mt-5 inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60"
-          >
-            <AppIcon name="dashboard" size={18} />
-            {saving ? 'Copying...' : 'Copy to my library'}
-          </button>
+          {copyHintOpen ? (
+            <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-5 text-neutral-400">
+              Copies this public pick into your personal library so you can rate it, mark it watched/played, or add it to your own cliques later.
+            </p>
+          ) : null}
         </div>
       </article>
     </div>
