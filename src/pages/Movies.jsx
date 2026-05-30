@@ -5,6 +5,7 @@ import { DetailPill, InfoModal, PageHero, RatedHistorySection, ResultRow, Search
 import { getSavedHandle } from '../lib/handle.js'
 import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, setActiveGroup as setActiveGroupContext } from '../lib/groups.js'
 import { demoMovies } from '../lib/demoMovies.js'
+import { shareContent } from '../lib/share.js'
 import { getMovieDetails, searchMovies } from '../lib/tmdb.js'
 import { getCurrentSession, getMovies, getRemoteGroups, hasSupabase, markMovieWatched, rateMovie as saveMovieRating, saveMovie, voteMovie } from '../lib/supabaseClient.js'
 
@@ -26,19 +27,20 @@ function getInitialScope() {
   return getActiveGroupId() || 'personal'
 }
 
-function NextWatchSection({ items, onInfo, onDone }) {
+function SavedMovieCardsSection({ items, onInfo, onDone }) {
   return (
     <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Saved, not watched</p>
-          <h2 className="mt-1 text-2xl font-bold text-white">Next to watch</h2>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Saved cards</p>
+          <h2 className="mt-1 text-2xl font-bold text-white">To watch</h2>
+          <p className="mt-1 text-sm text-neutral-500">Movies copied into your library stay here as cards until you mark them watched.</p>
         </div>
-        <span className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-semibold text-neutral-400">{items.length} waiting</span>
+        <span className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-semibold text-neutral-400">{items.length} cards</span>
       </div>
 
       {items.length === 0 ? (
-        <p className="rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-6 text-neutral-400">No movies are waiting right now. When you add a movie without marking it watched, it will live here instead of becoming a swipe card.</p>
+        <p className="rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-6 text-neutral-400">No unwatched movie cards right now. Add a movie below or save one from a share link.</p>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {items.map((movie) => {
@@ -78,7 +80,7 @@ function AddMoviePanel({ query, setQuery, loading, hasResults, canUseLibrary, on
     <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Add to library</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Add card</p>
           <h2 className="mt-1 text-2xl font-bold text-white">Find another movie</h2>
         </div>
         {hasResults ? <button type="button" onClick={onClear} className="text-sm font-semibold text-neutral-400 hover:text-white">Close results</button> : null}
@@ -325,6 +327,15 @@ export default function Movies() {
     }
   }
 
+  async function shareMovie(movie) {
+    try {
+      const result = await shareContent('movie', movie)
+      showMessage(result)
+    } catch (error) {
+      showMessage(error.message || 'Could not share this movie.', 'error')
+    }
+  }
+
   async function openMovieInfo(movie) {
     setLoadingInfoMovie(true)
     setInfoMovie(movie)
@@ -373,14 +384,14 @@ export default function Movies() {
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">My Library</p>
               <h1 className="mt-1 text-3xl font-black tracking-tight text-white md:text-5xl">Movies library</h1>
-              <p className="mt-3 max-w-2xl text-neutral-400">A clean overview of movies you saved and movies you have actually watched. No swipe deck here.</p>
+              <p className="mt-3 max-w-2xl text-neutral-400">Saved movies are cards until you mark them watched. Watched movies can be shared to cliques or other members with a share link.</p>
               {setupMessage(setupState) || (!activeHandle && !hasSupabase) ? <p className="mt-3 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-3 text-sm text-yellow-200">{setupMessage(setupState) || 'Create a profile with the Profile button in the navbar to keep your picks under one name.'}</p> : null}
             </div>
             <div className="shrink-0">{scopeControl}</div>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <div className="rounded-3xl border border-white/10 bg-neutral-950/70 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Next</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Cards</p>
               <p className="mt-2 text-3xl font-black text-white">{queue.length}</p>
               <p className="mt-1 text-sm text-neutral-400">saved, not watched</p>
             </div>
@@ -418,19 +429,20 @@ export default function Movies() {
 
       {isPersonalScope ? (
         <>
-          <NextWatchSection items={queue} onInfo={openMovieInfo} onDone={markWatched} />
+          <SavedMovieCardsSection items={queue} onInfo={openMovieInfo} onDone={markWatched} />
 
           <RatedHistorySection
             eyebrow="Personal history"
             title="Watched movies"
             countText={`${watchedMovies.length} watched`}
-            emptyLabel="No watched movies yet. Add a movie below or mark one from Next to watch."
+            emptyLabel="No watched movies yet. Add a movie below or mark one from To watch."
             items={watchedMovies}
             ratings={ratings}
             editingRating={editingRating}
             onToggleRating={(movie) => setEditingRating(editingRating === movie.id ? null : movie.id)}
             onRate={rateWatchedMovie}
             onInfo={openMovieInfo}
+            onShare={shareMovie}
             detailsLabel="Movie details"
             renderMeta={(movie) => `${displayYear(movie.released || movie.year) || 'Unknown year'} · ${(movie.genres || []).slice(0, 2).join(' · ') || 'No genres yet'}`}
             renderPills={(movie) => <>{movie.tmdbRating ? <DetailPill>TMDB ★ {Number(movie.tmdbRating).toFixed(1)}</DetailPill> : null}{movie.runtime ? <DetailPill>{movie.runtime} min</DetailPill> : null}</>}
@@ -441,7 +453,7 @@ export default function Movies() {
           {hasResults ? (
             <SearchResultsSection title="Movie results" clearLabel="Close results" onClear={clearSearch}>
               <div className="space-y-2">
-                {results.map((movie) => <ResultRow key={movie.id} item={movie} onInfo={openMovieInfo} onAdd={addMovie} addLabel="Add" onDone={markWatched} doneLabel="Watched" />)}
+                {results.map((movie) => <ResultRow key={movie.id} item={movie} onInfo={openMovieInfo} onAdd={addMovie} addLabel="Add card" onDone={markWatched} doneLabel="Watched" />)}
               </div>
             </SearchResultsSection>
           ) : null}
@@ -460,7 +472,7 @@ export default function Movies() {
             <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="movies" emptyLabel={canUseLibrary ? 'No movies here yet. Search and add your first pick.' : 'Sign in to start your movie library.'} likeLabel="Watch" dislikeLabel="Pass" infoType="movie" loadDetails={getMovieDetails} />
           </section>
 
-          <TopRankingSection title="Next movies" items={ranking} votes={votes} onInfo={openMovieInfo} onDone={markWatched} doneLabel="Watched" />
+          <TopRankingSection title="Clique watch list" items={ranking} votes={votes} onInfo={openMovieInfo} onDone={markWatched} doneLabel="Watched" />
 
           <RatedHistorySection
             eyebrow="After watching"
@@ -473,6 +485,7 @@ export default function Movies() {
             onToggleRating={(movie) => setEditingRating(editingRating === movie.id ? null : movie.id)}
             onRate={rateWatchedMovie}
             onInfo={openMovieInfo}
+            onShare={shareMovie}
             detailsLabel="Movie details"
             renderMeta={(movie) => `${displayYear(movie.released || movie.year) || 'Unknown year'} · ${(movie.genres || []).slice(0, 2).join(' · ') || 'No genres yet'}`}
             renderPills={(movie) => <>{movie.tmdbRating ? <DetailPill>TMDB ★ {Number(movie.tmdbRating).toFixed(1)}</DetailPill> : null}{movie.runtime ? <DetailPill>{movie.runtime} min</DetailPill> : null}</>}
