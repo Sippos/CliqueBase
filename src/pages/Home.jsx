@@ -273,7 +273,7 @@ export default function Home() {
             <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Best by section</p>
             <h2 className="mt-1 text-3xl font-black text-white">Category leaders</h2>
           </div>
-          <Link to="/leaderboard" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Explore global Board</Link>
+          <Link to="/explore" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Open Explore</Link>
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
