@@ -6,6 +6,8 @@ import { getGroupOpenPath } from '../lib/groups.js'
 import { getGameDetails, getMovieDetails, getSeriesDetails } from '../lib/tmdb.js'
 import { getCommunityLeaderboard, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
 
+const featuredCategories = ['Movies', 'Series', 'Games']
+
 const categoryMeta = {
   Movies: { icon: 'movies', label: 'Movie', plural: 'Movies' },
   Series: { icon: 'series', label: 'Series', plural: 'Series' },
@@ -23,7 +25,7 @@ function itemKey(item, prefix = '') {
 
 function sortByRank(items = []) {
   return items.slice().sort((a, b) => (
-    (Number(a.rank || 9999) - Number(b.rank || 9999))
+    (Number(a.categoryRank || a.rank || 9999) - Number(b.categoryRank || b.rank || 9999))
     || (Number(b.score || 0) - Number(a.score || 0))
     || (Number(b.picks || 0) - Number(a.picks || 0))
     || String(a.title || '').localeCompare(String(b.title || ''))
@@ -77,7 +79,7 @@ function EmptyState() {
 }
 
 function PickPoster({ item, large = false }) {
-  const sizeClass = large ? 'h-64 sm:h-72 lg:h-80' : 'h-36'
+  const sizeClass = large ? 'h-64 sm:h-72 lg:h-80' : 'h-52 sm:h-56'
   const meta = getCategoryMeta(item?.category)
 
   if (item?.poster) {
@@ -136,8 +138,9 @@ function FlipBack({ item, compact = false, saving = false, onCopy, onInfo }) {
   )
 }
 
-function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy, className = '' }) {
+function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy, className = '', rankLabel = 'global pick' }) {
   if (!item) return null
+  const displayRank = item.categoryRank || item.rank || '—'
 
   function handleKeyDown(event) {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -169,7 +172,7 @@ function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy, cla
             </div>
             <InfoButton item={item} onInfo={onInfo} className="absolute right-4 top-4" />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/75 to-transparent p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-300">#{item.rank || '—'} global pick</p>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-300">#{displayRank} {rankLabel}</p>
               <h3 className="mt-2 line-clamp-2 text-3xl font-black leading-tight text-white">{item.title}</h3>
               <p className="mt-1 truncate text-sm text-neutral-300">{item.groupName || 'Public clique'}{getNominator(item) ? ` · Added by ${getNominator(item)}` : ''}</p>
               <div className="mt-4 flex flex-wrap gap-2">
@@ -187,41 +190,118 @@ function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy, cla
   )
 }
 
-function TopPicksShelf({ items, flippedKey, saving, onToggle, onInfo, onCopy }) {
+function FeaturedPickPile({ category, items, flippedKey, saving, onToggle, onInfo, onCopy, onOpenLadder }) {
   if (!items.length) return null
 
-  return (
-    <section className="mb-8 pt-1">
-      <div className="mb-4 flex flex-col gap-3 px-1 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Explore ladder</p>
-          <h1 className="mt-1 text-3xl font-black text-white">Top public picks</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">A single mixed-media run of public picks. Scroll sideways to browse the ladder, then open a card for actions or details.</p>
-        </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300">
-          <AppIcon name="explore" size={15} />
-          {items.length} ranked
-        </div>
-      </div>
+  const [topItem] = items
+  const meta = getCategoryMeta(category)
+  const topKey = itemKey(topItem, 'featured-')
+  const nextItems = items.slice(1, 3)
 
-      <div className="flex snap-x gap-4 overflow-x-auto pb-4 [scrollbar-width:thin] xl:grid xl:grid-cols-3 xl:overflow-visible xl:pb-0">
-        {items.map((item) => {
-          const key = itemKey(item, 'featured-')
-          return (
-            <FeaturedPickCard
-              key={key}
-              item={item}
-              flipped={flippedKey === key}
-              saving={saving}
-              onToggle={(nextItem) => onToggle(nextItem, 'featured-')}
-              onInfo={onInfo}
-              onCopy={onCopy}
-              className="w-[18.5rem] shrink-0 snap-start sm:w-[22rem] xl:w-auto"
-            />
-          )
-        })}
+  return (
+    <div className="relative pt-3 pr-3">
+      <div className="pointer-events-none absolute right-0 top-0 h-[20rem] w-[92%] rounded-[2rem] border border-white/10 bg-white/[0.035] shadow-2xl shadow-black/20" />
+      <div className="pointer-events-none absolute right-3 top-3 h-[20rem] w-[94%] rounded-[2rem] border border-white/10 bg-white/[0.045] shadow-2xl shadow-black/20" />
+      <FeaturedPickCard
+        item={topItem}
+        flipped={flippedKey === topKey}
+        saving={saving}
+        onToggle={(nextItem) => onToggle(nextItem, 'featured-')}
+        onInfo={onInfo}
+        onCopy={onCopy}
+        rankLabel={`${meta.label.toLowerCase()} pick`}
+      />
+
+      <div className="relative z-20 -mt-2 rounded-[1.5rem] border border-white/10 bg-black/35 p-3 backdrop-blur">
+        <div className="flex items-center justify-between gap-3">
+          <span className="inline-flex min-w-0 items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
+            <AppIcon name={meta.icon} size={14} />
+            {items.length} {meta.plural} ranked
+          </span>
+          <button
+            type="button"
+            onClick={() => onOpenLadder(category)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-neutral-950 transition hover:bg-neutral-200"
+          >
+            Ladder
+            <AppIcon name="explore" size={13} />
+          </button>
+        </div>
+        {nextItems.length ? (
+          <p className="mt-2 truncate text-xs text-neutral-500">
+            Next: {nextItems.map((item) => `#${item.categoryRank || item.rank || '—'} ${item.title}`).join(' · ')}
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-neutral-500">More {meta.plural.toLowerCase()} will appear here as the category grows.</p>
+        )}
       </div>
-    </section>
+    </div>
+  )
+}
+
+function CategoryLadderModal({ category, items, saving, onInfo, onCopy, onClose }) {
+  if (!category) return null
+
+  const meta = getCategoryMeta(category)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <article className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950/95 shadow-2xl shadow-black/50">
+        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.26em] text-neutral-500">Public ladder</p>
+            <h2 className="mt-1 text-3xl font-black text-white">Top {meta.plural}</h2>
+            <p className="mt-2 text-sm text-neutral-400">Browse the full ranked category without replacing the main Explore overview.</p>
+          </div>
+          <button type="button" onClick={onClose} className="text-2xl text-neutral-400 transition hover:text-white">×</button>
+        </div>
+
+        <div className="overflow-y-auto p-4">
+          <div className="space-y-3">
+            {items.map((item) => {
+              const groupPath = item.groupId ? getGroupOpenPath({ id: item.groupId }) : null
+              return (
+                <article key={itemKey(item, 'ladder-')} className="grid gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-3 transition hover:border-white/20 hover:bg-white/[0.05] sm:grid-cols-[auto_1fr_auto] sm:items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">#{item.categoryRank || item.rank || '—'}</div>
+                    <div className="h-20 w-16 shrink-0 overflow-hidden rounded-2xl bg-neutral-900">
+                      {item.poster ? <img src={item.poster} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-neutral-400"><AppIcon name={meta.icon} size={24} /></div>}
+                    </div>
+                  </div>
+
+                  <div className="min-w-0">
+                    <h3 className="line-clamp-2 text-lg font-black leading-tight text-white">{item.title}</h3>
+                    <p className="mt-1 truncate text-sm text-neutral-400">{item.groupName || 'Public clique'}{getNominator(item) ? ` · Added by ${getNominator(item)}` : ''}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <MetricPill>Score {item.score || 0}</MetricPill>
+                      <MetricPill>{item.picks || 0} picks</MetricPill>
+                      {item.rating ? <MetricPill>Rating {Number(item.rating).toFixed(1)}</MetricPill> : null}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 sm:justify-end">
+                    <button type="button" onClick={() => onInfo(item)} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-white/10 px-3 text-xs font-black text-white transition hover:bg-white hover:text-neutral-950">
+                      <AppIcon name="info" size={14} />
+                      Info
+                    </button>
+                    <button type="button" onClick={() => onCopy(item)} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-2xl bg-white px-3 text-xs font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">
+                      <AppIcon name="dashboard" size={14} />
+                      {saving ? '...' : 'Copy'}
+                    </button>
+                    {groupPath ? (
+                      <Link to={groupPath} onClick={onClose} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-white/10 px-3 text-xs font-black text-white transition hover:bg-white hover:text-neutral-950">
+                        <AppIcon name="explore" size={14} />
+                        Clique
+                      </Link>
+                    ) : null}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </div>
+      </article>
+    </div>
   )
 }
 
@@ -599,6 +679,7 @@ function ExploreBoard() {
   const [loading, setLoading] = useState(hasSupabase)
   const [message, setMessage] = useState(null)
   const [selectedItem, setSelectedItem] = useState(null)
+  const [activeLadder, setActiveLadder] = useState(null)
   const [savingItem, setSavingItem] = useState(false)
   const [flippedKey, setFlippedKey] = useState(null)
 
@@ -649,7 +730,14 @@ function ExploreBoard() {
 
   const groups = board.groups || []
   const topContent = board.topContent || []
-  const topPicks = useMemo(() => sortByRank(topContent).slice(0, 12), [topContent])
+  const categoryPiles = useMemo(() => featuredCategories
+    .map((category) => {
+      const items = sortByRank(topContent.filter((item) => item.category === category))
+        .map((item, index) => ({ ...item, categoryRank: index + 1 }))
+      return { category, items }
+    })
+    .filter((pile) => pile.items.length), [topContent])
+  const activeLadderItems = useMemo(() => categoryPiles.find((pile) => pile.category === activeLadder)?.items || [], [activeLadder, categoryPiles])
 
   if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading Explore...</div>
   if (message && !topContent.length && !groups.length) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
@@ -659,14 +747,36 @@ function ExploreBoard() {
     <>
       {message ? <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}
 
-      <TopPicksShelf
-        items={topPicks}
-        flippedKey={flippedKey}
-        saving={savingItem}
-        onToggle={toggleTile}
-        onInfo={setSelectedItem}
-        onCopy={copyToLibrary}
-      />
+      {categoryPiles.length ? (
+        <section className="mb-8 pt-1">
+          <div className="mb-4 flex flex-col gap-3 px-1 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Explore</p>
+              <h1 className="mt-1 text-3xl font-black text-white">Top public picks</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Best public pick per media type. Open a ladder on any card to see what is ranked second, third, and beyond.</p>
+            </div>
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300">
+              <AppIcon name="explore" size={15} />
+              {topContent.length} public picks
+            </div>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {categoryPiles.map((pile) => (
+              <FeaturedPickPile
+                key={pile.category}
+                category={pile.category}
+                items={pile.items}
+                flippedKey={flippedKey}
+                saving={savingItem}
+                onToggle={toggleTile}
+                onInfo={setSelectedItem}
+                onCopy={copyToLibrary}
+                onOpenLadder={setActiveLadder}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {groups.length ? (
         <section>
@@ -694,6 +804,14 @@ function ExploreBoard() {
         </section>
       ) : null}
 
+      <CategoryLadderModal
+        category={activeLadder}
+        items={activeLadderItems}
+        saving={savingItem}
+        onInfo={(item) => { setActiveLadder(null); setSelectedItem(item) }}
+        onCopy={copyToLibrary}
+        onClose={() => setActiveLadder(null)}
+      />
       <DetailModal item={selectedItem} saving={savingItem} onCopy={copyToLibrary} onClose={() => setSelectedItem(null)} />
     </>
   )
