@@ -6,7 +6,7 @@ import { getSavedHandle } from '../lib/handle.js'
 import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
 import { demoGames } from '../lib/demoMovies.js'
 import { getGameDetails, searchGames } from '../lib/tmdb.js'
-import { getCurrentSession, getGames, hasSupabase, markGamePlayed, rateGame as saveGameRating, saveGame, voteGame } from '../lib/supabaseClient.js'
+import { getCurrentSession, getGames, getRemoteGroups, hasSupabase, markGamePlayed, rateGame as saveGameRating, saveGame, voteGame } from '../lib/supabaseClient.js'
 
 function makeId(title) {
   return `custom-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now()}`
@@ -18,9 +18,13 @@ function splitList(value) {
 
 function setupMessage(state) {
   if (!hasSupabase) return null
-  if (state === 'signed-out') return 'Sign in from Profile, then create or select a group before adding games.'
-  if (state === 'no-group') return 'Create or select a group in Profile before adding games.'
+  if (state === 'signed-out') return 'Sign in from Profile to build your personal game library and save picks to groups.'
   return null
+}
+
+function scopeLabel(scope, groups) {
+  if (scope === 'personal') return 'Personal library'
+  return groups.find((group) => group.id === scope)?.name || 'Selected group'
 }
 
 export default function Games() {
@@ -35,14 +39,18 @@ export default function Games() {
   const [results, setResults] = useState([])
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
+  const [groups, setGroups] = useState([])
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
+  const [selectedScope, setSelectedScope] = useState('personal')
   const [setupState, setSetupState] = useState(() => hasSupabase ? 'checking' : 'local')
   const [draft, setDraft] = useState({ title: '', year: '', poster: '', genres: '', platform: '', overview: '' })
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
   const activeGroupId = activeGroup?.id || null
-  const canUseGroup = !hasSupabase || setupState === 'ready'
+  const canUseLibrary = !hasSupabase || setupState === 'ready'
+  const selectedGroupId = selectedScope === 'personal' ? null : selectedScope
+  const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => games.filter((game) => !votes[game.id] && !played.includes(game.id)), [games, votes, played])
   const ranking = useMemo(() => games.slice().sort((a, b) => (votes[b.id] === 'like') - (votes[a.id] === 'like') || (b.score || 0) - (a.score || 0) || (b.picks || 0) - (a.picks || 0)), [games, votes])
@@ -51,6 +59,11 @@ export default function Games() {
   useEffect(() => {
     refreshContext()
   }, [activeGroupId])
+
+  useEffect(() => {
+    if (!hasSupabase || setupState !== 'ready') return
+    loadGames(selectedGroupId)
+  }, [selectedScope, setupState])
 
   useEffect(() => {
     function handleGroupChange() {
@@ -74,13 +87,18 @@ export default function Games() {
         setSetupState('signed-out')
         return
       }
-      if (!group?.id) {
-        clearRemoteState()
-        setSetupState('no-group')
-        return
+
+      const remoteGroups = await getRemoteGroups().catch(() => [])
+      setGroups(remoteGroups)
+
+      if (selectedScope !== 'personal' && !remoteGroups.some((remoteGroup) => remoteGroup.id === selectedScope)) {
+        setSelectedScope('personal')
+      } else if (selectedScope === 'personal' && group?.id && remoteGroups.some((remoteGroup) => remoteGroup.id === group.id)) {
+        setSelectedScope(group.id)
       }
+
       setSetupState('ready')
-      await loadGames(group.id)
+      await loadGames(selectedScope === 'personal' ? null : selectedScope)
     } catch (error) {
       clearRemoteState()
       setSetupState('signed-out')
@@ -96,8 +114,7 @@ export default function Games() {
     setResults([])
   }
 
-  async function loadGames(groupId = activeGroupId) {
-    if (!groupId) return
+  async function loadGames(groupId = selectedGroupId) {
     try {
       const rows = await getGames(groupId)
       setGames(rows)
@@ -113,9 +130,9 @@ export default function Games() {
     setTimeout(() => setMessage(null), 2400)
   }
 
-  function needGroup() {
-    if (canUseGroup) return false
-    showMessage(setupMessage(setupState) || 'Create or select a group first.', 'error')
+  function needLibrary() {
+    if (canUseLibrary) return false
+    showMessage(setupMessage(setupState) || 'Sign in first.', 'error')
     return true
   }
 
@@ -128,7 +145,7 @@ export default function Games() {
   async function handleSearch(event) {
     event.preventDefault()
     if (!query.trim()) return
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setSearching(true)
     try {
@@ -146,7 +163,7 @@ export default function Games() {
     event.preventDefault()
     const title = draft.title.trim()
     if (!title) return
-    if (needGroup()) return
+    if (needLibrary()) return
 
     const game = {
       id: makeId(title),
@@ -163,48 +180,48 @@ export default function Games() {
 
     try {
       if (hasSupabase) {
-        const saved = await saveGame(game, activeHandle || 'anonymous', activeGroupId)
+        const saved = await saveGame(game, activeHandle || 'anonymous', selectedGroupId)
         setGames((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current])
       } else {
         setGames((current) => [game, ...current])
       }
       setResults([game])
       setDraft({ title: '', year: '', poster: '', genres: '', platform: '', overview: '' })
-      showMessage(`"${game.title}" added to ${activeGroup?.name || 'the game pile'}.`)
+      showMessage(`"${game.title}" added to ${destinationLabel}.`)
     } catch (error) {
       showMessage(error.message || 'Could not save game.', 'error')
     }
   }
 
   async function addExistingGame(game) {
-    if (needGroup()) return
+    if (needLibrary()) return
     try {
       const details = await getGameDetails(game).catch(() => game)
       const fullGame = { ...(details || game), nominated_by: activeHandle || game.nominated_by || 'You' }
 
       if (hasSupabase) {
-        const saved = await saveGame(fullGame, activeHandle || 'anonymous', activeGroupId)
+        const saved = await saveGame(fullGame, activeHandle || 'anonymous', selectedGroupId)
         setGames((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current])
       } else {
         setGames((current) => current.some((item) => item.id === fullGame.id) ? current : [fullGame, ...current])
       }
 
       clearSearch()
-      showMessage(`"${fullGame.title}" added to ${activeGroup?.name || 'the game pile'}.`)
+      showMessage(`"${fullGame.title}" added to ${destinationLabel}.`)
     } catch (error) {
       showMessage(error.message || 'Could not add that game.', 'error')
     }
   }
 
   async function handleSwipe(vote, game) {
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setVotes((current) => ({ ...current, [game.id]: vote }))
 
     if (hasSupabase) {
       try {
-        await voteGame(game, vote, activeGroupId)
-        await loadGames(activeGroupId)
+        await voteGame(game, vote, selectedGroupId)
+        await loadGames(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save vote.', 'error')
         return
@@ -215,7 +232,7 @@ export default function Games() {
   }
 
   async function markPlayed(game) {
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setPlayed((current) => current.includes(game.id) ? current : [...current, game.id])
     setVotes((current) => ({ ...current, [game.id]: 'like' }))
@@ -223,8 +240,8 @@ export default function Games() {
 
     if (hasSupabase) {
       try {
-        await markGamePlayed(game, ratings[game.id] || null, activeGroupId)
-        await loadGames(activeGroupId)
+        await markGamePlayed(game, ratings[game.id] || null, selectedGroupId)
+        await loadGames(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save played game.', 'error')
         return
@@ -235,15 +252,15 @@ export default function Games() {
   }
 
   async function rateGame(game, rating) {
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setRatings((current) => ({ ...current, [game.id]: rating }))
     setEditingRating(null)
 
     if (hasSupabase) {
       try {
-        await saveGameRating(game, rating, activeGroupId)
-        await loadGames(activeGroupId)
+        await saveGameRating(game, rating, selectedGroupId)
+        await loadGames(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save rating.', 'error')
       }
@@ -263,7 +280,7 @@ export default function Games() {
     }
   }
 
-  function resetPage() {
+  function refreshPage() {
     if (hasSupabase) {
       clearRemoteState()
       refreshContext()
@@ -286,13 +303,21 @@ export default function Games() {
       <PageHero
         eyebrow="Game night"
         title="Pick what to play"
-        description="Search real games from the games API, add them to the active group, vote with friends, then rate played games."
+        description="Search real games from the games API, save them to your personal library or a group, vote through the pile, then rate played games."
         warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your game picks under one name.' : null)}
-        actions={<button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Refresh</button>}
+        actions={hasSupabase ? (
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+            Save to
+            <select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value)} disabled={!canUseLibrary} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-semibold normal-case tracking-normal text-white outline-none disabled:opacity-50">
+              <option value="personal">Personal library</option>
+              {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+          </label>
+        ) : <button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset local demo</button>}
       >
-        {hasSupabase ? (
+        {hasSupabase && canUseLibrary ? (
           <p className="mt-4 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
-            {canUseGroup ? <>Saving to <strong className="text-white">{activeGroup.name}</strong>.</> : 'No demo games are loaded in Supabase mode. Sign in and create/select a group to start your real database.'}
+            Current destination: <strong className="text-white">{destinationLabel}</strong>.
           </p>
         ) : null}
 
@@ -300,7 +325,7 @@ export default function Games() {
           <div className="flex gap-2">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a game..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
             {hasResults ? <button type="button" className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950" onClick={clearSearch}>Back</button> : null}
-            <button type="submit" disabled={searching || !canUseGroup} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{searching ? 'Searching...' : 'Search'}</button>
+            <button type="submit" disabled={searching || !canUseLibrary} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{searching ? 'Searching...' : 'Search'}</button>
           </div>
         </form>
 
@@ -311,7 +336,7 @@ export default function Games() {
               <input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Game title..." className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
               <input value={draft.year} onChange={(event) => setDraft((current) => ({ ...current, year: event.target.value }))} placeholder="Year" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
               <input value={draft.platform} onChange={(event) => setDraft((current) => ({ ...current, platform: event.target.value }))} placeholder="Platform" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-              <button type="submit" disabled={!canUseGroup} className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">Add</button>
+              <button type="submit" disabled={!canUseLibrary} className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">Add</button>
             </div>
             <div className="grid gap-2 md:grid-cols-[1fr_1fr]">
               <input value={draft.poster} onChange={(event) => setDraft((current) => ({ ...current, poster: event.target.value }))} placeholder="Cover image URL" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
@@ -333,7 +358,7 @@ export default function Games() {
       ) : null}
 
       <section ref={deckRef} className="mb-8">
-        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="games" emptyLabel={canUseGroup ? 'No games yet. Search and add your first pick.' : 'Create or select a group to start voting.'} likeLabel="Play" dislikeLabel="Pass" infoType="game" loadDetails={getGameDetails} />
+        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="games" emptyLabel={canUseLibrary ? 'No games here yet. Search and add your first pick.' : 'Sign in to start your game library.'} likeLabel="Play" dislikeLabel="Pass" infoType="game" loadDetails={getGameDetails} />
       </section>
 
       <TopRankingSection title="Next games" items={ranking} votes={votes} onInfo={openGameInfo} onDone={markPlayed} doneLabel="Played" imageClass="h-14 w-10" />
