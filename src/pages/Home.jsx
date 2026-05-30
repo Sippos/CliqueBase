@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
+import MemberShareModal from '../components/MemberShareModal.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, parseInviteCode, setActiveGroup } from '../lib/groups.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
@@ -32,7 +33,7 @@ function normalizeItems(rows, type, code, to) {
   })).sort((a, b) => b.sortValue - a.sortValue)
 }
 
-function LibrarySectionCard({ category, loading }) {
+function LibrarySectionCard({ category, loading, onShare }) {
   const top = category.top
   const image = top?.backdrop || top?.poster
   const topTitle = top?.title || `No ${category.title.toLowerCase()} yet`
@@ -53,13 +54,12 @@ function LibrarySectionCard({ category, loading }) {
             <AppIcon name={category.icon} size={14} strokeWidth={2.4} />
             {category.title}
           </div>
-          <Link
-            to={category.to}
-            aria-label={`Open ${category.title}`}
-            className="pointer-events-auto rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"
-          >
-            {loading ? '…' : category.count}
-          </Link>
+          <div className="pointer-events-auto flex gap-2">
+            {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+            <Link to={category.to} aria-label={`Open ${category.title}`} className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">
+              {loading ? '…' : category.count}
+            </Link>
+          </div>
         </div>
 
         <h3 className="line-clamp-2 text-xl font-black leading-tight text-white drop-shadow-lg">{loading ? 'Loading section…' : topTitle}</h3>
@@ -68,7 +68,7 @@ function LibrarySectionCard({ category, loading }) {
   )
 }
 
-function LibraryOverviewPanel({ items, categories, loading }) {
+function LibraryOverviewPanel({ items, categories, loading, onShare }) {
   return (
     <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20">
       <div className="flex flex-wrap items-end justify-between gap-3 px-1">
@@ -83,13 +83,13 @@ function LibraryOverviewPanel({ items, categories, loading }) {
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        {categories.map((category) => <LibrarySectionCard key={category.title} category={category} loading={loading} />)}
+        {categories.map((category) => <LibrarySectionCard key={category.title} category={category} loading={loading} onShare={onShare} />)}
       </div>
     </section>
   )
 }
 
-function LibraryShowcase({ items, loading }) {
+function LibraryShowcase({ items, loading, onShare }) {
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
@@ -140,17 +140,18 @@ function LibraryShowcase({ items, loading }) {
           <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">Library reel</span>
           <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-bold text-neutral-200 backdrop-blur">{index + 1}/{items.length}</span>
         </div>
-        <div className="relative max-w-md">
+        <div className="relative max-w-md pr-24">
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-300">{item.type}</p>
           <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">{item.title}</h2>
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-300">{item.overview || `Score ${item.score || 0} · ${item.picks || 0} picks`}</p>
         </div>
       </Link>
+      <button type="button" onClick={() => onShare?.(item)} className="absolute bottom-5 right-5 z-10 rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 shadow-2xl shadow-black/30 transition hover:bg-neutral-200">Share</button>
     </div>
   )
 }
 
-function CategoryTopCard({ category, loading }) {
+function CategoryTopCard({ category, loading, onShare }) {
   const top = category.top
   const image = top?.backdrop || top?.poster
 
@@ -164,7 +165,10 @@ function CategoryTopCard({ category, loading }) {
           <AppIcon name={category.icon} size={13} strokeWidth={2.4} />
           {category.title}
         </span>
-        <Link to={category.to} className="absolute right-4 top-4 z-10 rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Open list</Link>
+        <div className="absolute right-4 top-4 z-10 flex gap-2">
+          {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+          <Link to={category.to} className="rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Open list</Link>
+        </div>
         {!top ? <span className="absolute bottom-4 left-4 right-4 z-10 text-sm font-semibold text-neutral-300">No {category.title.toLowerCase()} yet</span> : null}
       </div>
 
@@ -192,6 +196,7 @@ function CategoryTopCard({ category, loading }) {
               {top.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(top.rating).toFixed(1)}</span> : null}
               <span className="rounded-full border border-white/10 px-3 py-1.5">{category.rated} rated</span>
             </div>
+            <button type="button" onClick={() => onShare?.(top)} className="mt-4 rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share {category.singular.toLowerCase()}</button>
           </>
         ) : (
           <div className="mt-6 flex flex-col gap-5">
@@ -235,6 +240,8 @@ export default function Home() {
   const [context, setContext] = useState(() => ({ type: getActiveGroup() ? 'group' : 'personal', name: getActiveGroup()?.name || 'My Library', groupId: getActiveGroup()?.id || null }))
   const [media, setMedia] = useState({ movies: [], series: [], games: [] })
   const [message, setMessage] = useState('')
+  const [shareNotice, setShareNotice] = useState('')
+  const [sharingItem, setSharingItem] = useState(null)
 
   useEffect(() => {
     if (routeGroupId) setActiveGroup(routeGroupId)
@@ -305,6 +312,15 @@ export default function Home() {
     navigate(`/invite/${encodeURIComponent(code)}`)
   }
 
+  function openShare(item) {
+    setSharingItem(item)
+  }
+
+  function handleShareMessage(text) {
+    setShareNotice(text)
+    setTimeout(() => setShareNotice(''), 2600)
+  }
+
   return (
     <PageShell active={context.type === 'group' ? 'cliques' : 'library'}>
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
@@ -313,12 +329,13 @@ export default function Home() {
             <h1 className="max-w-3xl text-3xl font-black tracking-tight text-white sm:text-5xl">{context.name}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400 sm:text-base">{context.type === 'group' ? 'Shared movie, series, and game picks for this clique.' : 'Your watched movies, finished series, and played games in one place.'}</p>
             {status === 'signed-out' ? <p className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join cliques.</p> : null}
-            <LibraryOverviewPanel items={loading ? [] : allItems} categories={categories} loading={loading} />
+            <LibraryOverviewPanel items={loading ? [] : allItems} categories={categories} loading={loading} onShare={openShare} />
           </div>
-          <LibraryShowcase items={loading ? [] : allItems} loading={loading} />
+          <LibraryShowcase items={loading ? [] : allItems} loading={loading} onShare={openShare} />
         </div>
       </section>
 
+      {shareNotice ? <div className="mt-5 rounded-2xl border border-emerald-400/30 bg-emerald-950/30 p-4 text-sm text-emerald-100">{shareNotice}</div> : null}
       {message ? <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-950/30 p-4 text-sm text-rose-100">{message}</div> : null}
 
       <section className="mt-5 grid gap-3 md:grid-cols-3">
@@ -335,9 +352,11 @@ export default function Home() {
           <h2 className="mt-1 text-3xl font-black text-white">Top items by category</h2>
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
-          {categories.map((category) => <CategoryTopCard key={category.title} category={category} loading={loading} />)}
+          {categories.map((category) => <CategoryTopCard key={category.title} category={category} loading={loading} onShare={openShare} />)}
         </div>
       </section>
+
+      <MemberShareModal item={sharingItem} type={sharingItem?.type?.toLowerCase()} onClose={() => setSharingItem(null)} onMessage={handleShareMessage} />
     </PageShell>
   )
 }
