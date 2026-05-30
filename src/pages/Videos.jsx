@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
-import PageShell from '../components/PageShell.jsx'
+import { useMemo, useRef, useState } from 'react'
 import SwipeDeck from '../components/SwipeDeck.jsx'
+import PageShell from '../components/PageShell.jsx'
+import { DetailPill, InfoModal, PageHero, StatusMessage, displayYear } from '../components/MediaBlocks.jsx'
 import { getSavedHandle } from '../lib/handle.js'
 import { demoVideos } from '../lib/demoMovies.js'
 
@@ -44,70 +45,88 @@ function makeVideo(url, title, activeHandle) {
     url: cleanUrl,
     poster: youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null,
     overview: cleanUrl,
+    platform: youtubeId ? 'YouTube' : 'Link',
     nominated_by: activeHandle || 'You',
     picks: 0,
     score: 0,
   }
 }
 
-function DetailPill({ children }) {
-  if (!children) return null
-  return <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-neutral-300">{children}</span>
+function VideoCard({ video, onInfo, onClassic }) {
+  return (
+    <div className="overflow-hidden rounded-3xl border border-white/10 bg-neutral-950/70 transition hover:border-white/20">
+      <div className="relative">
+        <button type="button" onClick={() => onInfo(video)} className="block w-full text-left">
+          {video.poster ? (
+            <img src={video.poster} alt="" className="h-52 w-full object-cover transition hover:scale-105" />
+          ) : (
+            <div className="flex h-52 items-center justify-center bg-neutral-900 text-neutral-500 uppercase tracking-[0.3em]">{video.platform || 'video'}</div>
+          )}
+        </button>
+        <button type="button" onClick={() => onInfo(video)} className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/60 px-3 py-1 text-sm text-white backdrop-blur hover:bg-white hover:text-black">ⓘ</button>
+      </div>
+      <div className="p-4">
+        <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.18em] text-neutral-500">
+          <span>{video.platform || 'link'}</span>
+          <span>•</span>
+          <span>by {video.nominated_by || 'Someone'}</span>
+        </div>
+        <button type="button" onClick={() => onInfo(video)} className="mt-2 block w-full text-left text-lg font-semibold leading-tight text-white hover:underline">{video.title}</button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {video.saved ? <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-950">Classic</span> : <button type="button" onClick={() => onClassic(video)} className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-neutral-300 hover:bg-white hover:text-neutral-950">Mark classic</button>}
+          {video.url ? <a href={video.url} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-neutral-300 hover:bg-white hover:text-neutral-950">Open link</a> : null}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function Videos() {
   const [videos, setVideos] = useState(demoVideos)
   const [votes, setVotes] = useState({})
-  const [saved, setSaved] = useState(() => demoVideos.filter((item) => item.saved).map((item) => item.id))
-  const [ratings, setRatings] = useState(() => Object.fromEntries(demoVideos.filter((item) => item.rating).map((item) => [item.id, item.rating])))
-  const [editingRating, setEditingRating] = useState(null)
+  const [classics, setClassics] = useState(() => demoVideos.filter((item) => item.saved).map((item) => item.id))
   const [infoVideo, setInfoVideo] = useState(null)
   const [draft, setDraft] = useState({ url: '', title: '' })
   const [message, setMessage] = useState(null)
+  const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
 
-  const queue = useMemo(() => videos.filter((item) => !votes[item.id] && !saved.includes(item.id)), [videos, votes, saved])
-  const ranking = useMemo(() => videos.slice().sort((a, b) => (votes[b.id] === 'like') - (votes[a.id] === 'like') || b.score - a.score || b.picks - a.picks), [videos, votes])
-  const savedVideos = useMemo(() => videos.filter((item) => saved.includes(item.id)), [videos, saved])
+  const classicVideos = useMemo(() => videos.filter((item) => classics.includes(item.id)), [videos, classics])
+  const feedVideos = useMemo(() => videos.slice().sort((a, b) => (classics.includes(b.id)) - (classics.includes(a.id)) || (b.score || 0) - (a.score || 0)), [videos, classics])
+  const votePile = useMemo(() => videos.filter((item) => !classics.includes(item.id) && !votes[item.id]).slice(0, 20), [videos, classics, votes])
 
-  function showMessage(text) {
-    setMessage({ text })
+  function showMessage(text, type = 'success') {
+    setMessage({ type, text })
     setTimeout(() => setMessage(null), 2200)
   }
 
-  function addVideo(event) {
+  function addVideo(event, markClassic = false) {
     event.preventDefault()
     if (!draft.url.trim()) return
 
     const video = makeVideo(draft.url, draft.title, activeHandle)
     setVideos((current) => [video, ...current])
+    if (markClassic) setClassics((current) => [video.id, ...current])
     setDraft({ url: '', title: '' })
-    showMessage(`${video.title} added to the pile.`)
+    showMessage(markClassic ? `"${video.title}" saved as classic.` : `"${video.title}" uploaded to the feed.`)
   }
 
-  function handleSwipe(vote, item) {
-    setVotes((current) => ({ ...current, [item.id]: vote }))
-    showMessage(vote === 'like' ? `${item.title} moved up the ranking.` : `${item.title} skipped for now.`)
+  function markClassic(video) {
+    setClassics((current) => current.includes(video.id) ? current : [video.id, ...current])
+    setVotes((current) => ({ ...current, [video.id]: 'like' }))
+    showMessage(`"${video.title}" saved as classic.`)
   }
 
-  function markSaved(item) {
-    setSaved((current) => current.includes(item.id) ? current : [...current, item.id])
-    setVotes((current) => ({ ...current, [item.id]: 'like' }))
-    setEditingRating(item.id)
-    showMessage(`${item.title} added to saved videos.`)
-  }
-
-  function rateVideo(item, rating) {
-    setRatings((current) => ({ ...current, [item.id]: rating }))
-    setEditingRating(null)
+  function handleSwipe(vote, video) {
+    setVotes((current) => ({ ...current, [video.id]: vote }))
+    if (vote === 'like') markClassic(video)
+    else showMessage(`You passed on "${video.title}".`)
   }
 
   function resetPage() {
     setVideos(demoVideos)
     setVotes({})
-    setSaved(demoVideos.filter((item) => item.saved).map((item) => item.id))
-    setRatings(Object.fromEntries(demoVideos.filter((item) => item.rating).map((item) => [item.id, item.rating])))
-    setEditingRating(null)
+    setClassics(demoVideos.filter((item) => item.saved).map((item) => item.id))
     setInfoVideo(null)
     setDraft({ url: '', title: '' })
     setMessage(null)
@@ -115,113 +134,61 @@ export default function Videos() {
 
   return (
     <PageShell active="videos">
-      <section className="mb-5 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20 sm:rounded-[1.75rem] md:p-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Shared links</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl md:text-4xl">Save videos by URL</h1>
-            <p className="mt-3 max-w-2xl text-neutral-400">Paste a video link. A title is optional, and YouTube links get a thumbnail automatically.</p>
+      <PageHero
+        eyebrow="Shared link dump"
+        title="Upload funny links"
+        description="Paste YouTube or other video links, keep a group feed, swipe the non-classics, and pin the best links forever."
+        warning={!activeHandle ? 'Create a profile with the Profile button in the navbar before uploading so your name appears on links.' : null}
+        actions={<button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset</button>}
+      >
+        <form onSubmit={(event) => addVideo(event, false)} className="mt-5 space-y-3">
+          <input className="w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" placeholder="Paste YouTube / TikTok / Instagram / video link" value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} />
+          <input className="w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" placeholder="Funny title (optional)" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <button type="submit" className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200">Upload to feed</button>
+            <button type="button" onClick={(event) => addVideo(event, true)} className="rounded-2xl border border-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white hover:text-neutral-950">Upload as classic</button>
           </div>
-          <button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset</button>
-        </div>
-
-        <form onSubmit={addVideo} className="mt-5 grid gap-2 md:grid-cols-[1fr_0.7fr_auto]">
-          <input value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} placeholder="Paste video URL..." className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-          <input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Optional title" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-          <button type="submit" className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200">Add</button>
         </form>
-      </section>
+      </PageHero>
 
-      {message ? <div className="mb-4 rounded-2xl bg-emerald-700 p-3 text-white">{message.text}</div> : null}
+      <StatusMessage message={message} />
 
-      <section className="mb-8">
-        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="videos" likeLabel="Save" dislikeLabel="Pass" infoType="video" />
-      </section>
-
-      <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
-        <div className="mb-4 flex items-end justify-between gap-3">
+      <section className="mb-10 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Group pick</p>
-            <h2 className="mt-1 text-2xl font-bold text-white">Top videos</h2>
+            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Latest uploads</p>
+            <h2 className="mt-1 text-3xl font-semibold text-white">Video feed</h2>
           </div>
-          <span className="text-sm text-neutral-500">Top {Math.min(6, ranking.length)}</span>
+          <div className="text-sm text-neutral-500">{videos.length} uploaded link{videos.length === 1 ? '' : 's'}</div>
         </div>
-        <div className="grid gap-2 md:grid-cols-2">
-          {ranking.slice(0, 6).map((item, index) => (
-            <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">{index + 1}</div>
-              {item.poster ? <button type="button" onClick={() => setInfoVideo(item)} className="shrink-0"><img src={item.poster} alt="" className="h-14 w-20 rounded-lg object-cover transition hover:opacity-80" /></button> : null}
-              <div className="min-w-0 flex-1">
-                <button type="button" onClick={() => setInfoVideo(item)} className="block max-w-full truncate text-left font-semibold text-white hover:underline">{item.title}</button>
-                <div className="mt-1 text-xs text-neutral-400">{item.picks + (votes[item.id] === 'like' ? 1 : 0)} picks · score {item.score + (votes[item.id] === 'like' ? 1 : 0)}</div>
-              </div>
-              <button type="button" onClick={() => setInfoVideo(item)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">Details</button>
-              <button type="button" onClick={() => markSaved(item)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 hover:bg-white hover:text-neutral-950">Saved</button>
-            </div>
-          ))}
-        </div>
+        {feedVideos.length === 0 ? <p className="text-neutral-400">No links uploaded yet.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{feedVideos.map((video) => <VideoCard key={video.id} video={{ ...video, saved: classics.includes(video.id) }} onInfo={setInfoVideo} onClassic={markClassic} />)}</div>}
+      </section>
+
+      <section ref={deckRef} className="mb-10">
+        <SwipeDeck items={votePile} onSwipe={handleSwipe} itemLabel="videos" emptyLabel="No non-classic videos left to vote on" likeLabel="Classic" dislikeLabel="Pass" infoType="video" />
       </section>
 
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Saved</p>
-            <h2 className="mt-1 text-3xl font-semibold text-white">Video history</h2>
+            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Hall of fame</p>
+            <h2 className="mt-1 text-3xl font-semibold text-white">Classic funny videos</h2>
           </div>
-          <div className="text-sm text-neutral-500">{savedVideos.length} saved</div>
+          <div className="max-w-xs text-sm text-neutral-500 sm:text-right">Pinned links the group wants to remember forever</div>
         </div>
-
-        {savedVideos.length === 0 ? <p className="text-neutral-400">No saved videos yet.</p> : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {savedVideos.map((item) => {
-              const showRatingScale = !ratings[item.id] || editingRating === item.id
-              return (
-                <div key={item.id} className="relative flex gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
-                  <button type="button" onClick={() => setEditingRating(editingRating === item.id ? null : item.id)} className="absolute right-3 top-3 rounded-full border border-white/20 bg-black/60 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">★ {ratings[item.id] || 'Rate'}</button>
-                  {item.poster ? <button type="button" onClick={() => setInfoVideo(item)} className="shrink-0"><img src={item.poster} alt="" className="h-24 w-32 rounded-xl object-cover transition hover:opacity-80" /></button> : null}
-                  <div className="min-w-0 flex-1 pr-20">
-                    <button type="button" onClick={() => setInfoVideo(item)} className="block max-w-full truncate text-left font-bold text-white hover:underline">{item.title}</button>
-                    {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs text-neutral-400 hover:text-white">Open link</a> : null}
-                    {showRatingScale ? (
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
-                          <button key={rating} type="button" onClick={() => rateVideo(item, rating)} className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${ratings[item.id] === rating ? 'bg-white text-neutral-950' : 'bg-white/[0.06] text-neutral-300 hover:bg-white/20'}`}>{rating}</button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        {classicVideos.length === 0 ? <p className="text-neutral-400">No classics yet.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{classicVideos.map((video) => <VideoCard key={video.id} video={{ ...video, saved: true }} onInfo={setInfoVideo} onClassic={markClassic} />)}</div>}
       </section>
 
-      {infoVideo ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/40">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="text-2xl font-bold leading-tight text-white">{infoVideo.title}</h3>
-                <div className="mt-1 text-sm text-neutral-400">{infoVideo.year}</div>
-              </div>
-              <button type="button" onClick={() => setInfoVideo(null)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-xl text-neutral-300 transition hover:bg-white hover:text-black">×</button>
-            </div>
-
-            <div className="mt-4 grid gap-4 sm:grid-cols-[220px_1fr]">
-              {infoVideo.poster ? <img src={infoVideo.poster} alt="" className="w-full rounded-2xl object-cover" /> : null}
-              <div>
-                <div className="flex flex-wrap gap-2">
-                  {infoVideo.url ? <DetailPill>Link</DetailPill> : null}
-                  {ratings[infoVideo.id] ? <DetailPill>Your rating ★ {ratings[infoVideo.id]}</DetailPill> : null}
-                </div>
-                <p className="mt-5 break-words text-sm leading-7 text-neutral-300">{infoVideo.overview || infoVideo.url || 'No description yet.'}</p>
-                {infoVideo.url ? <a href={infoVideo.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Open video</a> : null}
-              </div>
-            </div>
-          </div>
+      <InfoModal item={infoVideo} onClose={() => setInfoVideo(null)} year={displayYear(infoVideo?.year)}>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {infoVideo?.platform ? <DetailPill>{infoVideo.platform}</DetailPill> : null}
+          {classics.includes(infoVideo?.id) ? <DetailPill>Classic</DetailPill> : null}
+          {infoVideo?.nominated_by ? <DetailPill>Added by {infoVideo.nominated_by}</DetailPill> : null}
         </div>
-      ) : null}
+        {infoVideo?.poster ? <img src={infoVideo.poster} alt="" className="mt-5 max-h-80 w-full rounded-3xl object-cover" /> : null}
+        <p className="mt-5 break-words text-sm leading-7 text-neutral-300">{infoVideo?.overview || infoVideo?.url || 'No description yet.'}</p>
+        {infoVideo?.url ? <a href={infoVideo.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Open video</a> : null}
+      </InfoModal>
     </PageShell>
   )
 }
