@@ -135,11 +135,10 @@ export default function PageNav({ active = 'home' }) {
         setGroups(remoteGroups)
 
         const activeId = getActiveGroupId()
-        const nextActive = remoteGroups.find((group) => group.id === activeId) || remoteGroups[0] || null
+        const nextActive = activeId ? remoteGroups.find((group) => group.id === activeId) || null : null
         setActiveGroupState(nextActive)
 
-        if (nextActive && activeId !== nextActive.id) setActiveGroup(nextActive.id)
-        else if (!nextActive && activeId) setActiveGroup('')
+        if (activeId && !nextActive) setActiveGroup('')
         return
       } catch (error) {
         clearSupabaseSessionUi()
@@ -200,6 +199,14 @@ export default function PageNav({ active = 'home' }) {
     return handle || await saveHandle() || 'anonymous'
   }
 
+  function usePersonalLibrary() {
+    setActiveGroup('')
+    setActiveGroupState(null)
+    closeSwitchers()
+    flash('Using personal library.')
+    refreshGroups()
+  }
+
   async function handleCreateGroup(event) {
     event.preventDefault()
     const creator = await currentHandle()
@@ -210,6 +217,7 @@ export default function PageNav({ active = 'home' }) {
         : createLocalGroup(groupDraft || `${creator}'s clique`, creator)
 
       setActiveGroup(group.id)
+      setActiveGroupState(group)
       setGroupDraft('')
       refreshGroups()
       flash(`${group.name} created and active.`)
@@ -232,6 +240,7 @@ export default function PageNav({ active = 'home' }) {
         : joinLocalGroup(code, await currentHandle())
 
       setActiveGroup(joined.id)
+      setActiveGroupState(joined)
       setInviteDraft('')
       refreshGroups()
       flash(`Joined ${joined.name}.`)
@@ -242,6 +251,7 @@ export default function PageNav({ active = 'home' }) {
 
   function activateGroup(group) {
     setActiveGroup(group.id)
+    setActiveGroupState(group)
     closeSwitchers()
     refreshGroups()
     flash(`${group.name} is active.`)
@@ -386,7 +396,7 @@ export default function PageNav({ active = 'home' }) {
                 </div>
 
                 <div className="mt-3 space-y-2">
-                  <button type="button" onClick={() => { setActiveGroup(''); setActiveGroupState(null); closeSwitchers(); flash('Using personal library.') }} className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition ${!activeGroup ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white hover:bg-white/10'}`}>
+                  <button type="button" onClick={usePersonalLibrary} className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition ${!activeGroup ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white hover:bg-white/10'}`}>
                     <span><strong>Personal library</strong><span className="block text-xs opacity-60">Private picks without a group</span></span>
                     {!activeGroup ? <span>Active</span> : <span>Use</span>}
                   </button>
@@ -480,11 +490,14 @@ export default function PageNav({ active = 'home' }) {
             <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Active group</div>
-                  <h3 className="mt-1 text-xl font-bold text-white">{activeGroup?.name || 'No group selected'}</h3>
+                  <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Active context</div>
+                  <h3 className="mt-1 text-xl font-bold text-white">{activeGroup?.name || 'Personal library'}</h3>
                   <p className="mt-1 text-sm text-neutral-400">Use groups for shared voting. Personal library works without a group.</p>
                 </div>
-                {activeGroup ? <button type="button" onClick={() => copyInvite(activeGroup)} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Copy invite</button> : null}
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={usePersonalLibrary} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Use personal</button>
+                  {activeGroup ? <button type="button" onClick={() => copyInvite(activeGroup)} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Copy invite</button> : null}
+                </div>
               </div>
             </section>
 
