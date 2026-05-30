@@ -10,13 +10,13 @@ import { getCurrentSession, getRemoteGroups, getSeries, hasSupabase, markSeriesF
 
 function setupMessage(state) {
   if (!hasSupabase) return null
-  if (state === 'signed-out') return 'Sign in from Profile to build your personal series library and save picks to groups.'
+  if (state === 'signed-out') return 'Sign in from Profile to build your personal series library and save picks to cliques.'
   return null
 }
 
 function scopeLabel(scope, groups) {
   if (scope === 'personal') return 'Personal library'
-  return groups.find((group) => group.id === scope)?.name || 'Selected group'
+  return groups.find((group) => group.id === scope)?.name || 'Selected clique'
 }
 
 export default function Series() {
@@ -40,7 +40,8 @@ export default function Series() {
   const hasResults = results.length > 0
   const activeGroupId = activeGroup?.id || null
   const canUseLibrary = !hasSupabase || setupState === 'ready'
-  const selectedGroupId = selectedScope === 'personal' ? null : selectedScope
+  const isPersonalScope = selectedScope === 'personal'
+  const selectedGroupId = isPersonalScope ? null : selectedScope
   const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => series.filter((item) => !votes[item.id] && !finished.includes(item.id)), [series, votes, finished])
@@ -257,13 +258,13 @@ export default function Series() {
   return (
     <PageShell active="series">
       <PageHero
-        eyebrow="Series night"
-        title="Pick what to binge"
-        description="Search series, save them to your personal library or a group, vote through the pile, and rate everything after watching."
+        eyebrow={isPersonalScope ? 'My Library' : 'Clique picks'}
+        title={isPersonalScope ? 'Your watched series' : 'Pick what to binge'}
+        description={isPersonalScope ? 'Search series, mark the ones you watched, and keep your personal ratings here. Swipe voting stays inside cliques.' : 'Search series, save them to this clique, vote through the pile, and keep a shared watch ranking.'}
         warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your picks under one name.' : null)}
         actions={hasSupabase ? (
           <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
-            Save to
+            Library space
             <select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value)} disabled={!canUseLibrary} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-semibold normal-case tracking-normal text-white outline-none disabled:opacity-50">
               <option value="personal">Personal library</option>
               {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
@@ -283,24 +284,28 @@ export default function Series() {
       <StatusMessage message={message} />
 
       {hasResults ? (
-        <SearchResultsSection onClear={clearSearch}>
+        <SearchResultsSection clearLabel={isPersonalScope ? 'Back to watched series' : 'Back to clique picks'} onClear={clearSearch}>
           <div className="space-y-2">
-            {results.map((item) => <ResultRow key={item.id} item={item} onInfo={openSeriesInfo} onAdd={addSeries} onDone={markFinished} doneLabel="Watched" />)}
+            {results.map((item) => <ResultRow key={item.id} item={item} onInfo={openSeriesInfo} onAdd={addSeries} addLabel={isPersonalScope ? 'Add' : 'Add pick'} onDone={markFinished} doneLabel="Watched" />)}
           </div>
         </SearchResultsSection>
       ) : null}
 
-      <section ref={deckRef} className="mb-8">
-        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="series" emptyLabel={canUseLibrary ? 'No series here yet. Search and add your first pick.' : 'Sign in to start your series library.'} likeLabel="Watch" dislikeLabel="Pass" infoType="series" loadDetails={getSeriesDetails} />
-      </section>
+      {!isPersonalScope ? (
+        <>
+          <section ref={deckRef} className="mb-8">
+            <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="series" emptyLabel={canUseLibrary ? 'No series here yet. Search and add your first pick.' : 'Sign in to start your series library.'} likeLabel="Watch" dislikeLabel="Pass" infoType="series" loadDetails={getSeriesDetails} />
+          </section>
 
-      <TopRankingSection title="Next series" items={ranking} votes={votes} onInfo={openSeriesInfo} onDone={markFinished} doneLabel="Watched" />
+          <TopRankingSection title="Next series" items={ranking} votes={votes} onInfo={openSeriesInfo} onDone={markFinished} doneLabel="Watched" />
+        </>
+      ) : null}
 
       <RatedHistorySection
-        eyebrow="After watching"
-        title="Watched series ranking"
+        eyebrow={isPersonalScope ? 'Personal history' : 'After watching'}
+        title={isPersonalScope ? 'Watched series' : 'Watched series ranking'}
         countText={`${finishedSeries.length} watched`}
-        emptyLabel="No watched series yet."
+        emptyLabel="No watched series yet. Search a series and mark it watched to start your library."
         items={finishedSeries}
         ratings={ratings}
         editingRating={editingRating}
