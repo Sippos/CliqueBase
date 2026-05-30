@@ -25,10 +25,24 @@ function normalizeItems(rows, type, code, to) {
   })).sort((a, b) => b.sortValue - a.sortValue)
 }
 
+function LibraryMiniTile({ item }) {
+  const image = item.poster || item.backdrop
+
+  return (
+    <Link to={item.to} className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.07] p-1.5 text-left transition hover:bg-white hover:text-neutral-950">
+      <div className="h-12 w-9 shrink-0 overflow-hidden rounded-xl bg-neutral-900">
+        {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-white/10" />}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] font-black uppercase tracking-[0.18em] opacity-60">{item.code}</div>
+        <div className="truncate text-xs font-black">{item.title}</div>
+      </div>
+    </Link>
+  )
+}
+
 function LibraryShowcase({ items, loading }) {
   const [index, setIndex] = useState(0)
-  const ratedCount = items.filter((item) => item.rating).length
-  const totalPicks = items.reduce((sum, item) => sum + Number(item.picks || 0), 0)
 
   useEffect(() => {
     setIndex((current) => items.length ? Math.min(current, items.length - 1) : 0)
@@ -72,6 +86,12 @@ function LibraryShowcase({ items, loading }) {
 
   const item = items[index] || items[0]
   const image = item.backdrop || item.poster
+  const previewItems = items.slice(0, 4)
+  const formatCounts = [
+    { label: 'MOV', value: items.filter((entry) => entry.type === 'Movie').length },
+    { label: 'SER', value: items.filter((entry) => entry.type === 'Series').length },
+    { label: 'GAM', value: items.filter((entry) => entry.type === 'Game').length },
+  ].filter((entry) => entry.value > 0)
 
   return (
     <div className="relative min-h-[320px] overflow-hidden bg-neutral-950">
@@ -94,12 +114,17 @@ function LibraryShowcase({ items, loading }) {
         </div>
       </Link>
 
-      <div className="absolute bottom-5 right-5 hidden rounded-[1.25rem] border border-white/10 bg-black/40 p-3 text-right backdrop-blur sm:block">
-        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-400">Summary</p>
-        <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-          <span className="rounded-xl bg-white/10 px-3 py-2"><strong className="block text-lg text-white">{items.length}</strong><span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">Items</span></span>
-          <span className="rounded-xl bg-white/10 px-3 py-2"><strong className="block text-lg text-white">{totalPicks}</strong><span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">Votes</span></span>
-          <span className="rounded-xl bg-white/10 px-3 py-2"><strong className="block text-lg text-white">{ratedCount}</strong><span className="text-[10px] uppercase tracking-[0.16em] text-neutral-400">Rated</span></span>
+      <div className="absolute bottom-5 right-5 hidden w-[19rem] rounded-[1.25rem] border border-white/10 bg-black/45 p-3 text-white shadow-2xl shadow-black/30 backdrop-blur sm:block">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-400">In library</p>
+          <div className="flex gap-1">
+            {formatCounts.map((entry) => (
+              <span key={entry.label} className="rounded-full border border-white/10 bg-white/[0.08] px-2 py-1 text-[10px] font-black text-neutral-200">{entry.label} {entry.value}</span>
+            ))}
+          </div>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {previewItems.map((entry) => <LibraryMiniTile key={`${entry.type}-${entry.id}`} item={entry} />)}
         </div>
       </div>
     </div>
