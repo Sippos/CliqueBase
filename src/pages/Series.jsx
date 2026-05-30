@@ -6,13 +6,17 @@ import { getSavedHandle } from '../lib/handle.js'
 import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
 import { demoSeries } from '../lib/demoMovies.js'
 import { getSeriesDetails, searchSeries } from '../lib/tmdb.js'
-import { getCurrentSession, getSeries, hasSupabase, markSeriesFinished, rateSeries as saveSeriesRating, saveSeries, voteSeries } from '../lib/supabaseClient.js'
+import { getCurrentSession, getRemoteGroups, getSeries, hasSupabase, markSeriesFinished, rateSeries as saveSeriesRating, saveSeries, voteSeries } from '../lib/supabaseClient.js'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
-  if (state === 'signed-out') return 'Sign in from Profile, then create or select a group before adding series.'
-  if (state === 'no-group') return 'Create or select a group in Profile before adding series.'
+  if (state === 'signed-out') return 'Sign in from Profile to build your personal series library and save picks to groups.'
   return null
+}
+
+function scopeLabel(scope, groups) {
+  if (scope === 'personal') return 'Personal library'
+  return groups.find((group) => group.id === scope)?.name || 'Selected group'
 }
 
 export default function Series() {
@@ -27,13 +31,17 @@ export default function Series() {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
+  const [groups, setGroups] = useState([])
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
+  const [selectedScope, setSelectedScope] = useState('personal')
   const [setupState, setSetupState] = useState(() => hasSupabase ? 'checking' : 'local')
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
   const activeGroupId = activeGroup?.id || null
-  const canUseGroup = !hasSupabase || setupState === 'ready'
+  const canUseLibrary = !hasSupabase || setupState === 'ready'
+  const selectedGroupId = selectedScope === 'personal' ? null : selectedScope
+  const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => series.filter((item) => !votes[item.id] && !finished.includes(item.id)), [series, votes, finished])
   const ranking = useMemo(() => series.slice().sort((a, b) => (votes[b.id] === 'like') - (votes[a.id] === 'like') || (b.score || 0) - (a.score || 0) || (b.picks || 0) - (a.picks || 0)), [series, votes])
@@ -42,6 +50,11 @@ export default function Series() {
   useEffect(() => {
     refreshContext()
   }, [activeGroupId])
+
+  useEffect(() => {
+    if (!hasSupabase || setupState !== 'ready') return
+    loadSeries(selectedGroupId)
+  }, [selectedScope, setupState])
 
   useEffect(() => {
     function handleGroupChange() {
@@ -65,13 +78,18 @@ export default function Series() {
         setSetupState('signed-out')
         return
       }
-      if (!group?.id) {
-        clearRemoteState()
-        setSetupState('no-group')
-        return
+
+      const remoteGroups = await getRemoteGroups().catch(() => [])
+      setGroups(remoteGroups)
+
+      if (selectedScope !== 'personal' && !remoteGroups.some((remoteGroup) => remoteGroup.id === selectedScope)) {
+        setSelectedScope('personal')
+      } else if (selectedScope === 'personal' && group?.id && remoteGroups.some((remoteGroup) => remoteGroup.id === group.id)) {
+        setSelectedScope(group.id)
       }
+
       setSetupState('ready')
-      await loadSeries(group.id)
+      await loadSeries(selectedScope === 'personal' ? null : selectedScope)
     } catch (error) {
       clearRemoteState()
       setSetupState('signed-out')
@@ -87,8 +105,7 @@ export default function Series() {
     setResults([])
   }
 
-  async function loadSeries(groupId = activeGroupId) {
-    if (!groupId) return
+  async function loadSeries(groupId = selectedGroupId) {
     try {
       const rows = await getSeries(groupId)
       setSeries(rows)
@@ -104,9 +121,9 @@ export default function Series() {
     setTimeout(() => setMessage(null), 2400)
   }
 
-  function needGroup() {
-    if (canUseGroup) return false
-    showMessage(setupMessage(setupState) || 'Create or select a group first.', 'error')
+  function needLibrary() {
+    if (canUseLibrary) return false
+    showMessage(setupMessage(setupState) || 'Sign in first.', 'error')
     return true
   }
 
@@ -119,7 +136,7 @@ export default function Series() {
   async function handleSearch(event) {
     event.preventDefault()
     if (!query.trim()) return
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setLoading(true)
     try {
@@ -134,34 +151,34 @@ export default function Series() {
   }
 
   async function addSeries(item) {
-    if (needGroup()) return
+    if (needLibrary()) return
     try {
       const details = await getSeriesDetails(item).catch(() => item)
       const fullItem = { ...(details || item), nominated_by: activeHandle || 'You' }
 
       if (hasSupabase) {
-        const saved = await saveSeries(fullItem, activeHandle || 'anonymous', activeGroupId)
+        const saved = await saveSeries(fullItem, activeHandle || 'anonymous', selectedGroupId)
         setSeries((current) => current.some((entry) => entry.id === saved.id) ? current.map((entry) => entry.id === saved.id ? saved : entry) : [saved, ...current])
       } else {
         setSeries((current) => current.some((entry) => entry.id === fullItem.id) ? current : [fullItem, ...current])
       }
 
       clearSearch()
-      showMessage(`"${fullItem.title}" added to ${activeGroup?.name || 'the series pile'}.`)
+      showMessage(`"${fullItem.title}" added to ${destinationLabel}.`)
     } catch (error) {
       showMessage(error.message || 'Could not add series.', 'error')
     }
   }
 
   async function handleSwipe(vote, item) {
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setVotes((current) => ({ ...current, [item.id]: vote }))
 
     if (hasSupabase) {
       try {
-        await voteSeries(item, vote, activeGroupId)
-        await loadSeries(activeGroupId)
+        await voteSeries(item, vote, selectedGroupId)
+        await loadSeries(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save vote.', 'error')
         return
@@ -172,7 +189,7 @@ export default function Series() {
   }
 
   async function markFinished(item) {
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setFinished((current) => current.includes(item.id) ? current : [...current, item.id])
     setVotes((current) => ({ ...current, [item.id]: 'like' }))
@@ -180,8 +197,8 @@ export default function Series() {
 
     if (hasSupabase) {
       try {
-        await markSeriesFinished(item, ratings[item.id] || null, activeGroupId)
-        await loadSeries(activeGroupId)
+        await markSeriesFinished(item, ratings[item.id] || null, selectedGroupId)
+        await loadSeries(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save watched series.', 'error')
         return
@@ -192,15 +209,15 @@ export default function Series() {
   }
 
   async function rateSeries(item, rating) {
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setRatings((current) => ({ ...current, [item.id]: rating }))
     setEditingRating(null)
 
     if (hasSupabase) {
       try {
-        await saveSeriesRating(item, rating, activeGroupId)
-        await loadSeries(activeGroupId)
+        await saveSeriesRating(item, rating, selectedGroupId)
+        await loadSeries(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save rating.', 'error')
       }
@@ -220,7 +237,7 @@ export default function Series() {
     }
   }
 
-  function resetPage() {
+  function refreshPage() {
     if (hasSupabase) {
       clearRemoteState()
       refreshContext()
@@ -242,13 +259,21 @@ export default function Series() {
       <PageHero
         eyebrow="Series night"
         title="Pick what to binge"
-        description="Search series, add them to the active group, vote with friends, and rate everything after watching."
+        description="Search series, save them to your personal library or a group, vote through the pile, and rate everything after watching."
         warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your picks under one name.' : null)}
-        actions={<button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Refresh</button>}
+        actions={hasSupabase ? (
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+            Save to
+            <select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value)} disabled={!canUseLibrary} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-semibold normal-case tracking-normal text-white outline-none disabled:opacity-50">
+              <option value="personal">Personal library</option>
+              {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+          </label>
+        ) : <button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset local demo</button>}
       >
-        {hasSupabase ? (
+        {hasSupabase && canUseLibrary ? (
           <p className="mt-4 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
-            {canUseGroup ? <>Saving to <strong className="text-white">{activeGroup.name}</strong>.</> : 'No demo series are loaded in Supabase mode. Sign in and create/select a group to start your real database.'}
+            Current destination: <strong className="text-white">{destinationLabel}</strong>.
           </p>
         ) : null}
 
@@ -256,7 +281,7 @@ export default function Series() {
           <div className="flex gap-2">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a series..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
             {hasResults ? <button type="button" className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950" onClick={clearSearch}>Back</button> : null}
-            <button type="submit" disabled={loading || !canUseGroup} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{loading ? 'Searching...' : 'Search'}</button>
+            <button type="submit" disabled={loading || !canUseLibrary} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{loading ? 'Searching...' : 'Search'}</button>
           </div>
         </form>
       </PageHero>
@@ -272,7 +297,7 @@ export default function Series() {
       ) : null}
 
       <section ref={deckRef} className="mb-8">
-        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="series" emptyLabel={canUseGroup ? 'No series yet. Search and add your first pick.' : 'Create or select a group to start voting.'} likeLabel="Watch" dislikeLabel="Pass" infoType="series" loadDetails={getSeriesDetails} />
+        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="series" emptyLabel={canUseLibrary ? 'No series here yet. Search and add your first pick.' : 'Sign in to start your series library.'} likeLabel="Watch" dislikeLabel="Pass" infoType="series" loadDetails={getSeriesDetails} />
       </section>
 
       <TopRankingSection title="Next series" items={ranking} votes={votes} onInfo={openSeriesInfo} onDone={markFinished} doneLabel="Watched" />
