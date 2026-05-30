@@ -28,6 +28,7 @@ import {
   signInWithEmail,
   signOut,
   signUpWithEmail,
+  supabase,
 } from '../lib/supabaseClient.js'
 
 const primaryLinks = [
@@ -65,10 +66,6 @@ function isPrimaryActive(linkKey, activeKey) {
   if (linkKey === activeKey) return true
   if (linkKey === 'library' && mediaKeys.includes(activeKey)) return true
   return false
-}
-
-function isKnownMedia(value) {
-  return mediaKeys.includes(value)
 }
 
 async function copyToClipboard(value) {
@@ -111,11 +108,11 @@ export default function PageNav({ active = 'library' }) {
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
   const [session, setSession] = useState(null)
-  const [mainOpen, setMainOpen] = useState(false)
   const [mediaOpen, setMediaOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
-  const [profileNameOpen, setProfileNameOpen] = useState(false)
+  const [profileToolsOpen, setProfileToolsOpen] = useState(false)
   const [draft, setDraft] = useState('')
+  const [emailDraft, setEmailDraft] = useState('')
   const [groupDraft, setGroupDraft] = useState('')
   const [inviteDraft, setInviteDraft] = useState('')
   const [authMode, setAuthMode] = useState('sign-in')
@@ -130,9 +127,12 @@ export default function PageNav({ active = 'library' }) {
   const queryMedia = new URLSearchParams(location.search).get('media')
   const activeMedia = mediaLinks.find((link) => link.key === activeKey) || mediaLinks.find((link) => link.key === queryMedia)
   const activeMediaKey = activeMedia?.key || null
-  const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : 'Profile'
+  const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : (handle || 'Profile')
+  const profileInitial = (profileLabel || 'P').slice(0, 1).toUpperCase()
+  const navProfileLabel = profileLabel === 'Profile' ? 'Profile' : `Profile (${profileLabel})`
   const spaceLabel = activeGroup?.name || 'My Library'
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
+  const accountStatus = session?.user ? 'Signed in' : hasSupabase ? 'Ready to sync' : 'Local profile'
   const mediaSummary = activePrimary.key === 'explore'
     ? 'Explore starts on All media. Pick a type to narrow global rankings.'
     : activePrimary.key === 'groups'
@@ -145,17 +145,22 @@ export default function PageNav({ active = 'library' }) {
   }
 
   function closeMenus() {
-    setMainOpen(false)
     setMediaOpen(false)
+  }
+
+  function closeProfileModal() {
+    setAccountOpen(false)
+    setProfileToolsOpen(false)
   }
 
   function clearSessionUi() {
     setSession(null)
     setHandle('')
     setDraft('')
+    setEmailDraft('')
     setGroups([])
     setActiveGroupState(null)
-    setProfileNameOpen(false)
+    setProfileToolsOpen(false)
     setActiveGroup('')
   }
 
@@ -193,6 +198,7 @@ export default function PageNav({ active = 'library' }) {
         const saved = getSavedHandle()
         const profile = await getProfile().catch(() => null)
         const displayName = sessionName(nextSession, profile, saved)
+        setEmailDraft(nextSession.user.email || '')
         if (displayName) {
           saveSharedHandle(displayName)
           setHandle(displayName)
@@ -215,6 +221,7 @@ export default function PageNav({ active = 'library' }) {
     const saved = getSavedHandle()
     setHandle(saved)
     setDraft((current) => current || saved)
+    setEmailDraft('')
     setSession(null)
     setGroups(getGroups())
     setActiveGroupState(getActiveGroup())
@@ -253,10 +260,37 @@ export default function PageNav({ active = 'library' }) {
     setLoading(true)
     try {
       await currentHandle()
-      setProfileNameOpen(false)
       flash('Profile name updated.')
     } catch (error) {
       flash(error.message || 'Could not update your profile name.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleEmailSubmit(event) {
+    event.preventDefault()
+    const nextEmail = emailDraft.trim()
+    if (!session?.user) {
+      flash('Sign in to change your email.')
+      return
+    }
+    if (!nextEmail) {
+      flash('Add an email first.')
+      return
+    }
+    if (nextEmail === session.user.email) {
+      flash('That email is already on this profile.')
+      return
+    }
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.updateUser({ email: nextEmail })
+      if (error) throw error
+      flash('Check your new email to confirm the change.')
+      refreshGroups()
+    } catch (error) {
+      flash(error.message || 'Could not update your email.')
     } finally {
       setLoading(false)
     }
@@ -360,12 +394,14 @@ export default function PageNav({ active = 'library' }) {
           saveSharedHandle(displayName)
           setHandle(displayName)
           setSession(result.session)
+          setEmailDraft(result.session.user.email || email)
           flash('Account created.')
         }
       } else {
         const data = await signInWithEmail(email, authPassword)
         if (!data.session?.user) throw new Error('Confirm your email first, then try again.')
         setSession(data.session)
+        setEmailDraft(data.session.user.email || email)
         const displayNameAfterLogin = data.session.user.user_metadata?.display_name || data.session.user.email?.split('@')[0] || ''
         if (displayNameAfterLogin) {
           saveSharedHandle(displayNameAfterLogin)
@@ -425,7 +461,7 @@ export default function PageNav({ active = 'library' }) {
             </nav>
 
             <div className="relative">
-              <button type="button" onClick={() => { setMediaOpen((value) => !value); setMainOpen(false) }} className="flex w-full min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-bold text-neutral-200 transition hover:bg-white/10 hover:text-white sm:w-auto">
+              <button type="button" onClick={() => setMediaOpen((value) => !value)} className="flex w-full min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-bold text-neutral-200 transition hover:bg-white/10 hover:text-white sm:w-auto">
                 <AppIcon name={activeMedia?.icon || allMediaOption.icon} size={18} />
                 <span className="truncate">{activeMedia?.label || allMediaOption.label}</span>
                 <AppIcon name="chevronDown" size={16} className="text-neutral-500" />
@@ -451,9 +487,9 @@ export default function PageNav({ active = 'library' }) {
           </div>
 
           <div className="flex justify-end">
-            <button type="button" aria-label={`Open profile settings for ${profileLabel}`} onClick={() => { closeMenus(); setProfileNameOpen(false); setAccountOpen(true) }} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black">
-              <AppIcon name="settings" size={18} />
-              <span className="hidden sm:inline">Settings</span>
+            <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="inline-flex h-11 max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-2 pr-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-neutral-950">{profileInitial}</span>
+              <span className="hidden min-w-0 truncate sm:inline">{navProfileLabel}</span>
             </button>
           </div>
         </div>
@@ -463,50 +499,73 @@ export default function PageNav({ active = 'library' }) {
 
       {accountOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/40">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-4 shadow-2xl shadow-black/40 sm:p-6">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile settings</div>
-                <h2 className="mt-1 text-2xl font-black text-white">Account</h2>
-                <p className="mt-2 text-sm text-neutral-400">Update your profile details from the gear menu, then jump to your library or cliques when needed.</p>
+              <div className="min-w-0">
+                <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile</div>
+                <h2 className="mt-1 truncate text-2xl font-black text-white">Profile ({profileLabel})</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Use the gear for account details. Library controls now stay grouped below your profile so switching between private picks and cliques is clearer.</p>
               </div>
-              <button type="button" onClick={() => setAccountOpen(false)} className="text-2xl text-neutral-400 hover:text-white">×</button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button type="button" aria-label="Edit profile details" onClick={() => setProfileToolsOpen((value) => !value)} className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/10 transition ${profileToolsOpen ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white hover:bg-white hover:text-neutral-950'}`}>
+                  <AppIcon name="settings" size={19} />
+                </button>
+                <button type="button" aria-label="Close profile" onClick={closeProfileModal} className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 text-2xl text-neutral-400 transition hover:bg-white hover:text-neutral-950">×</button>
+              </div>
             </div>
 
-            <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile</p>
-                  <h3 className="mt-1 text-xl font-bold text-white">{session?.user ? profileLabel : 'Sign in or create account'}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">{session?.user?.email || (hasSupabase ? 'Use an account to sync libraries and cliques.' : 'Local profile mode')}</p>
+            <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.5rem] bg-white text-2xl font-black text-neutral-950">{profileInitial}</div>
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">{accountStatus}</div>
+                    <h3 className="mt-1 truncate text-2xl font-black text-white">{profileLabel}</h3>
+                    <p className="mt-1 truncate text-sm text-neutral-400">{session?.user?.email || (hasSupabase ? 'Not signed in yet' : 'Stored on this device')}</p>
+                  </div>
                 </div>
-                {session?.user ? <button type="button" disabled={loading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Sign out</button> : null}
+                {session?.user ? <button type="button" disabled={loading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Sign out</button> : null}
               </div>
 
-              {session?.user ? (
-                <div className="mt-4 rounded-3xl border border-white/10 bg-neutral-900/70 p-2">
-                  <button type="button" onClick={() => setProfileNameOpen((value) => !value)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-white/[0.06]">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-neutral-950">
-                      <AppIcon name="settings" size={18} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-bold text-white">Profile name</span>
-                      <span className="block truncate text-xs text-neutral-400">{handle || 'Choose the name people see in cliques.'}</span>
-                    </span>
-                    <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-neutral-200">{profileNameOpen ? 'Close' : 'Change'}</span>
-                  </button>
+              {profileToolsOpen ? (
+                <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 lg:grid-cols-2">
+                  <form onSubmit={handleProfileNameSubmit} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name="user" size={18} /></span>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.22em] text-neutral-500">Name</p>
+                        <h4 className="font-bold text-white">Display name</h4>
+                      </div>
+                    </div>
+                    <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="mt-4 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+                    <button disabled={loading} className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 disabled:opacity-60">{loading ? 'Saving...' : 'Save name'}</button>
+                  </form>
 
-                  {profileNameOpen ? (
-                    <form onSubmit={handleProfileNameSubmit} className="mt-2 flex flex-col gap-2 border-t border-white/10 p-3 sm:flex-row">
-                      <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
-                      <button disabled={loading} className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 disabled:opacity-60">{loading ? 'Saving...' : 'Save'}</button>
+                  {session?.user ? (
+                    <form onSubmit={handleEmailSubmit} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name="settings" size={18} /></span>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.22em] text-neutral-500">Email</p>
+                          <h4 className="font-bold text-white">Account email</h4>
+                        </div>
+                      </div>
+                      <input type="email" value={emailDraft} onChange={(event) => setEmailDraft(event.target.value)} placeholder="name@example.com" className="mt-4 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+                      <button disabled={loading} className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">{loading ? 'Sending...' : 'Change email'}</button>
+                      <p className="mt-3 text-xs leading-5 text-neutral-500">You may need to confirm the new address before it replaces the current email.</p>
                     </form>
-                  ) : null}
+                  ) : (
+                    <div className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-neutral-500">Email</p>
+                      <h4 className="mt-1 font-bold text-white">Sign in to edit account email</h4>
+                      <p className="mt-2 text-sm leading-6 text-neutral-400">Your local profile name still works for private device-only cliques.</p>
+                    </div>
+                  )}
                 </div>
               ) : null}
 
               {hasSupabase && !session?.user ? (
-                <form onSubmit={handleAuth} className="mt-4 grid gap-3">
+                <form onSubmit={handleAuth} className="mt-4 grid gap-3 border-t border-white/10 pt-4">
                   <div className="flex rounded-2xl border border-white/10 bg-neutral-900 p-1">
                     <button type="button" onClick={() => { setAuthMode('sign-in'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button>
                     <button type="button" onClick={() => { setAuthMode('sign-up'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button>
@@ -520,56 +579,90 @@ export default function PageNav({ active = 'library' }) {
               ) : null}
             </section>
 
-            <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Library & cliques</p>
-                  <h3 className="mt-1 text-xl font-bold text-white">{spaceLabel}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">My Library is private. Public cliques appear in Explore.</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Library settings</p>
+                  <h3 className="mt-1 text-xl font-black text-white">Current space: {spaceLabel}</h3>
+                  <p className="mt-1 text-sm leading-6 text-neutral-400">Pick where your saves and ratings should land. Personal library stays private; public cliques can appear in Explore.</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link to="/dashboard" onClick={() => { usePersonalLibrary(); setAccountOpen(false) }} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">My Library</Link>
-                  <Link to="/groups" onClick={() => { closeMenus(); setAccountOpen(false) }} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Cliques</Link>
-                </div>
+                <span className="w-fit rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-neutral-300">{groups.length} cliques</span>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <Link to="/dashboard" onClick={() => { usePersonalLibrary(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${!activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${!activeGroup ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}><AppIcon name="dashboard" size={18} /></span>
+                    <div>
+                      <div className="text-sm font-black">My Library</div>
+                      <div className="text-xs opacity-60">Private picks only you can see</div>
+                    </div>
+                  </div>
+                </Link>
+
+                <Link to="/groups" onClick={() => { closeMenus(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${activeGroup ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}><AppIcon name="users" size={18} /></span>
+                    <div>
+                      <div className="text-sm font-black">Cliques</div>
+                      <div className="text-xs opacity-60">Shared spaces with invite links</div>
+                    </div>
+                  </div>
+                </Link>
               </div>
             </section>
 
-            {groups.length ? (
-              <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Your cliques</p>
-                <div className="mt-3 space-y-2">
-                  {groups.map((group) => (
-                    <div key={group.id} className={`rounded-2xl p-3 ${activeGroup?.id === group.id ? 'bg-white text-neutral-950' : 'bg-neutral-900 text-white'}`}>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0">
-                          <div className="truncate font-bold">{group.name}</div>
-                          <div className="text-xs opacity-60">{group.members?.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private clique'}</div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Link to={getGroupOpenPath(group)} onClick={() => { activateGroup(group); setAccountOpen(false) }} className={`rounded-xl px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{activeGroup?.id === group.id ? 'Active' : 'Open'}</Link>
-                          {usingRemoteGroups ? <button type="button" onClick={() => togglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Hide' : 'Make public'}</button> : null}
-                          <button type="button" onClick={() => copyInvite(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">Invite</button>
+            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Your cliques</p>
+                  <h3 className="mt-1 text-xl font-black text-white">Manage shared libraries</h3>
+                </div>
+                <Link to="/groups" onClick={closeProfileModal} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Open all</Link>
+              </div>
+
+              {groups.length ? (
+                <div className="mt-4 grid gap-2">
+                  {groups.map((group) => {
+                    const selected = activeGroup?.id === group.id
+                    return (
+                      <div key={group.id} className={`rounded-3xl border p-3 ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white'}`}>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="truncate font-black">{group.name}</div>
+                            <div className="text-xs opacity-60">{group.members?.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private clique'}</div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Link to={getGroupOpenPath(group)} onClick={() => { activateGroup(group); closeProfileModal() }} className={`rounded-xl px-3 py-2 text-xs font-semibold ${selected ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{selected ? 'Active' : 'Use'}</Link>
+                            {usingRemoteGroups ? <button type="button" onClick={() => togglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Hide' : 'Make public'}</button> : null}
+                            <button type="button" onClick={() => copyInvite(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">Invite</button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
-              </section>
-            ) : null}
+              ) : (
+                <p className="mt-4 rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm leading-6 text-neutral-400">No cliques yet. Create one for shared rankings, or join with an invite code.</p>
+              )}
+            </section>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <form onSubmit={handleCreateGroup} className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Create clique</p>
-                <input value={groupDraft} onChange={(event) => setGroupDraft(event.target.value)} placeholder="Clique name" className="mt-3 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                <button disabled={loading} className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950">Create</button>
-              </form>
+            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Clique tools</p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <form onSubmit={handleCreateGroup} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4">
+                  <h4 className="font-black text-white">Create clique</h4>
+                  <input value={groupDraft} onChange={(event) => setGroupDraft(event.target.value)} placeholder="Clique name" className="mt-3 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+                  <button disabled={loading} className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 disabled:opacity-60">Create</button>
+                </form>
 
-              <form onSubmit={handleJoinGroup} className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-                <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Join clique</p>
-                <input value={inviteDraft} onChange={(event) => setInviteDraft(event.target.value)} placeholder="Invite link or code" className="mt-3 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                <button disabled={loading} className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Join</button>
-              </form>
-            </div>
+                <form onSubmit={handleJoinGroup} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4">
+                  <h4 className="font-black text-white">Join clique</h4>
+                  <input value={inviteDraft} onChange={(event) => setInviteDraft(event.target.value)} placeholder="Invite link or code" className="mt-3 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+                  <button disabled={loading} className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Join</button>
+                </form>
+              </div>
+            </section>
           </div>
         </div>
       ) : null}
