@@ -4,6 +4,9 @@ import { DetailPill, InfoModal, PageHero, StatusMessage } from '../components/Me
 import { getSavedHandle } from '../lib/handle.js'
 import { getActiveGroup } from '../lib/groups.js'
 
+const CATEGORIES = ['All', 'Chill', 'Pop', 'Rap', 'Rock', 'Party', 'Gym', 'Classics', 'Other']
+const FORM_CATEGORIES = CATEGORIES.filter((category) => category !== 'All')
+
 const initialTracks = [
   {
     id: 'spotify-daft-punk',
@@ -11,11 +14,11 @@ const initialTracks = [
     artist: 'Daft Punk · Julian Casablancas',
     url: 'https://open.spotify.com/track/2cGxRwrMyEAp8dEbuZaVv6',
     source: 'spotify',
-    category: 'Music',
+    category: 'Pop',
     nominated_by: 'CliqueBase',
-    score: 8,
-    picks: 3,
-    saved: true,
+    favorite: true,
+    archived: false,
+    note: 'First demo Spotify link.',
   },
   {
     id: 'youtube-music-demo',
@@ -23,11 +26,11 @@ const initialTracks = [
     artist: 'YouTube link',
     url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
     source: 'youtube',
-    category: 'Music',
+    category: 'Classics',
     nominated_by: 'CliqueBase',
-    score: 5,
-    picks: 2,
-    saved: false,
+    favorite: false,
+    archived: false,
+    note: 'Demo YouTube music link.',
   },
 ]
 
@@ -71,16 +74,17 @@ function makeTrack(draft, handle, group) {
     nominated_by: handle || 'anonymous',
     groupId: group?.id || '',
     groupName: group?.name || '',
-    score: 0,
-    picks: 1,
-    saved: draft.saved,
+    favorite: draft.favorite,
+    archived: false,
+    note: draft.note.trim(),
     poster: youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : '',
+    createdAt: new Date().toISOString(),
   }
 }
 
-function TrackCard({ track, onVote, onSave, onInfo }) {
+function TrackCard({ track, onFavorite, onArchive, onRemove, onInfo }) {
   return (
-    <article className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.06]">
+    <article className={`rounded-[2rem] border p-4 transition hover:-translate-y-0.5 ${track.archived ? 'border-white/5 bg-white/[0.015] opacity-60' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-3xl bg-neutral-900 sm:w-44">
           {track.poster ? <img src={track.poster} alt="" className="h-full w-full object-cover" /> : <span className="text-5xl">{track.source === 'spotify' ? '🎧' : track.source === 'youtube' ? '▶️' : '🎵'}</span>}
@@ -89,22 +93,21 @@ function TrackCard({ track, onVote, onSave, onInfo }) {
           <div className="flex flex-wrap gap-2">
             <DetailPill>{track.source}</DetailPill>
             <DetailPill>{track.category}</DetailPill>
+            {track.favorite ? <DetailPill>Favorite</DetailPill> : null}
+            {track.archived ? <DetailPill>Archived</DetailPill> : null}
             {track.groupName ? <DetailPill>{track.groupName}</DetailPill> : null}
           </div>
           <h2 className="mt-3 text-2xl font-black text-white">{track.title}</h2>
-          <p className="mt-1 text-sm text-neutral-400">{track.artist} · by {track.nominated_by}</p>
-          <p className="mt-2 truncate text-sm text-neutral-500">{track.url}</p>
+          <p className="mt-1 text-sm text-neutral-400">{track.artist} · added by {track.nominated_by}</p>
+          {track.note ? <p className="mt-2 text-sm text-neutral-500">{track.note}</p> : null}
+          <p className="mt-2 truncate text-sm text-neutral-600">{track.url}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <a href={track.url} target="_blank" rel="noreferrer" className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Open</a>
-            <button type="button" onClick={() => onVote(track, 1)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white">+ Vote</button>
-            <button type="button" onClick={() => onVote(track, -1)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white">Skip</button>
-            <button type="button" onClick={() => onSave(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white">{track.saved ? 'Saved' : 'Save'}</button>
-            <button type="button" onClick={() => onInfo(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white">Info</button>
+            <button type="button" onClick={() => onFavorite(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">{track.favorite ? 'Unfavorite' : 'Favorite'}</button>
+            <button type="button" onClick={() => onArchive(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">{track.archived ? 'Restore' : 'Archive'}</button>
+            <button type="button" onClick={() => onInfo(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Info</button>
+            <button type="button" onClick={() => onRemove(track)} className="rounded-2xl border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500 hover:text-white">Delete</button>
           </div>
-        </div>
-        <div className="rounded-3xl bg-neutral-900 px-5 py-4 text-center">
-          <div className="text-4xl font-black text-white">{track.score}</div>
-          <div className="mt-1 text-xs uppercase tracking-[0.25em] text-neutral-500">score</div>
         </div>
       </div>
     </article>
@@ -113,15 +116,28 @@ function TrackCard({ track, onVote, onSave, onInfo }) {
 
 export default function Music() {
   const [tracks, setTracks] = useState(initialTracks)
-  const [draft, setDraft] = useState({ url: '', title: '', artist: '', category: 'Music', saved: false })
+  const [draft, setDraft] = useState({ url: '', title: '', artist: '', category: 'Chill', favorite: false, note: '' })
+  const [filter, setFilter] = useState('All')
+  const [showArchived, setShowArchived] = useState(false)
   const [message, setMessage] = useState(null)
   const [infoTrack, setInfoTrack] = useState(null)
   const activeHandle = getSavedHandle()
   const activeGroup = getActiveGroup()
 
-  const sortedTracks = useMemo(() => tracks.slice().sort((a, b) => b.score - a.score || b.picks - a.picks), [tracks])
-  const savedTracks = useMemo(() => sortedTracks.filter((track) => track.saved), [sortedTracks])
-  const musicTracks = useMemo(() => sortedTracks.filter((track) => track.category === 'Music'), [sortedTracks])
+  const visibleTracks = useMemo(() => {
+    return tracks
+      .filter((track) => filter === 'All' || track.category === filter)
+      .filter((track) => showArchived || !track.archived)
+      .sort((a, b) => Number(b.favorite) - Number(a.favorite) || String(a.title).localeCompare(String(b.title)))
+  }, [tracks, filter, showArchived])
+
+  const favoriteTracks = useMemo(() => tracks.filter((track) => track.favorite && !track.archived), [tracks])
+  const categoryCounts = useMemo(() => {
+    return CATEGORIES.reduce((acc, category) => {
+      acc[category] = category === 'All' ? tracks.filter((track) => !track.archived).length : tracks.filter((track) => track.category === category && !track.archived).length
+      return acc
+    }, {})
+  }, [tracks])
 
   function showMessage(text, tone = 'ok') {
     setMessage({ text, tone })
@@ -141,41 +157,45 @@ export default function Music() {
 
     const next = makeTrack(draft, activeHandle, activeGroup)
     setTracks((current) => [next, ...current])
-    setDraft({ url: '', title: '', artist: '', category: 'Music', saved: false })
-    showMessage(`${next.title} added${activeGroup ? ` to ${activeGroup.name}` : ''}.`)
+    setDraft({ url: '', title: '', artist: '', category: draft.category, favorite: false, note: '' })
+    setFilter(next.category)
+    showMessage(`${next.title} added to ${next.category}${activeGroup ? ` for ${activeGroup.name}` : ''}.`)
   }
 
-  function voteTrack(track, delta) {
-    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, score: item.score + delta, picks: Math.max(0, item.picks + (delta > 0 ? 1 : 0)) } : item))
-    showMessage(delta > 0 ? `${track.title} got a vote.` : `${track.title} skipped.`)
+  function toggleFavorite(track) {
+    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, favorite: !item.favorite } : item))
+    showMessage(track.favorite ? `${track.title} removed from favorites.` : `${track.title} marked as favorite.`)
   }
 
-  function saveTrack(track) {
-    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, saved: !item.saved } : item))
-    showMessage(track.saved ? `${track.title} removed from saved.` : `${track.title} saved.`)
+  function toggleArchive(track) {
+    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, archived: !item.archived } : item))
+    showMessage(track.archived ? `${track.title} restored.` : `${track.title} archived.`)
+  }
+
+  function removeTrack(track) {
+    setTracks((current) => current.filter((item) => item.id !== track.id))
+    if (infoTrack?.id === track.id) setInfoTrack(null)
+    showMessage(`${track.title} deleted.`)
   }
 
   return (
     <PageShell active="music">
-      <PageHero eyebrow="Music links" title="Spotify and YouTube Music in one voting pile" copy="Paste Spotify tracks, albums, playlists, or YouTube music links. Your active group is attached to new suggestions so this can later sync cleanly with Supabase.">
+      <PageHero eyebrow="Music database" title="Save Spotify and YouTube Music by mood" copy="Music is a library, not a voting queue. Add links, choose a genre or mood, favorite the best ones, and keep everything attached to your active group.">
         <form onSubmit={addTrack} className="space-y-3 rounded-3xl border border-white/10 bg-neutral-950/80 p-3">
           <input value={draft.url} onChange={(event) => updateDraft('url', event.target.value)} placeholder="Spotify or YouTube music URL" className="w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
           <div className="grid gap-2 sm:grid-cols-3">
             <input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Title optional" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
             <input value={draft.artist} onChange={(event) => updateDraft('artist', event.target.value)} placeholder="Artist optional" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
             <select value={draft.category} onChange={(event) => updateDraft('category', event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none">
-              <option>Music</option>
-              <option>Party</option>
-              <option>Chill</option>
-              <option>Gym</option>
-              <option>Classics</option>
+              {FORM_CATEGORIES.map((category) => <option key={category}>{category}</option>)}
             </select>
           </div>
+          <textarea value={draft.note} onChange={(event) => updateDraft('note', event.target.value)} placeholder="Optional note, vibe, or when to play it" className="min-h-24 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
           <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
-            <input type="checkbox" checked={draft.saved} onChange={(event) => updateDraft('saved', event.target.checked)} />
-            Save as playlist favorite immediately
+            <input type="checkbox" checked={draft.favorite} onChange={(event) => updateDraft('favorite', event.target.checked)} />
+            Mark as favorite immediately
           </label>
-          <button className="w-full rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950">Add music link</button>
+          <button className="w-full rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950">Save music link</button>
         </form>
       </PageHero>
 
@@ -187,32 +207,56 @@ export default function Music() {
         </section>
       ) : null}
 
+      <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] md:items-end">
+          <div>
+            <label className="text-xs uppercase tracking-[0.3em] text-neutral-500">Filter category</label>
+            <select value={filter} onChange={(event) => setFilter(event.target.value)} className="mt-2 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none">
+              {CATEGORIES.map((category) => <option key={category}>{category}</option>)}
+            </select>
+          </div>
+          <label className="flex h-12 items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 px-4 text-sm text-neutral-300">
+            <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
+            Show archived
+          </label>
+          <div className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-400">
+            {visibleTracks.length} shown · {favoriteTracks.length} favorites
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {CATEGORIES.map((category) => (
+            <button key={category} type="button" onClick={() => setFilter(category)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === category ? 'bg-white text-neutral-950' : 'border border-white/10 text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>
+              {category} {categoryCounts[category] ?? 0}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="grid gap-4 lg:grid-cols-[1fr_0.75fr]">
         <div className="space-y-3">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Voting queue</p>
-              <h2 className="mt-1 text-3xl font-black text-white">Music suggestions</h2>
+              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Music library</p>
+              <h2 className="mt-1 text-3xl font-black text-white">{filter === 'All' ? 'All saved music' : filter}</h2>
             </div>
-            <span className="text-sm text-neutral-500">{musicTracks.length} music links</span>
+            <span className="text-sm text-neutral-500">Database view</span>
           </div>
-          {sortedTracks.map((track) => <TrackCard key={track.id} track={track} onVote={voteTrack} onSave={saveTrack} onInfo={setInfoTrack} />)}
+          {visibleTracks.length ? visibleTracks.map((track) => <TrackCard key={track.id} track={track} onFavorite={toggleFavorite} onArchive={toggleArchive} onRemove={removeTrack} onInfo={setInfoTrack} />) : <p className="rounded-[2rem] border border-dashed border-white/15 p-8 text-center text-neutral-500">No music links in this category yet.</p>}
         </div>
 
         <aside className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Saved playlist</p>
-          <h2 className="mt-1 text-3xl font-black text-white">Favorites</h2>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Favorites</p>
+          <h2 className="mt-1 text-3xl font-black text-white">Best tracks</h2>
           <div className="mt-4 space-y-3">
-            {savedTracks.length ? savedTracks.map((track, index) => (
-              <div key={track.id} className="flex items-center gap-3 rounded-2xl bg-neutral-900 p-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">{index + 1}</div>
+            {favoriteTracks.length ? favoriteTracks.map((track) => (
+              <button key={track.id} type="button" onClick={() => setInfoTrack(track)} className="flex w-full items-center gap-3 rounded-2xl bg-neutral-900 p-3 text-left transition hover:bg-neutral-800">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg text-neutral-950">{track.source === 'spotify' ? '🎧' : track.source === 'youtube' ? '▶️' : '🎵'}</div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-semibold text-white">{track.title}</div>
-                  <div className="truncate text-xs text-neutral-500">{track.artist}</div>
+                  <div className="truncate text-xs text-neutral-500">{track.artist} · {track.category}</div>
                 </div>
-                <span className="font-bold text-white">{track.score}</span>
-              </div>
-            )) : <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">Save tracks to build the group playlist.</p>}
+              </button>
+            )) : <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">Favorite tracks to build the group playlist.</p>}
           </div>
         </aside>
       </section>
@@ -222,8 +266,10 @@ export default function Music() {
           <>
             <DetailPill>{infoTrack.source}</DetailPill>
             <DetailPill>{infoTrack.category}</DetailPill>
-            <DetailPill>{infoTrack.score} score</DetailPill>
+            {infoTrack.favorite ? <DetailPill>Favorite</DetailPill> : null}
+            {infoTrack.groupName ? <DetailPill>{infoTrack.groupName}</DetailPill> : null}
             <p className="mt-4 text-neutral-300">{infoTrack.artist}</p>
+            {infoTrack.note ? <p className="mt-3 text-sm leading-6 text-neutral-400">{infoTrack.note}</p> : null}
             <a href={infoTrack.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 font-semibold text-neutral-950">Open link</a>
           </>
         ) : null}
