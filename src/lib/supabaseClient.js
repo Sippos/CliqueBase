@@ -40,7 +40,6 @@ function normalizeMediaRow(row, idColumn, doneColumn) {
     backdrop: row.backdrop,
     overview: row.overview || '',
     tmdbRating: row.tmdb_rating,
-    rawgRating: row.rawg_rating,
     runtime: row.runtime,
     genres: row.genres || [],
     nominated_by: row.nominated_by,
@@ -66,6 +65,7 @@ function normalizeSeries(row) {
 function normalizeGame(row) {
   return {
     ...normalizeMediaRow(row, 'game_id', 'played'),
+    rawgRating: row.rawg_rating,
     platform: row.platform || '',
     platforms: row.platforms || [],
   }
@@ -83,6 +83,7 @@ function normalizeGroup(row) {
     inviteCode: row.invite_code,
     createdBy: row.owner_id,
     createdAt: row.created_at,
+    isPublic: Boolean(row.is_public),
     members: Array.from(new Set(members)),
     source: 'supabase',
   }
@@ -102,7 +103,6 @@ function mediaPayload(item, idColumn, nominatedBy = 'anonymous', groupId = null)
     backdrop: item.backdrop || null,
     overview: item.overview || item.description || null,
     tmdb_rating: item.tmdbRating ?? null,
-    rawg_rating: item.rawgRating ?? null,
     runtime: item.runtime ?? null,
     genres: item.genres || [],
     nominated_by: nominatedBy || 'anonymous',
@@ -126,6 +126,7 @@ function seriesPayload(series, nominatedBy = 'anonymous', groupId = null) {
 function gamePayload(game, nominatedBy = 'anonymous', groupId = null) {
   return {
     ...mediaPayload(game, 'game_id', nominatedBy, groupId),
+    rawg_rating: game.rawgRating ?? null,
     platform: game.platform || null,
     platforms: game.platforms || (game.platform ? [game.platform] : []),
   }
@@ -209,7 +210,7 @@ export async function getRemoteGroups() {
   const client = requireSupabase()
   const { data, error } = await client
     .from('groups')
-    .select('id,name,invite_code,owner_id,created_at,group_members(display_name,user_id,role,joined_at)')
+    .select('id,name,invite_code,owner_id,is_public,created_at,group_members(display_name,user_id,role,joined_at)')
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data || []).map(normalizeGroup)
@@ -237,6 +238,16 @@ export async function joinRemoteGroup(inviteCode, displayName = '') {
   if (error) throw error
   const group = normalizeGroup(firstRpcRow(data))
   return { ...group, members: group.members.length ? group.members : [clean(displayName) || 'You'] }
+}
+
+export async function setGroupPublic(groupId, isPublic) {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('set_group_public', {
+    group_id_input: groupId,
+    is_public_input: Boolean(isPublic),
+  })
+  if (error) throw error
+  return normalizeGroup(firstRpcRow(data))
 }
 
 export async function getMovies(groupId = null) {
