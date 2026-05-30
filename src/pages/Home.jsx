@@ -15,7 +15,6 @@ const sections = [
   { title: 'Games', to: '/games', items: demoGames.slice(0, 3) },
   { title: 'Videos', to: '/videos', items: demoVideos.slice(0, 2) },
   { title: 'Music', to: '/music', items: demoMusic.slice(0, 3) },
-  { title: 'Groups', to: '/groups', items: [{ id: 'groups', title: 'Create invite links', picks: 0, score: 'share', poster: '' }] },
 ]
 
 function TopCard({ item, index }) {
@@ -45,16 +44,20 @@ export default function Home() {
               Decide what is worth watching, playing, hearing, and saving.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400 sm:text-lg">
-              Collect recommendations, vote through the pile, invite your group, and keep track of the favorites your clique comes back to.
+              Collect recommendations, vote through the pile, and use the profile menu to create or switch private cliques.
             </p>
             {activeGroup ? (
               <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">
                 Active group: <strong className="ml-1 text-white">{activeGroup.name}</strong>
               </p>
-            ) : null}
+            ) : (
+              <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">
+                Open the profile button to create your first group and invite friends.
+              </p>
+            )}
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Link to="/groups" className="rounded-2xl bg-white px-5 py-3 text-center font-semibold text-neutral-950 transition hover:bg-neutral-200">
-                Create a group
+              <Link to="/movies" className="rounded-2xl bg-white px-5 py-3 text-center font-semibold text-neutral-950 transition hover:bg-neutral-200">
+                Start voting
               </Link>
               <Link to="/music" className="rounded-2xl border border-white/10 px-5 py-3 text-center font-semibold text-white transition hover:bg-white hover:text-neutral-950">
                 Add music
