@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
+import { getGroupOpenPath } from '../lib/groups.js'
 import { getGameDetails, getMovieDetails, getSeriesDetails } from '../lib/tmdb.js'
 import { getCommunityLeaderboard, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
-
-const featuredCategories = ['Movies', 'Series', 'Games']
 
 const categoryMeta = {
   Movies: { icon: 'movies', label: 'Movie', plural: 'Movies' },
@@ -22,9 +21,17 @@ function itemKey(item, prefix = '') {
   return `${prefix}${item.groupId || item.groupName || 'global'}-${item.category}-${item.id}`
 }
 
-function rotateItems(items, index) {
-  if (!items.length) return []
-  return [...items.slice(index % items.length), ...items.slice(0, index % items.length)]
+function sortByRank(items = []) {
+  return items.slice().sort((a, b) => (
+    (Number(a.rank || 9999) - Number(b.rank || 9999))
+    || (Number(b.score || 0) - Number(a.score || 0))
+    || (Number(b.picks || 0) - Number(a.picks || 0))
+    || String(a.title || '').localeCompare(String(b.title || ''))
+  ))
+}
+
+function getNominator(item) {
+  return item?.nominatedBy || item?.nominated_by || ''
 }
 
 function CategoryBadge({ category }) {
@@ -70,7 +77,7 @@ function EmptyState() {
 }
 
 function PickPoster({ item, large = false }) {
-  const sizeClass = large ? 'h-64 sm:h-72 lg:h-80' : 'h-52 sm:h-56'
+  const sizeClass = large ? 'h-64 sm:h-72 lg:h-80' : 'h-36'
   const meta = getCategoryMeta(item?.category)
 
   if (item?.poster) {
@@ -129,7 +136,7 @@ function FlipBack({ item, compact = false, saving = false, onCopy, onInfo }) {
   )
 }
 
-function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy }) {
+function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy, className = '' }) {
   if (!item) return null
 
   function handleKeyDown(event) {
@@ -147,7 +154,7 @@ function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy }) {
       aria-label={`${flipped ? 'Hide actions for' : 'Show actions for'} ${item.title}`}
       onClick={() => onToggle(item)}
       onKeyDown={handleKeyDown}
-      className="group relative z-10 outline-none"
+      className={`group relative z-10 outline-none ${className}`}
       style={{ perspective: '1000px' }}
     >
       <div
@@ -164,7 +171,7 @@ function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy }) {
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/75 to-transparent p-5">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-300">#{item.rank || '—'} global pick</p>
               <h3 className="mt-2 line-clamp-2 text-3xl font-black leading-tight text-white">{item.title}</h3>
-              <p className="mt-1 truncate text-sm text-neutral-300">{item.groupName || 'Public clique'}{item.nominatedBy ? ` · Added by ${item.nominatedBy}` : ''}</p>
+              <p className="mt-1 truncate text-sm text-neutral-300">{item.groupName || 'Public clique'}{getNominator(item) ? ` · Added by ${getNominator(item)}` : ''}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <MetricPill>Score {item.score || 0}</MetricPill>
                 <MetricPill>{item.picks || 0} picks</MetricPill>
@@ -180,62 +187,41 @@ function FeaturedPickCard({ item, flipped, saving, onToggle, onInfo, onCopy }) {
   )
 }
 
-function PileNextRow({ item, index, onInfo, onCopy }) {
-  const meta = getCategoryMeta(item?.category)
-
-  return (
-    <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-neutral-950/80 p-2 shadow-xl shadow-black/20 backdrop-blur transition hover:border-white/25 hover:bg-neutral-900">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-neutral-950">#{item.rank || index + 2}</div>
-      <div className="h-12 w-10 shrink-0 overflow-hidden rounded-xl bg-neutral-900">
-        {item.poster ? <img src={item.poster} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-neutral-400"><AppIcon name={meta.icon} size={18} /></div>}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-white">{item.title}</p>
-        <p className="truncate text-[11px] text-neutral-500">Score {item.score || 0} · {item.groupName || 'Public clique'}</p>
-      </div>
-      <button type="button" onClick={(event) => { event.stopPropagation(); onCopy(item) }} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white hover:text-neutral-950" aria-label={`Copy ${item.title} to my library`}>
-        <AppIcon name="dashboard" size={14} />
-      </button>
-      <InfoButton item={item} onInfo={onInfo} className="h-8 w-8 shrink-0" />
-    </div>
-  )
-}
-
-function FeaturedPickPile({ category, items, flippedKey, saving, onToggle, onInfo, onCopy }) {
+function TopPicksShelf({ items, flippedKey, saving, onToggle, onInfo, onCopy }) {
   if (!items.length) return null
 
-  const [topItem, ...nextItems] = items
-  const meta = getCategoryMeta(category)
-  const topKey = itemKey(topItem, 'featured-')
-
   return (
-    <div className="relative pt-3 pr-3">
-      <div className="pointer-events-none absolute right-0 top-0 h-[20rem] w-[92%] rounded-[2rem] border border-white/10 bg-white/[0.035] shadow-2xl shadow-black/20" />
-      <div className="pointer-events-none absolute right-3 top-3 h-[20rem] w-[94%] rounded-[2rem] border border-white/10 bg-white/[0.045] shadow-2xl shadow-black/20" />
-      <FeaturedPickCard
-        item={topItem}
-        flipped={flippedKey === topKey}
-        saving={saving}
-        onToggle={(nextItem) => onToggle(nextItem, 'featured-')}
-        onInfo={onInfo}
-        onCopy={onCopy}
-      />
-
-      <div className="relative z-20 -mt-2 rounded-[1.5rem] border border-white/10 bg-black/35 p-3 backdrop-blur">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-neutral-400">
-            <AppIcon name={meta.icon} size={14} />
-            Next {meta.plural}
-          </span>
-          <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black text-neutral-500">{items.length} ranked</span>
+    <section className="mb-8 pt-1">
+      <div className="mb-4 flex flex-col gap-3 px-1 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Explore ladder</p>
+          <h1 className="mt-1 text-3xl font-black text-white">Top public picks</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">A single mixed-media run of public picks. Scroll sideways to browse the ladder, then open a card for actions or details.</p>
         </div>
-        <div className="space-y-2">
-          {nextItems.slice(0, 3).length ? nextItems.slice(0, 3).map((item, index) => <PileNextRow key={itemKey(item, 'next-')} item={item} index={index} onInfo={onInfo} onCopy={onCopy} />) : (
-            <p className="rounded-2xl border border-dashed border-white/10 p-3 text-sm text-neutral-500">More {meta.plural.toLowerCase()} will stack here as the category grows.</p>
-          )}
+        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300">
+          <AppIcon name="explore" size={15} />
+          {items.length} ranked
         </div>
       </div>
-    </div>
+
+      <div className="flex snap-x gap-4 overflow-x-auto pb-4 [scrollbar-width:thin] xl:grid xl:grid-cols-3 xl:overflow-visible xl:pb-0">
+        {items.map((item) => {
+          const key = itemKey(item, 'featured-')
+          return (
+            <FeaturedPickCard
+              key={key}
+              item={item}
+              flipped={flippedKey === key}
+              saving={saving}
+              onToggle={(nextItem) => onToggle(nextItem, 'featured-')}
+              onInfo={onInfo}
+              onCopy={onCopy}
+              className="w-[18.5rem] shrink-0 snap-start sm:w-[22rem] xl:w-auto"
+            />
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -266,11 +252,11 @@ function GroupMiniTile({ item, flipped, saving, onToggle, onInfo, onCopy }) {
       aria-label={`${flipped ? 'Hide actions for' : 'Show actions for'} ${item.title}`}
       onClick={() => onToggle(item)}
       onKeyDown={handleKeyDown}
-      className="min-w-0 outline-none"
+      className="min-w-[9rem] snap-start outline-none sm:min-w-[10rem]"
       style={{ perspective: '800px' }}
     >
       <div
-        className="relative min-h-[9.5rem] rounded-2xl transition-transform duration-500 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white/50"
+        className="relative min-h-[10.5rem] rounded-2xl transition-transform duration-500 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white/50"
         style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
       >
         <div className="absolute inset-0 overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/70" style={{ backfaceVisibility: 'hidden' }}>
@@ -288,8 +274,8 @@ function GroupMiniTile({ item, flipped, saving, onToggle, onInfo, onCopy }) {
             <InfoButton item={item} onInfo={onInfo} className="absolute right-2 top-2 h-7 w-7" />
           </div>
           <div className="p-2">
-            <p className="truncate text-xs font-black text-white">{item.title}</p>
-            <p className="mt-0.5 text-[11px] font-semibold text-neutral-500">Score {item.score || 0}</p>
+            <p className="line-clamp-2 text-xs font-black leading-tight text-white">{item.title}</p>
+            <p className="mt-1 text-[11px] font-semibold text-neutral-500">Score {item.score || 0}</p>
           </div>
         </div>
 
@@ -300,34 +286,16 @@ function GroupMiniTile({ item, flipped, saving, onToggle, onInfo, onCopy }) {
 }
 
 function GroupSummaryCard({ group, onInfo, onCopy, saving, flippedKey, onToggle }) {
-  const [hoverCategory, setHoverCategory] = useState(null)
-  const [slideIndex, setSlideIndex] = useState(0)
   const allItems = group.publicItems || group.topItems || []
-  const categoryCounts = featuredCategories.map((category) => ({
-    category,
-    count: allItems.filter((item) => item.category === category).length,
-  }))
-  const activeCategory = hoverCategory || categoryCounts.find((entry) => entry.count > 0)?.category || null
-  const carouselPool = activeCategory ? allItems.filter((item) => item.category === activeCategory) : allItems
-  const displayItems = rotateItems(carouselPool.length ? carouselPool : group.topItems || allItems, slideIndex).slice(0, 4)
-  const activeMeta = getCategoryMeta(activeCategory || 'Pick')
-
-  useEffect(() => {
-    setSlideIndex(0)
-  }, [hoverCategory, group.id])
-
-  useEffect(() => {
-    if (!hoverCategory || carouselPool.length < 2) return undefined
-    const timer = window.setInterval(() => setSlideIndex((current) => (current + 1) % carouselPool.length), 1450)
-    return () => window.clearInterval(timer)
-  }, [hoverCategory, carouselPool.length])
+  const displayItems = sortByRank(allItems).slice(0, 8)
+  const groupPath = getGroupOpenPath(group)
 
   return (
-    <article onMouseLeave={() => setHoverCategory(null)} className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-4 shadow-2xl shadow-black/20 backdrop-blur transition hover:border-white/20 hover:bg-white/[0.05]">
+    <article className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-4 shadow-2xl shadow-black/20 backdrop-blur transition hover:border-white/20 hover:bg-white/[0.05]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.22em] text-neutral-500">#{group.rank} public clique</p>
-          <h3 className="mt-1 truncate text-2xl font-black text-white">{group.name}</h3>
+          <Link to={groupPath} className="mt-1 block truncate text-2xl font-black text-white transition hover:text-neutral-200">{group.name}</Link>
         </div>
         <div className="rounded-2xl border border-white/10 bg-neutral-950/70 px-3 py-2 text-right">
           <div className="text-lg font-black text-white">{Number(group.averageRating || 0).toFixed(1)}</div>
@@ -341,55 +309,41 @@ function GroupSummaryCard({ group, onInfo, onCopy, saving, flippedKey, onToggle 
         <GroupStat icon="dashboard">Score {group.totalScore || 0}</GroupStat>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {categoryCounts.map(({ category, count }) => {
-          const meta = getCategoryMeta(category)
-          const active = hoverCategory === category
-          return (
-            <button
-              key={category}
-              type="button"
-              onMouseEnter={() => count ? setHoverCategory(category) : null}
-              onFocus={() => count ? setHoverCategory(category) : null}
-              disabled={!count}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] transition ${active ? 'border-white bg-white text-neutral-950' : 'border-white/10 text-neutral-400 hover:bg-white hover:text-neutral-950 disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-neutral-400'}`}
-            >
-              <AppIcon name={meta.icon} size={13} strokeWidth={2.2} />
-              {count} {meta.plural}
-            </button>
-          )
-        })}
+      <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-neutral-950/45 p-3">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">
+            <AppIcon name="explore" size={13} />
+            Top picks
+          </span>
+          <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black text-neutral-500">{allItems.length} in ladder</span>
+        </div>
+        {displayItems.length ? (
+          <div className="flex snap-x gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
+            {displayItems.map((item) => {
+              const enrichedItem = { ...item, groupId: group.id, groupName: group.name }
+              const flipKey = itemKey(enrichedItem, 'mini-')
+              return (
+                <GroupMiniTile
+                  key={flipKey}
+                  item={enrichedItem}
+                  flipped={flippedKey === flipKey}
+                  saving={saving}
+                  onToggle={(nextItem) => onToggle(nextItem, 'mini-')}
+                  onInfo={onInfo}
+                  onCopy={onCopy}
+                />
+              )
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/50 p-4 text-sm text-neutral-500">No public picks in this clique yet.</div>
+        )}
       </div>
 
-      <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-neutral-950/45 p-3">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">
-            <AppIcon name={activeMeta.icon} size={13} />
-            {hoverCategory ? `${activeMeta.plural} reel` : 'Top picks'}
-          </span>
-          {hoverCategory && carouselPool.length > 1 ? <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black text-neutral-500">Hover slideshow</span> : null}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {displayItems.length ? displayItems.map((item) => {
-            const enrichedItem = { ...item, groupId: group.id, groupName: group.name }
-            const key = itemKey(enrichedItem, `mini-${hoverCategory || 'top'}-${slideIndex}-`)
-            const flipKey = itemKey(enrichedItem, 'mini-')
-            return (
-              <GroupMiniTile
-                key={key}
-                item={enrichedItem}
-                flipped={flippedKey === flipKey}
-                saving={saving}
-                onToggle={(nextItem) => onToggle(nextItem, 'mini-')}
-                onInfo={onInfo}
-                onCopy={onCopy}
-              />
-            )
-          }) : (
-            <div className="col-span-2 rounded-2xl border border-dashed border-white/10 bg-neutral-950/50 p-4 text-sm text-neutral-500">No public picks in this clique yet.</div>
-          )}
-        </div>
-      </div>
+      <Link to={groupPath} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">
+        <AppIcon name="explore" size={16} />
+        Open public clique
+      </Link>
     </article>
   )
 }
@@ -398,7 +352,7 @@ function copyPayload(item) {
   return {
     ...item,
     id: String(item.id),
-    nominated_by: item.nominatedBy || item.nominated_by || 'public clique',
+    nominated_by: getNominator(item) || 'public clique',
   }
 }
 
@@ -450,17 +404,20 @@ function GenreChips({ genres }) {
   )
 }
 
-function SourceLine({ groupName, nominatedBy }) {
+function SourceLine({ item }) {
+  const groupName = item.groupName || 'Public clique'
+  const nominatedBy = getNominator(item) || 'Someone'
+
   return (
     <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-400">
       <span className="inline-flex items-center gap-1.5">
         <AppIcon name="users" size={14} strokeWidth={2.2} />
-        {groupName || 'Public clique'}
+        {groupName}
       </span>
       <span className="text-neutral-600">·</span>
       <span className="inline-flex items-center gap-1.5">
         <AppIcon name="user" size={14} strokeWidth={2.2} />
-        Suggested by <span className="font-semibold text-neutral-200">{nominatedBy || 'Someone'}</span>
+        Suggested by <span className="font-semibold text-neutral-200">{nominatedBy}</span>
       </span>
     </p>
   )
@@ -487,7 +444,7 @@ function mergePublicItem(base, details) {
     category: base.category,
     groupId: base.groupId,
     groupName: base.groupName,
-    nominatedBy: base.nominatedBy,
+    nominatedBy: getNominator(base),
     score: base.score,
     picks: base.picks,
     rating: base.rating,
@@ -538,6 +495,7 @@ function DetailModal({ item, saving, onCopy, onClose }) {
   const creator = displayItem.director || displayItem.regie || displayItem.creator || displayItem.createdBy || displayItem.developer
   const releaseValue = formatMonthYear(displayItem.released) || displayItem.year
   const showEmptyMetadata = !detailsLoading && !hasMetadata(displayItem)
+  const groupPath = displayItem.groupId ? getGroupOpenPath({ id: displayItem.groupId }) : null
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
@@ -559,7 +517,7 @@ function DetailModal({ item, saving, onCopy, onClose }) {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h2 className="text-3xl font-black leading-tight text-white">{displayItem.title}</h2>
-              <SourceLine groupName={displayItem.groupName} nominatedBy={displayItem.nominatedBy} />
+              <SourceLine item={displayItem} />
             </div>
             <button type="button" onClick={onClose} className="text-2xl text-neutral-400 transition hover:text-white">×</button>
           </div>
@@ -609,6 +567,12 @@ function DetailModal({ item, saving, onCopy, onClose }) {
               <AppIcon name="dashboard" size={18} />
               {saving ? 'Copying...' : 'Copy to my library'}
             </button>
+            {groupPath ? (
+              <Link to={groupPath} onClick={onClose} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">
+                <AppIcon name="explore" size={18} />
+                Open clique
+              </Link>
+            ) : null}
             <button
               type="button"
               onClick={() => setCopyHintOpen((value) => !value)}
@@ -639,7 +603,7 @@ function ExploreBoard() {
   const [flippedKey, setFlippedKey] = useState(null)
 
   useEffect(() => {
-    if (!hasSupabase) return
+    if (!hasSupabase) return undefined
     let cancelled = false
 
     async function loadBoard() {
@@ -685,9 +649,7 @@ function ExploreBoard() {
 
   const groups = board.groups || []
   const topContent = board.topContent || []
-  const categoryPiles = useMemo(() => featuredCategories
-    .map((category) => ({ category, items: topContent.filter((item) => item.category === category) }))
-    .filter((pile) => pile.items.length), [topContent])
+  const topPicks = useMemo(() => sortByRank(topContent).slice(0, 12), [topContent])
 
   if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading Explore...</div>
   if (message && !topContent.length && !groups.length) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
@@ -697,28 +659,25 @@ function ExploreBoard() {
     <>
       {message ? <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}
 
-      {categoryPiles.length ? (
-        <section className="mb-6 pt-1">
-          <h1 className="mb-4 px-1 text-2xl font-black text-white sm:text-3xl">Top public picks</h1>
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {categoryPiles.map((pile) => (
-              <FeaturedPickPile
-                key={pile.category}
-                category={pile.category}
-                items={pile.items}
-                flippedKey={flippedKey}
-                saving={savingItem}
-                onToggle={toggleTile}
-                onInfo={setSelectedItem}
-                onCopy={copyToLibrary}
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <TopPicksShelf
+        items={topPicks}
+        flippedKey={flippedKey}
+        saving={savingItem}
+        onToggle={toggleTile}
+        onInfo={setSelectedItem}
+        onCopy={copyToLibrary}
+      />
 
       {groups.length ? (
-        <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
+        <section>
+          <div className="mb-4 flex flex-col gap-2 px-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Public discovery</p>
+              <h2 className="mt-1 text-3xl font-black text-white">Top Cliques</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Open a public clique to continue from the preview into its full shared ladder.</p>
+            </div>
+            <span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300">{groups.length} public</span>
+          </div>
           <div className="grid gap-4 xl:grid-cols-2">
             {groups.slice(0, 10).map((group) => (
               <GroupSummaryCard
