@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
+import { getGameDetails, getMovieDetails, getSeriesDetails } from '../lib/tmdb.js'
 import { getCommunityLeaderboard, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
 
 const featuredCategories = ['Movies', 'Series', 'Games']
@@ -218,28 +219,86 @@ function DetailRow({ label, value }) {
   )
 }
 
+function hasMetadata(item) {
+  return Boolean(
+    item?.year || item?.released || item?.genres?.length || item?.runtime || item?.seasons || item?.episodes || item?.platform || item?.platforms?.length || item?.overview || item?.description || item?.tmdbRating || item?.rawgRating
+  )
+}
+
+function mergePublicItem(base, details) {
+  if (!details) return base
+  return {
+    ...base,
+    ...details,
+    id: base.id,
+    category: base.category,
+    groupId: base.groupId,
+    groupName: base.groupName,
+    nominatedBy: base.nominatedBy,
+    score: base.score,
+    picks: base.picks,
+    rating: base.rating,
+    completed: base.completed,
+  }
+}
+
 function DetailModal({ item, saving, onCopy, onClose }) {
   const [copyHintOpen, setCopyHintOpen] = useState(false)
+  const [details, setDetails] = useState(null)
+  const [detailsLoading, setDetailsLoading] = useState(false)
+  const [detailsError, setDetailsError] = useState(null)
+
+  useEffect(() => {
+    setCopyHintOpen(false)
+    setDetails(null)
+    setDetailsError(null)
+
+    if (!item) return undefined
+
+    let cancelled = false
+
+    async function loadDetails() {
+      setDetailsLoading(true)
+      try {
+        let nextDetails = null
+        if (item.category === 'Movies') nextDetails = await getMovieDetails(item)
+        else if (item.category === 'Series') nextDetails = await getSeriesDetails(item)
+        else if (item.category === 'Games') nextDetails = await getGameDetails(item)
+
+        if (!cancelled) setDetails(nextDetails)
+      } catch (error) {
+        if (!cancelled) setDetailsError(error.message || 'Could not load API details.')
+      } finally {
+        if (!cancelled) setDetailsLoading(false)
+      }
+    }
+
+    loadDetails()
+    return () => { cancelled = true }
+  }, [item])
 
   if (!item) return null
-  const meta = getCategoryMeta(item.category)
-  const releaseLabel = item.category === 'Games' ? 'Released' : 'Release'
-  const sourceRating = item.tmdbRating || item.rawgRating
-  const creator = item.director || item.regie || item.creator || item.createdBy || item.developer
+
+  const displayItem = mergePublicItem(item, details)
+  const meta = getCategoryMeta(displayItem.category)
+  const releaseLabel = displayItem.category === 'Games' ? 'Released' : 'Release'
+  const sourceRating = displayItem.tmdbRating ?? displayItem.rawgRating
+  const creator = displayItem.director || displayItem.regie || displayItem.creator || displayItem.createdBy || displayItem.developer
+  const showEmptyMetadata = !detailsLoading && !hasMetadata(displayItem)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <article className="grid max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/50 md:grid-cols-[0.8fr_1fr]">
         <div className="relative min-h-72 bg-neutral-900">
-          {item.poster ? (
-            <img src={item.poster} alt="" className="h-full max-h-[90vh] w-full object-cover" />
+          {displayItem.poster ? (
+            <img src={displayItem.poster} alt="" className="h-full max-h-[90vh] w-full object-cover" />
           ) : (
             <div className="flex h-full min-h-72 items-center justify-center text-white">
               <AppIcon name={meta.icon} size={72} strokeWidth={1.5} />
             </div>
           )}
           <div className="absolute left-4 top-4">
-            <CategoryBadge category={item.category} />
+            <CategoryBadge category={displayItem.category} />
           </div>
         </div>
 
@@ -247,42 +306,51 @@ function DetailModal({ item, saving, onCopy, onClose }) {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">{meta.label} info</p>
-              <h2 className="mt-2 text-3xl font-black leading-tight text-white">{item.title}</h2>
-              <p className="mt-2 text-sm text-neutral-400">{item.groupName || 'Public clique'}{item.nominatedBy ? ` · Added by ${item.nominatedBy}` : ''}</p>
+              <h2 className="mt-2 text-3xl font-black leading-tight text-white">{displayItem.title}</h2>
+              <p className="mt-2 text-sm text-neutral-400">{displayItem.groupName || 'Public clique'}{displayItem.nominatedBy ? ` · Added by ${displayItem.nominatedBy}` : ''}</p>
             </div>
             <button type="button" onClick={onClose} className="text-2xl text-neutral-400 transition hover:text-white">×</button>
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
-            <MetricPill>Score {item.score || 0}</MetricPill>
-            <MetricPill>{item.picks || 0} picks</MetricPill>
-            {item.rating ? <MetricPill>Your rating {Number(item.rating).toFixed(1)}</MetricPill> : null}
-            {sourceRating ? <MetricPill>{item.category === 'Games' ? 'RAWG' : 'TMDB'} {Number(sourceRating).toFixed(1)}</MetricPill> : null}
-            {item.completed ? <MetricPill>Completed</MetricPill> : null}
+            <MetricPill>Score {displayItem.score || 0}</MetricPill>
+            <MetricPill>{displayItem.picks || 0} picks</MetricPill>
+            {displayItem.rating ? <MetricPill>Your rating {Number(displayItem.rating).toFixed(1)}</MetricPill> : null}
+            {sourceRating !== null && sourceRating !== undefined ? <MetricPill>{displayItem.category === 'Games' ? 'RAWG' : 'TMDB'} {Number(sourceRating).toFixed(1)}</MetricPill> : null}
+            {displayItem.completed ? <MetricPill>Completed</MetricPill> : null}
           </div>
 
+          {detailsLoading ? <p className="mt-4 text-sm text-neutral-500">Loading API details…</p> : null}
+          {detailsError && !hasMetadata(displayItem) ? <p className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs leading-5 text-yellow-100">{detailsError}</p> : null}
+
           <dl className="mt-5 grid grid-cols-2 gap-2">
-            <DetailRow label="Year" value={item.year} />
-            <DetailRow label={releaseLabel} value={formatDate(item.released)} />
-            <DetailRow label="Genres" value={item.genres} />
+            <DetailRow label="Year" value={displayItem.year} />
+            <DetailRow label={releaseLabel} value={formatDate(displayItem.released)} />
+            <DetailRow label="Genres" value={displayItem.genres} />
             <DetailRow label="Director / Regie" value={creator} />
-            <DetailRow label="Runtime" value={item.runtime ? `${item.runtime} min` : null} />
-            <DetailRow label="Seasons" value={item.seasons} />
-            <DetailRow label="Episodes" value={item.episodes} />
-            <DetailRow label="Platforms" value={item.platforms || item.platform} />
+            <DetailRow label="Runtime" value={displayItem.runtime ? `${displayItem.runtime} min` : null} />
+            <DetailRow label="Seasons" value={displayItem.seasons} />
+            <DetailRow label="Episodes" value={displayItem.episodes} />
+            <DetailRow label="Platforms" value={displayItem.platforms || displayItem.platform} />
           </dl>
 
-          {item.overview || item.description ? (
+          {showEmptyMetadata ? (
+            <p className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-neutral-400">
+              No extra media metadata is available for this item yet. Apply the latest public leaderboard SQL migration and make sure the item was saved from the TMDB/RAWG detail API so year, genre, runtime, and overview can be stored.
+            </p>
+          ) : null}
+
+          {displayItem.overview || displayItem.description ? (
             <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <h3 className="text-xs uppercase tracking-[0.22em] text-neutral-500">Overview</h3>
-              <p className="mt-2 text-sm leading-6 text-neutral-300">{item.overview || item.description}</p>
+              <p className="mt-2 text-sm leading-6 text-neutral-300">{displayItem.overview || displayItem.description}</p>
             </section>
           ) : null}
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
               type="button"
-              onClick={() => onCopy(item)}
+              onClick={() => onCopy(displayItem)}
               disabled={saving}
               className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60"
             >
