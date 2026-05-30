@@ -27,6 +27,7 @@ import {
   signOut,
   signUpWithEmail,
 } from '../lib/supabaseClient.js'
+import { getPublicGroupsForDiscovery, joinPublicGroupById } from '../lib/publicGroups.js'
 
 const links = [
   { key: 'home', to: '/', label: 'Home', icon: '⌂' },
@@ -68,8 +69,10 @@ export default function PageNav({ active = 'home' }) {
   const [handle, setHandle] = useState('')
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
+  const [publicGroups, setPublicGroups] = useState([])
   const [session, setSession] = useState(null)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [navOpen, setNavOpen] = useState(false)
+  const [groupsOpen, setGroupsOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [profileEditOpen, setProfileEditOpen] = useState(false)
   const [draft, setDraft] = useState('')
@@ -86,10 +89,16 @@ export default function PageNav({ active = 'home' }) {
   const activeLink = links.find((link) => link.key === active)
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
   const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : (hasSupabase ? 'Profile' : (handle || 'Profile'))
+  const availablePublicGroups = publicGroups.filter((group) => !groups.some((ownGroup) => ownGroup.id === group.id))
 
   function flash(message) {
     setSavedMessage(message)
     setTimeout(() => setSavedMessage(''), 2400)
+  }
+
+  function closeSwitchers() {
+    setNavOpen(false)
+    setGroupsOpen(false)
   }
 
   function clearSupabaseSessionUi() {
@@ -102,8 +111,19 @@ export default function PageNav({ active = 'home' }) {
     setProfileEditOpen(false)
   }
 
+  async function loadPublicGroups() {
+    if (!hasSupabase) return
+    try {
+      const rows = await getPublicGroupsForDiscovery()
+      setPublicGroups(rows)
+    } catch {
+      setPublicGroups([])
+    }
+  }
+
   async function refreshGroups() {
     if (hasSupabase) {
+      await loadPublicGroups()
       try {
         const nextSession = await getCurrentSession()
         setSession(nextSession)
@@ -234,8 +254,28 @@ export default function PageNav({ active = 'home' }) {
 
   function activateGroup(group) {
     setActiveGroup(group.id)
+    closeSwitchers()
     refreshGroups()
     flash(`${group.name} is active.`)
+  }
+
+  async function joinPublicGroup(group) {
+    if (!session?.user) {
+      flash('Sign in before joining public groups.')
+      setEditing(true)
+      closeSwitchers()
+      return
+    }
+
+    try {
+      const joined = await joinPublicGroupById(group.id, await currentHandle())
+      setActiveGroup(joined.id)
+      closeSwitchers()
+      await refreshGroups()
+      flash(`Joined ${joined.name}.`)
+    } catch (error) {
+      flash(error.message || 'Could not join public group.')
+    }
   }
 
   async function copyInvite(group) {
@@ -333,54 +373,98 @@ export default function PageNav({ active = 'home' }) {
 
   return (
     <>
-      <header className="mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur sm:px-4">
+      <header className="relative z-40 mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur sm:px-4">
         <div className="grid gap-3 md:grid-cols-[auto_1fr_auto] md:items-center">
-          <Link to="/" aria-label="CliqueBase home" className="min-w-0 rounded-[1.4rem] px-2 py-1 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-white/30">
+          <Link to="/" aria-label="CliqueBase home" className="min-w-0 rounded-[1.4rem] px-2 py-1 transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-white/30" onClick={closeSwitchers}>
             <LogoMark />
           </Link>
 
-          <div className="hidden min-w-0 justify-center md:flex">
-            <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-neutral-300">
-              <span className="text-neutral-500">{activeLink?.label || 'Home'}</span>
-              <span className="text-neutral-700">/</span>
-              {activeGroup ? <strong className="truncate text-white">{activeGroup.name}</strong> : <span>No group selected</span>}
+          <div className="relative flex min-w-0 justify-center">
+            <div className="flex min-w-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.04] p-1 text-sm text-neutral-300">
+              <button type="button" onClick={() => { setNavOpen((value) => !value); setGroupsOpen(false) }} className="flex min-w-0 items-center gap-2 rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
+                <span className="text-neutral-500">Page</span>
+                <strong className="truncate text-white">{activeLink?.label || 'Home'}</strong>
+                <span className="text-neutral-500">⌄</span>
+              </button>
+              <button type="button" onClick={() => { setGroupsOpen((value) => !value); setNavOpen(false); loadPublicGroups() }} className="flex min-w-0 items-center gap-2 rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
+                <span className="text-neutral-500">Group</span>
+                <strong className="truncate text-white">{activeGroup?.name || 'Personal'}</strong>
+                <span className="text-neutral-500">⌄</span>
+              </button>
             </div>
+
+            {navOpen ? (
+              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,28rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
+                <div className="mb-2 px-2 text-xs uppercase tracking-[0.3em] text-neutral-500">Navigate</div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {links.map((link) => (
+                    <Link key={link.key} to={link.to} onClick={closeSwitchers} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
+                      <span className="text-xl">{link.icon}</span>
+                      <span>{link.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {groupsOpen ? (
+              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,34rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
+                <div className="flex items-center justify-between gap-3 px-2">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Groups</div>
+                    <h3 className="mt-1 text-lg font-black text-white">Switch or scout</h3>
+                  </div>
+                  <button type="button" onClick={() => { closeSwitchers(); setEditing(true) }} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Manage</button>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  <button type="button" onClick={() => { setActiveGroup(''); setActiveGroupState(null); closeSwitchers(); flash('Using personal library.') }} className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition ${!activeGroup ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white hover:bg-white/10'}`}>
+                    <span><strong>Personal library</strong><span className="block text-xs opacity-60">Private picks without a group</span></span>
+                    {!activeGroup ? <span>Active</span> : <span>Use</span>}
+                  </button>
+                  {groups.map((group) => (
+                    <div key={group.id} className={`rounded-2xl p-3 ${activeGroup?.id === group.id ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white'}`}>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="truncate font-bold">{group.name}</div>
+                          <div className="text-xs opacity-60">{group.members.length || 1} members · {group.isPublic ? 'Public' : 'Private'}</div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" onClick={() => activateGroup(group)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{activeGroup?.id === group.id ? 'Active' : 'Use'}</button>
+                          {usingRemoteGroups ? <button type="button" onClick={() => handleTogglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Private' : 'Public'}</button> : null}
+                          <button type="button" onClick={() => copyInvite(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">Invite</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <div className="mb-2 px-2 text-xs uppercase tracking-[0.3em] text-neutral-500">Public groups</div>
+                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                    {availablePublicGroups.length ? availablePublicGroups.slice(0, 8).map((group) => (
+                      <div key={group.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] p-3 text-white">
+                        <div className="min-w-0">
+                          <div className="truncate font-bold">{group.name}</div>
+                          <div className="text-xs text-neutral-500">{group.memberCount || 0} members · {group.itemCount || 0} items · ★ {Number(group.averageRating || 0).toFixed(1)}</div>
+                        </div>
+                        <button type="button" onClick={() => joinPublicGroup(group)} className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-neutral-950">Join</button>
+                      </div>
+                    )) : <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">No public groups to scout yet.</p>}
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center justify-between gap-2 md:justify-end">
-            <button type="button" onClick={() => setMenuOpen(true)} className="rounded-full bg-white px-4 py-3 text-sm font-bold text-neutral-950 transition hover:bg-neutral-200" aria-label="Open menu">
-              ☰ <span className="hidden sm:inline">Menu</span>
-            </button>
-            <button type="button" onClick={() => { refreshGroups(); setEditing(true) }} aria-label="Open profile and groups" className="flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
+          <div className="flex shrink-0 justify-end">
+            <button type="button" onClick={() => { refreshGroups(); closeSwitchers(); setEditing(true) }} aria-label="Open profile and groups" className="flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
               <span className="sm:mr-1.5">👤</span>
               <span className="hidden max-w-[6rem] truncate sm:inline">{profileLabel}</span>
             </button>
           </div>
         </div>
       </header>
-
-      {menuOpen ? (
-        <div className="fixed inset-0 z-50 bg-black/70 p-4 backdrop-blur-sm">
-          <div className="ml-auto flex h-full w-full max-w-md flex-col rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/40">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">CliqueBase</p>
-                <h2 className="mt-1 text-3xl font-black text-white">Menu</h2>
-              </div>
-              <button type="button" onClick={() => setMenuOpen(false)} className="text-3xl text-neutral-400 hover:text-white" aria-label="Close menu">×</button>
-            </div>
-
-            <nav className="mt-6 space-y-2 overflow-y-auto pr-1">
-              {links.map((link) => (
-                <Link key={link.key} to={link.to} onClick={() => setMenuOpen(false)} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
-                  <span className="text-xl">{link.icon}</span>
-                  <span>{link.label}</span>
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
-      ) : null}
 
       {editing ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
@@ -407,16 +491,8 @@ export default function PageNav({ active = 'home' }) {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {(session?.user || !hasSupabase) ? (
-                    <button type="button" onClick={() => setProfileEditOpen((value) => !value)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950" aria-label="Edit profile name">
-                      ⚙️
-                    </button>
-                  ) : null}
-                  {session?.user ? (
-                    <button type="button" disabled={signOutLoading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">
-                      {signOutLoading ? 'Signing out...' : 'Sign out'}
-                    </button>
-                  ) : null}
+                  {(session?.user || !hasSupabase) ? <button type="button" onClick={() => setProfileEditOpen((value) => !value)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950" aria-label="Edit profile name">⚙️</button> : null}
+                  {session?.user ? <button type="button" disabled={signOutLoading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">{signOutLoading ? 'Signing out...' : 'Sign out'}</button> : null}
                 </div>
               </div>
 
@@ -431,12 +507,7 @@ export default function PageNav({ active = 'home' }) {
                 </div>
               ) : null}
 
-              {authNotice ? (
-                <div className="mt-4 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-4 text-sm text-yellow-100">
-                  <div className="font-bold">{authNotice.title}</div>
-                  <p className="mt-1 leading-6 text-yellow-100/90">{authNotice.text}</p>
-                </div>
-              ) : null}
+              {authNotice ? <div className="mt-4 rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-4 text-sm text-yellow-100"><div className="font-bold">{authNotice.title}</div><p className="mt-1 leading-6 text-yellow-100/90">{authNotice.text}</p></div> : null}
 
               {hasSupabase && !session?.user ? (
                 <form onSubmit={handleAuthSubmit} className="mt-4 grid gap-3">
@@ -444,24 +515,9 @@ export default function PageNav({ active = 'home' }) {
                     <button type="button" onClick={() => { setAuthMode('sign-in'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button>
                     <button type="button" onClick={() => { setAuthMode('sign-up'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button>
                   </div>
-
-                  {authMode === 'sign-up' ? (
-                    <label className="grid gap-1 text-sm font-semibold text-neutral-300">
-                      Profile name
-                      <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                    </label>
-                  ) : null}
-
-                  <label className="grid gap-1 text-sm font-semibold text-neutral-300">
-                    Email
-                    <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                  </label>
-
-                  <label className="grid gap-1 text-sm font-semibold text-neutral-300">
-                    Password
-                    <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                  </label>
-
+                  {authMode === 'sign-up' ? <label className="grid gap-1 text-sm font-semibold text-neutral-300">Profile name<input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" /></label> : null}
+                  <label className="grid gap-1 text-sm font-semibold text-neutral-300">Email<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" /></label>
+                  <label className="grid gap-1 text-sm font-semibold text-neutral-300">Password<input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" /></label>
                   <button disabled={authLoading} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black disabled:opacity-60">{authLoading ? 'Working...' : authMode === 'sign-up' ? 'Create account' : 'Sign in'}</button>
                 </form>
               ) : null}
@@ -484,41 +540,12 @@ export default function PageNav({ active = 'home' }) {
                 <input value={groupDraft} onChange={(event) => setGroupDraft(event.target.value)} placeholder="Friday movie crew" className="mt-2 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
                 <button className="mt-3 w-full rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950">Create & activate</button>
               </form>
-
               <form onSubmit={handleJoinGroup} className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
                 <label className="text-sm font-semibold text-neutral-300">Join with invite</label>
                 <input value={inviteDraft} onChange={(event) => setInviteDraft(event.target.value)} placeholder="Paste code or invite link" className="mt-2 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
                 <button className="mt-3 w-full rounded-2xl border border-white/10 px-5 py-3 font-semibold text-white hover:bg-white hover:text-neutral-950">Join group</button>
               </form>
             </div>
-
-            <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex items-end justify-between gap-3">
-                <div>
-                  <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">{usingRemoteGroups ? 'Your Supabase groups' : 'Your local groups'}</div>
-                  <h3 className="mt-1 text-xl font-bold text-white">Switch context</h3>
-                </div>
-                <span className="text-sm text-neutral-500">{groups.length} group{groups.length === 1 ? '' : 's'}</span>
-              </div>
-
-              <div className="mt-3 space-y-2">
-                {groups.length ? groups.map((group) => (
-                  <div key={group.id} className={`rounded-2xl border p-3 ${activeGroup?.id === group.id ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white'}`}>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <div className="truncate font-semibold">{group.name}</div>
-                        <div className={`mt-1 text-xs ${activeGroup?.id === group.id ? 'text-neutral-600' : 'text-neutral-500'}`}>{group.members.length || 1} members · {group.isPublic ? 'Public discovery' : 'Private'}</div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => activateGroup(group)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{activeGroup?.id === group.id ? 'Active' : 'Use'}</button>
-                        {usingRemoteGroups ? <button type="button" onClick={() => handleTogglePublic(group)} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'border-neutral-300 text-neutral-950' : 'border-white/10 text-white'}`}>{group.isPublic ? 'Make private' : 'Make public'}</button> : null}
-                        <button type="button" onClick={() => copyInvite(group)} className={`rounded-xl border px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'border-neutral-300 text-neutral-950' : 'border-white/10 text-white'}`}>Invite</button>
-                      </div>
-                    </div>
-                  </div>
-                )) : <p className="rounded-2xl border border-dashed border-white/15 p-4 text-center text-sm text-neutral-500">Create the first group here, then share its invite link.</p>}
-              </div>
-            </section>
           </div>
         </div>
       ) : null}
