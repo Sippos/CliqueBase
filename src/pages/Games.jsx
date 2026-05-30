@@ -8,14 +8,6 @@ import { demoGames } from '../lib/demoMovies.js'
 import { getGameDetails, searchGames } from '../lib/tmdb.js'
 import { getCurrentSession, getGames, getRemoteGroups, hasSupabase, markGamePlayed, rateGame as saveGameRating, saveGame, voteGame } from '../lib/supabaseClient.js'
 
-function makeId(title) {
-  return `custom-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}-${Date.now()}`
-}
-
-function splitList(value) {
-  return value.split(',').map((item) => item.trim()).filter(Boolean)
-}
-
 function setupMessage(state) {
   if (!hasSupabase) return null
   if (state === 'signed-out') return 'Sign in from Profile to build your personal game library and save picks to groups.'
@@ -43,7 +35,6 @@ export default function Games() {
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
   const [selectedScope, setSelectedScope] = useState('personal')
   const [setupState, setSetupState] = useState(() => hasSupabase ? 'checking' : 'local')
-  const [draft, setDraft] = useState({ title: '', year: '', poster: '', genres: '', platform: '', overview: '' })
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
@@ -159,40 +150,6 @@ export default function Games() {
     }
   }
 
-  async function addGame(event) {
-    event.preventDefault()
-    const title = draft.title.trim()
-    if (!title) return
-    if (needLibrary()) return
-
-    const game = {
-      id: makeId(title),
-      title,
-      year: draft.year.trim() || 'New pick',
-      poster: draft.poster.trim() || null,
-      overview: draft.overview.trim(),
-      genres: splitList(draft.genres),
-      platform: draft.platform.trim(),
-      nominated_by: activeHandle || 'You',
-      picks: 0,
-      score: 0,
-    }
-
-    try {
-      if (hasSupabase) {
-        const saved = await saveGame(game, activeHandle || 'anonymous', selectedGroupId)
-        setGames((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current])
-      } else {
-        setGames((current) => [game, ...current])
-      }
-      setResults([game])
-      setDraft({ title: '', year: '', poster: '', genres: '', platform: '', overview: '' })
-      showMessage(`"${game.title}" added to ${destinationLabel}.`)
-    } catch (error) {
-      showMessage(error.message || 'Could not save game.', 'error')
-    }
-  }
-
   async function addExistingGame(game) {
     if (needLibrary()) return
     try {
@@ -294,7 +251,6 @@ export default function Games() {
     setInfoGame(null)
     setResults([])
     setQuery('')
-    setDraft({ title: '', year: '', poster: '', genres: '', platform: '', overview: '' })
     setMessage(null)
   }
 
@@ -328,23 +284,6 @@ export default function Games() {
             <button type="submit" disabled={searching || !canUseLibrary} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{searching ? 'Searching...' : 'Search'}</button>
           </div>
         </form>
-
-        <details className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-neutral-200">Add custom game manually</summary>
-          <form onSubmit={addGame} className="mt-4 space-y-3">
-            <div className="grid gap-2 md:grid-cols-[1fr_0.35fr_0.7fr_auto]">
-              <input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Game title..." className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-              <input value={draft.year} onChange={(event) => setDraft((current) => ({ ...current, year: event.target.value }))} placeholder="Year" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-              <input value={draft.platform} onChange={(event) => setDraft((current) => ({ ...current, platform: event.target.value }))} placeholder="Platform" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-              <button type="submit" disabled={!canUseLibrary} className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">Add</button>
-            </div>
-            <div className="grid gap-2 md:grid-cols-[1fr_1fr]">
-              <input value={draft.poster} onChange={(event) => setDraft((current) => ({ ...current, poster: event.target.value }))} placeholder="Cover image URL" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-              <input value={draft.genres} onChange={(event) => setDraft((current) => ({ ...current, genres: event.target.value }))} placeholder="Genres, comma separated" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-            </div>
-            <textarea value={draft.overview} onChange={(event) => setDraft((current) => ({ ...current, overview: event.target.value }))} placeholder="Optional notes or description" className="min-h-20 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-          </form>
-        </details>
       </PageHero>
 
       <StatusMessage message={message} />
