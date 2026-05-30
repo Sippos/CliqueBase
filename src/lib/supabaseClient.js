@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const siteUrl = import.meta.env.VITE_SITE_URL
 
 function createSupabaseClient() {
   if (!supabaseUrl || !supabaseAnonKey) return null
@@ -23,6 +24,13 @@ function requireSupabase() {
 
 function clean(value) {
   return String(value || '').trim()
+}
+
+function getAuthRedirectUrl() {
+  const configuredUrl = clean(siteUrl)
+  if (configuredUrl) return configuredUrl.endsWith('/') ? configuredUrl : `${configuredUrl}/`
+  if (typeof window !== 'undefined' && window.location?.origin) return `${window.location.origin}/`
+  return undefined
 }
 
 function profileNameFromUser(user) {
@@ -173,7 +181,10 @@ export async function signUpWithEmail(email, password, displayName = '') {
   const { data, error } = await client.auth.signUp({
     email: clean(email),
     password,
-    options: { data: { display_name: clean(displayName) } },
+    options: {
+      data: { display_name: clean(displayName) },
+      emailRedirectTo: getAuthRedirectUrl(),
+    },
   })
   if (error) throw error
   if (data.session?.user) await saveProfile(displayName || profileNameFromUser(data.session.user))
