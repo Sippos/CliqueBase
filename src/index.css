@@ -18,25 +18,17 @@ button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.6; }
 #root { min-height: 100vh; }
 
+/* Keep the brand mark/text clean: no navbar slab behind the CliqueBase logo. */
 header.sticky {
-  border-color: rgba(255, 255, 255, 0.16) !important;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.035)) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 24px 70px rgba(0, 0, 0, 0.42) !important;
-  backdrop-filter: blur(28px) saturate(150%);
-  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 header.sticky::before {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.18), transparent 34%);
-  opacity: 0.7;
+  display: none !important;
 }
 
 header.sticky > * {
@@ -44,54 +36,82 @@ header.sticky > * {
   z-index: 1;
 }
 
-header.sticky button,
 header.sticky a[aria-label^="CliqueBase"] {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+header.sticky a[aria-label^="CliqueBase"] > div {
+  filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.55));
+}
+
+/* Make nav controls feel glassy without washing out the content behind them. */
+header.sticky button {
   backdrop-filter: blur(18px) saturate(145%);
   -webkit-backdrop-filter: blur(18px) saturate(145%);
 }
 
 header.sticky button[class*="bg-white"] {
-  border: 1px solid rgba(255, 255, 255, 0.34) !important;
-  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.42) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 12px 35px rgba(255, 255, 255, 0.08) !important;
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 14px 40px rgba(0, 0, 0, 0.35) !important;
 }
 
-header.sticky button[class*="bg-white/["],
+header.sticky button[class*="bg-white/["] ,
 header.sticky button[class*="bg-white/"] {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  background: rgba(22, 22, 22, 0.82) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 14px 40px rgba(0, 0, 0, 0.35) !important;
 }
 
 header.sticky div[class*="absolute"][class*="top-full"] {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  background: rgba(12, 12, 12, 0.94) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 30px 90px rgba(0, 0, 0, 0.68) !important;
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+
+header.sticky div[class*="absolute"][class*="top-full"] a[class*="text-neutral-200"],
+header.sticky div[class*="absolute"][class*="top-full"] p,
+header.sticky div[class*="absolute"][class*="top-full"] div[class*="bg-white/"] {
+  background: rgba(255, 255, 255, 0.08) !important;
   border-color: rgba(255, 255, 255, 0.16) !important;
-  background: rgba(15, 15, 15, 0.72) !important;
+}
+
+header.sticky div[class*="absolute"][class*="top-full"] a[class*="text-neutral-200"]:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* Heavier glass panels on discovery cards so titles and mini-items stay readable. */
+section[class*="bg-white/"][class*="shadow-2xl"],
+article[class*="bg-white/"][class*="shadow-2xl"],
+div[class*="bg-white/"][class*="shadow-2xl"] {
+  background: rgba(18, 18, 18, 0.86) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 28px 80px rgba(0, 0, 0, 0.55) !important;
-  backdrop-filter: blur(26px) saturate(145%);
-  -webkit-backdrop-filter: blur(26px) saturate(145%);
+    0 24px 70px rgba(0, 0, 0, 0.48) !important;
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
 }
 
-a[aria-label^="CliqueBase"] > div > svg {
-  display: none !important;
+article[class*="bg-white/"][class*="shadow-2xl"]:hover {
+  background: rgba(26, 26, 26, 0.9) !important;
 }
 
-a[aria-label^="CliqueBase"] > div::before {
-  content: "";
-  display: block !important;
-  width: 2.75rem;
-  height: 2.75rem;
-  flex: 0 0 2.75rem;
-  background: url("data:image/png;base64,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") center / contain no-repeat;
-}
-
-@media (max-width: 640px) {
-  a[aria-label^="CliqueBase"] > div::before {
-    width: 2.5rem;
-    height: 2.5rem;
-    flex-basis: 2.5rem;
-  }
+article[class*="bg-white/"] div[class*="bg-neutral-950/70"],
+article[class*="bg-white/"] div[class*="bg-neutral-950/50"],
+article[class*="bg-white/"] span[class*="bg-white/"] {
+  background: rgba(8, 8, 8, 0.82) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
 }
