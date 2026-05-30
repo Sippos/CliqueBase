@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
-import { StatusMessage } from '../components/MediaBlocks.jsx'
+import { DetailPill, InfoModal, StatusMessage, displayYear } from '../components/MediaBlocks.jsx'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
 import { createGroup as createLocalGroup, getGroupInvitePath, getGroupInviteUrl, getGroupOpenPath, getGroups, joinGroup as joinLocalGroup, parseInviteCode, setActiveGroup } from '../lib/groups.js'
 import { createRemoteGroup, getCurrentSession, getGames, getMovies, getProfile, getRemoteGroups, getSeries, hasSupabase, joinRemoteGroup } from '../lib/supabaseClient.js'
@@ -40,12 +40,13 @@ function normalizeContentItem(item, category, icon, doneKey) {
   }
 }
 
-function categorySummary(items, title, singular, icon, doneKey) {
+function categorySummary(items, title, singular, icon, doneKey, to) {
   const normalized = rankedItems(items.map((item) => normalizeContentItem(item, singular, icon, doneKey)))
   return {
     title,
     singular,
     icon,
+    to,
     items: normalized,
     top: normalized[0] || null,
     count: normalized.length,
@@ -58,9 +59,9 @@ function categorySummary(items, title, singular, icon, doneKey) {
 
 function buildGroupSummary(movies = [], series = [], games = []) {
   const categories = [
-    categorySummary(movies, 'Movies', 'Movie', 'movies', 'watched'),
-    categorySummary(series, 'Series', 'Series', 'series', 'finished'),
-    categorySummary(games, 'Games', 'Game', 'games', 'played'),
+    categorySummary(movies, 'Movies', 'Movie', 'movies', 'watched', '/movies'),
+    categorySummary(series, 'Series', 'Series', 'series', 'finished', '/series'),
+    categorySummary(games, 'Games', 'Game', 'games', 'played', '/games'),
   ]
 
   return {
@@ -85,46 +86,66 @@ function MetricBox({ value, label }) {
   )
 }
 
-function TopContentTile({ category }) {
+function TopContentTile({ group, category, onOpenItem, onOpenList }) {
   const item = category.top
   const image = item?.backdrop || item?.poster
 
   if (!item) {
     return (
-      <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-neutral-950/50 p-4">
+      <Link
+        to={category.to}
+        onClick={() => onOpenList(group)}
+        className="rounded-[1.5rem] border border-dashed border-white/10 bg-neutral-950/50 p-4 transition hover:border-white/25 hover:bg-neutral-900"
+      >
         <div className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300">
           <AppIcon name={category.icon} size={14} />
           {category.title}
         </div>
-        <p className="mt-4 text-sm text-neutral-500">No {category.title.toLowerCase()} yet.</p>
-      </div>
+        <p className="mt-4 text-sm text-neutral-500">No {category.title.toLowerCase()} yet. Open the list to add one.</p>
+      </Link>
     )
   }
 
   return (
-    <Link to={`/${category.title.toLowerCase()}`} className="group overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/75 transition hover:border-white/25 hover:bg-neutral-900">
-      <div className="relative h-32 overflow-hidden bg-neutral-900">
-        {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 transition group-hover:scale-105" /> : null}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950">
-          <AppIcon name={category.icon} size={12} strokeWidth={2.5} />
-          Top {category.singular}
-        </span>
-      </div>
-      <div className="p-4">
-        <h3 className="line-clamp-1 text-lg font-black text-white">{item.title}</h3>
-        <p className="mt-1 line-clamp-2 text-sm leading-5 text-neutral-400">{item.overview || `Leading ${category.singular.toLowerCase()} by score and picks in this clique.`}</p>
-        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold text-neutral-300">
-          <span className="rounded-full border border-white/10 px-2.5 py-1">Score {item.score || 0}</span>
-          <span className="rounded-full border border-white/10 px-2.5 py-1">{item.picks || 0} picks</span>
-          {item.rating ? <span className="rounded-full border border-white/10 px-2.5 py-1">★ {Number(item.rating).toFixed(1)}</span> : null}
+    <article className="group relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/75 transition hover:border-white/25 hover:bg-neutral-900">
+      <button
+        type="button"
+        onClick={() => onOpenItem({ ...item, category: category.singular, icon: category.icon })}
+        className="block w-full text-left"
+        aria-label={`Open ${item.title} details`}
+      >
+        <div className="relative h-32 overflow-hidden bg-neutral-900">
+          {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 transition group-hover:scale-105" /> : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950">
+            <AppIcon name={category.icon} size={12} strokeWidth={2.5} />
+            Top {category.singular}
+          </span>
         </div>
-      </div>
-    </Link>
+        <div className="p-4">
+          <h3 className="line-clamp-1 text-lg font-black text-white">{item.title}</h3>
+          <p className="mt-1 line-clamp-2 text-sm leading-5 text-neutral-400">{item.overview || `Leading ${category.singular.toLowerCase()} by score and picks in this clique.`}</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold text-neutral-300">
+            <span className="rounded-full border border-white/10 px-2.5 py-1">Score {item.score || 0}</span>
+            <span className="rounded-full border border-white/10 px-2.5 py-1">{item.picks || 0} picks</span>
+            {item.rating ? <span className="rounded-full border border-white/10 px-2.5 py-1">★ {Number(item.rating).toFixed(1)}</span> : null}
+          </div>
+        </div>
+      </button>
+
+      <Link
+        to={category.to}
+        onClick={() => onOpenList(group)}
+        aria-label={`Open ${category.title} list for ${group.name}`}
+        className="absolute right-3 top-3 z-10 rounded-full bg-black/55 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"
+      >
+        {category.count}
+      </Link>
+    </article>
   )
 }
 
-function GroupContentOverview({ summary, loading }) {
+function GroupContentOverview({ group, summary, loading, onOpenItem, onOpenList }) {
   if (loading) {
     return (
       <div className="mt-5 grid gap-3 lg:grid-cols-3">
@@ -150,13 +171,21 @@ function GroupContentOverview({ summary, loading }) {
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        {safeSummary.categories.map((category) => <TopContentTile key={category.title} category={category} />)}
+        {safeSummary.categories.map((category) => (
+          <TopContentTile
+            key={category.title}
+            group={group}
+            category={category}
+            onOpenItem={onOpenItem}
+            onOpenList={onOpenList}
+          />
+        ))}
       </div>
     </div>
   )
 }
 
-function GroupCard({ group, summary, summaryLoading, onCopy, onOpen }) {
+function GroupCard({ group, summary, summaryLoading, onCopy, onOpen, onOpenItem, onOpenList }) {
   return (
     <article className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 text-white shadow-2xl shadow-black/15 transition hover:border-white/20 hover:bg-white/[0.045] sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -193,7 +222,7 @@ function GroupCard({ group, summary, summaryLoading, onCopy, onOpen }) {
         )) : <span>Members appear here after people join.</span>}
       </div>
 
-      <GroupContentOverview summary={summary} loading={summaryLoading} />
+      <GroupContentOverview group={group} summary={summary} loading={summaryLoading} onOpenItem={onOpenItem} onOpenList={onOpenList} />
     </article>
   )
 }
@@ -231,6 +260,7 @@ export default function Groups({ inviteMode = false }) {
   const [draftGroup, setDraftGroup] = useState('')
   const [manualInvite, setManualInvite] = useState('')
   const [message, setMessage] = useState(null)
+  const [selectedItem, setSelectedItem] = useState(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -374,6 +404,10 @@ export default function Groups({ inviteMode = false }) {
     setActiveGroup(group.id)
   }
 
+  function openList(group) {
+    setActiveGroup(group.id)
+  }
+
   async function copyInvite(group) {
     const copied = await copyToClipboard(getGroupInviteUrl(group))
     showMessage(copied ? 'Invite link copied.' : `Invite path: ${getGroupInvitePath(group)}`)
@@ -435,6 +469,8 @@ export default function Groups({ inviteMode = false }) {
             summaryLoading={summariesLoading}
             onCopy={copyInvite}
             onOpen={openGroup}
+            onOpenItem={setSelectedItem}
+            onOpenList={openList}
           />
         )) : (
           <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-neutral-400">
@@ -442,6 +478,22 @@ export default function Groups({ inviteMode = false }) {
           </div>
         )}
       </section>
+
+      <InfoModal item={selectedItem} onClose={() => setSelectedItem(null)} year={displayYear(selectedItem?.released || selectedItem?.year)} backdrop={selectedItem?.backdrop || selectedItem?.poster}>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <DetailPill>{selectedItem?.category}</DetailPill>
+          <DetailPill>Score {selectedItem?.score || 0}</DetailPill>
+          <DetailPill>{selectedItem?.picks || 0} picks</DetailPill>
+          {selectedItem?.rating ? <DetailPill>Rating ★ {Number(selectedItem.rating).toFixed(1)}</DetailPill> : null}
+          {selectedItem?.runtime ? <DetailPill>{selectedItem.runtime} min</DetailPill> : null}
+          {selectedItem?.seasons ? <DetailPill>{selectedItem.seasons} seasons</DetailPill> : null}
+          {selectedItem?.episodes ? <DetailPill>{selectedItem.episodes} episodes</DetailPill> : null}
+          {selectedItem?.platform ? <DetailPill>{selectedItem.platform}</DetailPill> : null}
+          {selectedItem?.genres?.map((genre) => <DetailPill key={genre}>{genre}</DetailPill>)}
+          {selectedItem?.platforms?.map((platform) => <DetailPill key={platform}>{platform}</DetailPill>)}
+        </div>
+        <p className="mt-5 text-sm leading-7 text-neutral-300">{selectedItem?.overview || selectedItem?.description || 'No description available yet.'}</p>
+      </InfoModal>
     </PageShell>
   )
 }
