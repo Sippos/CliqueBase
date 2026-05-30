@@ -81,8 +81,23 @@ async function copyToClipboard(value) {
   return false
 }
 
+function cleanName(value) {
+  return String(value || '').trim()
+}
+
+function emailProfileFallback(session) {
+  return cleanName(session?.user?.email?.split('@')[0])
+}
+
+function isEmailFallbackName(value, session) {
+  const name = cleanName(value)
+  const fallback = emailProfileFallback(session)
+  return Boolean(name && fallback && name.toLowerCase() === fallback.toLowerCase())
+}
+
 function sessionName(session, profile, fallback = '') {
-  return profile?.display_name || fallback || session?.user?.user_metadata?.display_name || session?.user?.email?.split('@')[0] || ''
+  const candidates = [profile?.display_name, fallback, session?.user?.user_metadata?.display_name]
+  return candidates.map(cleanName).find((name) => name && !isEmailFallbackName(name, session)) || ''
 }
 
 function LogoMark() {
@@ -127,9 +142,9 @@ export default function PageNav({ active = 'library' }) {
   const queryMedia = new URLSearchParams(location.search).get('media')
   const activeMedia = mediaLinks.find((link) => link.key === activeKey) || mediaLinks.find((link) => link.key === queryMedia)
   const activeMediaKey = activeMedia?.key || null
-  const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : (handle || 'Profile')
-  const profileInitial = (profileLabel || 'P').slice(0, 1).toUpperCase()
-  const navProfileLabel = profileLabel === 'Profile' ? 'Profile' : `Profile (${profileLabel})`
+  const profileName = cleanName(handle)
+  const profileLabel = profileName || 'Profile'
+  const navProfileLabel = profileName ? `Profile (${profileName})` : 'Profile'
   const spaceLabel = activeGroup?.name || 'My Library'
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
   const accountStatus = session?.user ? 'Signed in' : hasSupabase ? 'Ready to sync' : 'Local profile'
@@ -203,6 +218,9 @@ export default function PageNav({ active = 'library' }) {
           saveSharedHandle(displayName)
           setHandle(displayName)
           setDraft(displayName)
+        } else {
+          setHandle('')
+          setDraft('')
         }
 
         const remoteGroups = await getRemoteGroups().catch(() => [])
@@ -385,14 +403,20 @@ export default function PageNav({ active = 'library' }) {
     setLoading(true)
     try {
       const email = authEmail.trim()
-      const displayName = (draft || email.split('@')[0]).trim()
+      const displayName = draft.trim()
       if (authMode === 'sign-up') {
         const result = await signUpWithEmail(email, authPassword, displayName)
         if (!result.session?.user) {
           setAuthNotice(`Check ${email} to confirm your account, then sign in.`)
         } else {
-          saveSharedHandle(displayName)
-          setHandle(displayName)
+          if (displayName) {
+            saveSharedHandle(displayName)
+            setHandle(displayName)
+            setDraft(displayName)
+          } else {
+            setHandle('')
+            setDraft('')
+          }
           setSession(result.session)
           setEmailDraft(result.session.user.email || email)
           flash('Account created.')
@@ -402,11 +426,14 @@ export default function PageNav({ active = 'library' }) {
         if (!data.session?.user) throw new Error('Confirm your email first, then try again.')
         setSession(data.session)
         setEmailDraft(data.session.user.email || email)
-        const displayNameAfterLogin = data.session.user.user_metadata?.display_name || data.session.user.email?.split('@')[0] || ''
+        const displayNameAfterLogin = sessionName(data.session, null, getSavedHandle())
         if (displayNameAfterLogin) {
           saveSharedHandle(displayNameAfterLogin)
           setHandle(displayNameAfterLogin)
           setDraft(displayNameAfterLogin)
+        } else {
+          setHandle('')
+          setDraft('')
         }
         flash('Signed in.')
       }
@@ -488,7 +515,7 @@ export default function PageNav({ active = 'library' }) {
 
           <div className="flex justify-end">
             <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="inline-flex h-11 max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-2 pr-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-neutral-950">{profileInitial}</span>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-neutral-950"><AppIcon name="user" size={16} /></span>
               <span className="hidden min-w-0 truncate sm:inline">{navProfileLabel}</span>
             </button>
           </div>
@@ -503,7 +530,7 @@ export default function PageNav({ active = 'library' }) {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile</div>
-                <h2 className="mt-1 truncate text-2xl font-black text-white">Profile ({profileLabel})</h2>
+                <h2 className="mt-1 truncate text-2xl font-black text-white">{navProfileLabel}</h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Use the gear for account details. Library controls now stay grouped below your profile so switching between private picks and cliques is clearer.</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -517,7 +544,7 @@ export default function PageNav({ active = 'library' }) {
             <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.5rem] bg-white text-2xl font-black text-neutral-950">{profileInitial}</div>
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.5rem] bg-white text-neutral-950"><AppIcon name="user" size={30} strokeWidth={1.7} /></div>
                   <div className="min-w-0">
                     <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">{accountStatus}</div>
                     <h3 className="mt-1 truncate text-2xl font-black text-white">{profileLabel}</h3>
