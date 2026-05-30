@@ -1,98 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import PageShell from '../components/PageShell.jsx'
 import { demoGames, demoMovies, demoSeries, demoVideos } from '../lib/demoMovies.js'
 import { getCommunityLeaderboard, hasSupabase } from '../lib/supabaseClient.js'
 
-const categories = [
-  { label: 'Movies', items: demoMovies, accent: '🎬' },
-  { label: 'Series', items: demoSeries, accent: '📺' },
-  { label: 'Games', items: demoGames, accent: '🎮' },
-  { label: 'Videos', items: demoVideos, accent: '📹' },
+const demoCategories = [
+  { label: 'Movies', items: demoMovies },
+  { label: 'Series', items: demoSeries },
+  { label: 'Games', items: demoGames },
+  { label: 'Videos', items: demoVideos },
 ]
-
-function ranked(items) {
-  return items.slice().sort((a, b) => b.score - a.score || b.picks - a.picks)
-}
-
-function getSubmitters(items) {
-  const people = new Map()
-
-  for (const item of items) {
-    const name = item.nominated_by || 'Unknown'
-    const current = people.get(name) || {
-      name,
-      submitted: 0,
-      totalScore: 0,
-      totalPicks: 0,
-      categories: new Set(),
-    }
-
-    current.submitted += 1
-    current.totalScore += Number(item.score || 0)
-    current.totalPicks += Number(item.picks || 0)
-    current.categories.add(item.category)
-
-    people.set(name, current)
-  }
-
-  return Array.from(people.values())
-    .map((person) => ({
-      ...person,
-      impact: person.totalScore + person.totalPicks,
-      averageScore: person.submitted ? person.totalScore / person.submitted : 0,
-      categories: Array.from(person.categories),
-    }))
-    .sort((a, b) => b.impact - a.impact || b.submitted - a.submitted || b.averageScore - a.averageScore)
-}
-
-function DemoLeaderboard() {
-  const allItems = categories.flatMap((category) => category.items.map((item) => ({ ...item, category: category.label })))
-  const userRanking = getSubmitters(allItems)
-  const contentRanking = ranked(allItems).slice(0, 8)
-  const totalSubmitted = allItems.length
-  const totalPicks = allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0)
-  const topSubmitter = userRanking[0]
-  const topContent = contentRanking[0]
-
-  return (
-    <>
-      <section className="mb-5 grid gap-3 md:grid-cols-4">
-        <StatCard label="Top content" value={topContent?.title || 'No content yet'} detail={topContent ? `${topContent.category} · ${topContent.picks} picks · score ${topContent.score}` : 'Add picks to start the board.'} />
-        <StatCard label="Top user" value={topSubmitter?.name || 'No one yet'} detail={topSubmitter ? `${topSubmitter.submitted} submissions · ${topSubmitter.impact} impact` : 'Add submitters to start the board.'} />
-        <StatCard label="Submitted" value={totalSubmitted} detail="Across movies, series, games, and videos" />
-        <StatCard label="Group picks" value={totalPicks} detail="Total support across all content" />
-      </section>
-
-      <section className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-        <Panel eyebrow="Content" title="Demo content ranking" aside="Ranked by score, then picks">
-          <div className="space-y-3">
-            {contentRanking.map((item, index) => (
-              <ContentRow key={`${item.category}-${item.id}`} item={{ ...item, rank: index + 1, icon: 'C' }} />
-            ))}
-          </div>
-        </Panel>
-
-        <Panel eyebrow="Users" title="Demo user ranking" aside="Impact = score + picks">
-          <div className="space-y-3">
-            {userRanking.map((person, index) => (
-              <div key={person.name} className="rounded-2xl border border-white/10 bg-neutral-900 p-3">
-                <div className="flex items-center gap-3">
-                  <RankBubble label={`U${index + 1}`} light />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-lg font-bold text-white">{person.name}</div>
-                    <div className="mt-1 text-xs text-neutral-400">{person.submitted} submitted · {person.totalPicks} picks · {person.totalScore} score · avg {person.averageScore.toFixed(1)}</div>
-                    <div className="mt-2 truncate text-xs text-neutral-500">{person.categories.join(' · ')}</div>
-                  </div>
-                  <Metric value={person.impact} label="Impact" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      </section>
-    </>
-  )
-}
 
 function StatCard({ label, value, detail }) {
   return (
@@ -151,25 +67,27 @@ function ContentRow({ item }) {
 }
 
 function GroupCard({ group }) {
+  const publicItems = group.publicItems || group.topItems || []
+
   return (
     <div className="rounded-[1.75rem] border border-white/10 bg-neutral-900 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Community #{group.rank}</div>
+          <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Public group #{group.rank}</div>
           <h3 className="mt-1 truncate text-2xl font-black text-white">{group.name}</h3>
-          <p className="mt-1 text-sm text-neutral-400">{group.memberCount} members · {group.itemCount} items · {group.completedCount} rated/finished</p>
+          <p className="mt-1 text-sm text-neutral-400">{group.memberCount} members · {group.itemCount} public items · {group.completedCount} rated/finished</p>
         </div>
         <Metric value={Number(group.averageRating || 0).toFixed(1)} label="Avg rating" detail={`${group.totalScore || 0} score`} />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
         <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">{group.totalPicks || 0} picks</span>
-        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">Invite {group.inviteCode}</span>
+        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-emerald-100">Public discovery</span>
       </div>
 
-      {group.topItems?.length ? (
+      {publicItems.length ? (
         <div className="mt-4 space-y-2">
-          {group.topItems.map((item) => (
+          {publicItems.map((item) => (
             <div key={`${group.id}-${item.category}-${item.id}`} className="flex items-center gap-2 rounded-2xl bg-white/[0.04] p-2">
               {item.poster ? <img src={item.poster} alt="" className="h-12 w-8 rounded-md object-cover" /> : <div className="flex h-12 w-8 items-center justify-center rounded-md bg-white/[0.06] text-xs">{item.icon}</div>}
               <div className="min-w-0 flex-1">
@@ -179,8 +97,33 @@ function GroupCard({ group }) {
             </div>
           ))}
         </div>
-      ) : <p className="mt-4 rounded-2xl border border-dashed border-white/10 p-3 text-sm text-neutral-500">No ranked content yet.</p>}
+      ) : <p className="mt-4 rounded-2xl border border-dashed border-white/10 p-3 text-sm text-neutral-500">No public rated content yet.</p>}
     </div>
+  )
+}
+
+function DemoLeaderboard() {
+  const allItems = demoCategories.flatMap((category) => category.items.map((item) => ({ ...item, category: category.label })))
+  const contentRanking = allItems.slice().sort((a, b) => b.score - a.score || b.picks - a.picks).slice(0, 8)
+  const totalSubmitted = allItems.length
+  const totalPicks = allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0)
+  const topContent = contentRanking[0]
+
+  return (
+    <>
+      <section className="mb-5 grid gap-3 md:grid-cols-4">
+        <StatCard label="Top content" value={topContent?.title || 'No content yet'} detail={topContent ? `${topContent.category} · ${topContent.picks} picks · score ${topContent.score}` : 'Add picks to start the board.'} />
+        <StatCard label="Mode" value="Demo" detail="Connect Supabase for public group discovery." />
+        <StatCard label="Submitted" value={totalSubmitted} detail="Across movies, series, games, and videos" />
+        <StatCard label="Group picks" value={totalPicks} detail="Total support across demo content" />
+      </section>
+
+      <Panel eyebrow="Content" title="Demo content ranking" aside="Ranked by score, then picks">
+        <div className="space-y-3">
+          {contentRanking.map((item, index) => <ContentRow key={`${item.category}-${item.id}`} item={{ ...item, rank: index + 1, icon: 'C' }} />)}
+        </div>
+      </Panel>
+    </>
   )
 }
 
@@ -219,54 +162,41 @@ function CommunityLeaderboard() {
   const topMovies = topContent.filter((item) => item.category === 'Movies').slice(0, 5)
   const topSeries = topContent.filter((item) => item.category === 'Series').slice(0, 5)
 
-  if (loading) {
-    return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading community leaderboard...</div>
-  }
-
-  if (message) {
-    return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
-  }
+  if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading community leaderboard...</div>
+  if (message) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
 
   return (
     <>
       <section className="mb-5 grid gap-3 md:grid-cols-4">
-        <StatCard label="Top group" value={topGroup?.name || 'No groups yet'} detail={topGroup ? `★ ${Number(topGroup.averageRating || 0).toFixed(1)} avg · ${topGroup.memberCount} members` : 'Create groups to start the community board.'} />
-        <StatCard label="Top overall" value={topItem?.title || 'No content yet'} detail={topItem ? `${topItem.category} · ${topItem.groupName} · score ${topItem.score}` : 'Add movies, series, or games.'} />
-        <StatCard label="Community groups" value={totals.groups || 0} detail={`${totals.members || 0} total members`} />
-        <StatCard label="Overall picks" value={totals.picks || 0} detail={`${totals.items || 0} ranked items · ${totals.score || 0} score`} />
+        <StatCard label="Top public group" value={topGroup?.name || 'No public groups yet'} detail={topGroup ? `★ ${Number(topGroup.averageRating || 0).toFixed(1)} avg · ${topGroup.memberCount} members` : 'Make a group public to join discovery.'} />
+        <StatCard label="Top public item" value={topItem?.title || 'No public content yet'} detail={topItem ? `${topItem.category} · ${topItem.groupName} · score ${topItem.score}` : 'Public groups need rated content.'} />
+        <StatCard label="Public groups" value={totals.publicGroups || totals.groups || 0} detail={`${totals.members || 0} visible members`} />
+        <StatCard label="Public picks" value={totals.picks || 0} detail={`${totals.items || 0} visible items · ${totals.score || 0} score`} />
       </section>
 
       <section className="mb-5 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-        <Panel eyebrow="Scout groups" title="Best rated groups" aside="Avg rating, then activity">
+        <Panel eyebrow="Scout groups" title="Best rated public groups" aside="Only opted-in groups">
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
             {groups.length ? groups.slice(0, 8).map((group) => <GroupCard key={group.id} group={group} />) : <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-neutral-500">No public group rankings yet.</p>}
           </div>
         </Panel>
 
-        <Panel eyebrow="Across all groups" title="Overall top content" aside="Movies · Series · Games">
+        <Panel eyebrow="Across public groups" title="Overall top public content" aside="Movies · Series · Games">
           <div className="space-y-3">
-            {topContent.length ? topContent.slice(0, 10).map((item) => <ContentRow key={`${item.category}-${item.groupId}-${item.id}`} item={item} />) : <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-neutral-500">No ranked content yet.</p>}
+            {topContent.length ? topContent.slice(0, 10).map((item) => <ContentRow key={`${item.category}-${item.groupId}-${item.id}`} item={item} />) : <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-neutral-500">No public ranked content yet.</p>}
           </div>
         </Panel>
       </section>
 
       <section className="grid gap-5 lg:grid-cols-3">
-        <Panel eyebrow="Movies" title="Top movies" aside="Overall">
-          <div className="space-y-3">
-            {topMovies.length ? topMovies.map((item) => <ContentRow key={`movie-${item.groupId}-${item.id}`} item={item} />) : <p className="text-sm text-neutral-500">No movies yet.</p>}
-          </div>
+        <Panel eyebrow="Movies" title="Top public movies" aside="Overall">
+          <div className="space-y-3">{topMovies.length ? topMovies.map((item) => <ContentRow key={`movie-${item.groupId}-${item.id}`} item={item} />) : <p className="text-sm text-neutral-500">No public movies yet.</p>}</div>
         </Panel>
-
-        <Panel eyebrow="Series" title="Top series" aside="Overall">
-          <div className="space-y-3">
-            {topSeries.length ? topSeries.map((item) => <ContentRow key={`series-${item.groupId}-${item.id}`} item={item} />) : <p className="text-sm text-neutral-500">No series yet.</p>}
-          </div>
+        <Panel eyebrow="Series" title="Top public series" aside="Overall">
+          <div className="space-y-3">{topSeries.length ? topSeries.map((item) => <ContentRow key={`series-${item.groupId}-${item.id}`} item={item} />) : <p className="text-sm text-neutral-500">No public series yet.</p>}</div>
         </Panel>
-
-        <Panel eyebrow="Games" title="Top games" aside="Overall">
-          <div className="space-y-3">
-            {topGames.length ? topGames.map((item) => <ContentRow key={`game-${item.groupId}-${item.id}`} item={item} />) : <p className="text-sm text-neutral-500">No games yet.</p>}
-          </div>
+        <Panel eyebrow="Games" title="Top public games" aside="Overall">
+          <div className="space-y-3">{topGames.length ? topGames.map((item) => <ContentRow key={`game-${item.groupId}-${item.id}`} item={item} />) : <p className="text-sm text-neutral-500">No public games yet.</p>}</div>
         </Panel>
       </section>
     </>
@@ -279,7 +209,7 @@ export default function Leaderboard() {
       <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-8">
         <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">Community stats</p>
         <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">Leaderboard</h1>
-        <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400">Scout the best rated groups, discover what every clique is watching or playing, and see the top movies, series, and games across the whole community.</p>
+        <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400">Scout public groups, discover their rated content, and see the top movies, series, and games across groups that opted into community discovery.</p>
       </section>
 
       {hasSupabase ? <CommunityLeaderboard /> : <DemoLeaderboard />}
