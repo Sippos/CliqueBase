@@ -6,13 +6,20 @@ import { getSavedHandle } from '../lib/handle.js'
 import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
 import { demoSeries } from '../lib/demoMovies.js'
 import { getSeriesDetails, searchSeries } from '../lib/tmdb.js'
-import { getSeries, hasSupabase, markSeriesFinished, rateSeries as saveSeriesRating, saveSeries, voteSeries } from '../lib/supabaseClient.js'
+import { getCurrentSession, getSeries, hasSupabase, markSeriesFinished, rateSeries as saveSeriesRating, saveSeries, voteSeries } from '../lib/supabaseClient.js'
+
+function setupMessage(state) {
+  if (!hasSupabase) return null
+  if (state === 'signed-out') return 'Sign in from Profile, then create or select a group before adding series.'
+  if (state === 'no-group') return 'Create or select a group in Profile before adding series.'
+  return null
+}
 
 export default function Series() {
-  const [series, setSeries] = useState(demoSeries)
+  const [series, setSeries] = useState(() => hasSupabase ? [] : demoSeries)
   const [votes, setVotes] = useState({})
-  const [finished, setFinished] = useState(() => demoSeries.filter((item) => item.finished).map((item) => item.id))
-  const [ratings, setRatings] = useState(() => Object.fromEntries(demoSeries.filter((item) => item.rating).map((item) => [item.id, item.rating])))
+  const [finished, setFinished] = useState(() => hasSupabase ? [] : demoSeries.filter((item) => item.finished).map((item) => item.id))
+  const [ratings, setRatings] = useState(() => hasSupabase ? {} : Object.fromEntries(demoSeries.filter((item) => item.rating).map((item) => [item.id, item.rating])))
   const [editingRating, setEditingRating] = useState(null)
   const [infoSeries, setInfoSeries] = useState(null)
   const [loadingInfoSeries, setLoadingInfoSeries] = useState(false)
@@ -21,18 +28,19 @@ export default function Series() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
+  const [setupState, setSetupState] = useState(() => hasSupabase ? 'checking' : 'local')
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
   const activeGroupId = activeGroup?.id || null
+  const canUseGroup = !hasSupabase || setupState === 'ready'
 
   const queue = useMemo(() => series.filter((item) => !votes[item.id] && !finished.includes(item.id)), [series, votes, finished])
   const ranking = useMemo(() => series.slice().sort((a, b) => (votes[b.id] === 'like') - (votes[a.id] === 'like') || (b.score || 0) - (a.score || 0) || (b.picks || 0) - (a.picks || 0)), [series, votes])
   const finishedSeries = useMemo(() => series.filter((item) => finished.includes(item.id)), [series, finished])
 
   useEffect(() => {
-    if (!hasSupabase) return
-    loadSeries(activeGroupId)
+    refreshContext()
   }, [activeGroupId])
 
   useEffect(() => {
@@ -44,18 +52,48 @@ export default function Series() {
     return () => window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
   }, [])
 
+  async function refreshContext() {
+    if (!hasSupabase) return
+
+    const group = getActiveGroup()
+    setActiveGroupState(group)
+
+    try {
+      const session = await getCurrentSession()
+      if (!session?.user) {
+        clearRemoteState()
+        setSetupState('signed-out')
+        return
+      }
+      if (!group?.id) {
+        clearRemoteState()
+        setSetupState('no-group')
+        return
+      }
+      setSetupState('ready')
+      await loadSeries(group.id)
+    } catch (error) {
+      clearRemoteState()
+      setSetupState('signed-out')
+      setMessage({ type: 'error', text: `Could not check your account: ${error.message}` })
+    }
+  }
+
+  function clearRemoteState() {
+    setSeries([])
+    setVotes({})
+    setFinished([])
+    setRatings({})
+    setResults([])
+  }
+
   async function loadSeries(groupId = activeGroupId) {
+    if (!groupId) return
     try {
       const rows = await getSeries(groupId)
-      if (rows.length) {
-        setSeries(rows)
-        setFinished(rows.filter((item) => item.finished).map((item) => item.id))
-        setRatings(Object.fromEntries(rows.filter((item) => item.rating).map((item) => [item.id, item.rating])))
-      } else {
-        setSeries([])
-        setFinished([])
-        setRatings({})
-      }
+      setSeries(rows)
+      setFinished(rows.filter((item) => item.finished).map((item) => item.id))
+      setRatings(Object.fromEntries(rows.filter((item) => item.rating).map((item) => [item.id, item.rating])))
     } catch (error) {
       setMessage({ type: 'error', text: `Could not load saved series: ${error.message}` })
     }
@@ -63,7 +101,13 @@ export default function Series() {
 
   function showMessage(text, type = 'success') {
     setMessage({ type, text })
-    setTimeout(() => setMessage(null), 2200)
+    setTimeout(() => setMessage(null), 2400)
+  }
+
+  function needGroup() {
+    if (canUseGroup) return false
+    showMessage(setupMessage(setupState) || 'Create or select a group first.', 'error')
+    return true
   }
 
   function clearSearch() {
@@ -75,6 +119,7 @@ export default function Series() {
   async function handleSearch(event) {
     event.preventDefault()
     if (!query.trim()) return
+    if (needGroup()) return
 
     setLoading(true)
     try {
@@ -89,6 +134,7 @@ export default function Series() {
   }
 
   async function addSeries(item) {
+    if (needGroup()) return
     try {
       const details = await getSeriesDetails(item).catch(() => item)
       const fullItem = { ...(details || item), nominated_by: activeHandle || 'You' }
@@ -101,13 +147,15 @@ export default function Series() {
       }
 
       clearSearch()
-      showMessage(`"${fullItem.title}" added to the swipe pile.`)
+      showMessage(`"${fullItem.title}" added to ${activeGroup?.name || 'the series pile'}.`)
     } catch (error) {
       showMessage(error.message || 'Could not add series.', 'error')
     }
   }
 
   async function handleSwipe(vote, item) {
+    if (needGroup()) return
+
     setVotes((current) => ({ ...current, [item.id]: vote }))
 
     if (hasSupabase) {
@@ -124,6 +172,8 @@ export default function Series() {
   }
 
   async function markFinished(item) {
+    if (needGroup()) return
+
     setFinished((current) => current.includes(item.id) ? current : [...current, item.id])
     setVotes((current) => ({ ...current, [item.id]: 'like' }))
     setEditingRating(item.id)
@@ -142,6 +192,8 @@ export default function Series() {
   }
 
   async function rateSeries(item, rating) {
+    if (needGroup()) return
+
     setRatings((current) => ({ ...current, [item.id]: rating }))
     setEditingRating(null)
 
@@ -169,6 +221,11 @@ export default function Series() {
   }
 
   function resetPage() {
+    if (hasSupabase) {
+      clearRemoteState()
+      refreshContext()
+      return
+    }
     setSeries(demoSeries)
     setVotes({})
     setFinished(demoSeries.filter((item) => item.finished).map((item) => item.id))
@@ -185,13 +242,13 @@ export default function Series() {
       <PageHero
         eyebrow="Series night"
         title="Pick what to binge"
-        description="Search series, add them to the pile, vote with the swipe deck, and rate everything after watching."
-        warning={!activeHandle ? 'Create a profile with the Profile button in the navbar to keep your picks under one name.' : null}
-        actions={<button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset</button>}
+        description="Search series, add them to the active group, vote with friends, and rate everything after watching."
+        warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your picks under one name.' : null)}
+        actions={<button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Refresh</button>}
       >
         {hasSupabase ? (
           <p className="mt-4 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
-            Saving to {activeGroup ? <strong className="text-white">{activeGroup.name}</strong> : 'your default series pile'}.
+            {canUseGroup ? <>Saving to <strong className="text-white">{activeGroup.name}</strong>.</> : 'No demo series are loaded in Supabase mode. Sign in and create/select a group to start your real database.'}
           </p>
         ) : null}
 
@@ -199,7 +256,7 @@ export default function Series() {
           <div className="flex gap-2">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a series..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
             {hasResults ? <button type="button" className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950" onClick={clearSearch}>Back</button> : null}
-            <button type="submit" disabled={loading} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{loading ? 'Searching...' : 'Search'}</button>
+            <button type="submit" disabled={loading || !canUseGroup} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{loading ? 'Searching...' : 'Search'}</button>
           </div>
         </form>
       </PageHero>
@@ -215,7 +272,7 @@ export default function Series() {
       ) : null}
 
       <section ref={deckRef} className="mb-8">
-        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="series" emptyLabel="No series left to vote on" likeLabel="Watch" dislikeLabel="Pass" infoType="series" loadDetails={getSeriesDetails} />
+        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="series" emptyLabel={canUseGroup ? 'No series yet. Search and add your first pick.' : 'Create or select a group to start voting.'} likeLabel="Watch" dislikeLabel="Pass" infoType="series" loadDetails={getSeriesDetails} />
       </section>
 
       <TopRankingSection title="Next series" items={ranking} votes={votes} onInfo={openSeriesInfo} onDone={markFinished} doneLabel="Watched" />
