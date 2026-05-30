@@ -3,16 +3,27 @@ import SwipeDeck from '../components/SwipeDeck.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { DetailPill, InfoModal, PageHero, RatedHistorySection, ResultRow, SearchResultsSection, StatusMessage, TopRankingSection, displayYear } from '../components/MediaBlocks.jsx'
 import { getSavedHandle } from '../lib/handle.js'
-import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
+import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, setActiveGroup as setActiveGroupContext } from '../lib/groups.js'
 import { demoGames } from '../lib/demoMovies.js'
 import { getGameDetails, searchGames } from '../lib/tmdb.js'
-import { markGamePlayed, rateGame as saveGameRating, saveGame } from '../lib/gamesSupabase.js'
-import { getCurrentSession, getGames, hasSupabase, voteGame } from '../lib/supabaseClient.js'
+import { getCurrentSession, getGames, getRemoteGroups, hasSupabase, markGamePlayed, rateGame as saveGameRating, saveGame, voteGame } from '../lib/supabaseClient.js'
+
+const GAMES_SCOPE_STORAGE_KEY = 'cliquebase_games_scope'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
   if (state === 'signed-out') return 'Sign in from Profile to build your personal game library and save picks to groups.'
   return null
+}
+
+function scopeLabel(scope, groups) {
+  if (scope === 'personal') return 'Personal library'
+  return groups.find((group) => group.id === scope)?.name || 'Selected clique'
+}
+
+function getInitialScope() {
+  if (typeof window === 'undefined') return 'personal'
+  return getActiveGroupId() || 'personal'
 }
 
 function makeCustomGame(query) {
@@ -50,13 +61,17 @@ export default function Games() {
   const [results, setResults] = useState([])
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
+  const [groups, setGroups] = useState([])
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
+  const [activeContextGroupId, setActiveContextGroupId] = useState(() => getActiveGroupId())
+  const [selectedScope, setSelectedScopeState] = useState(() => getInitialScope())
   const [setupState, setSetupState] = useState(() => hasSupabase ? 'checking' : 'local')
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
-  const activeGroupId = activeGroup?.id || null
   const canUseLibrary = !hasSupabase || setupState === 'ready'
+  const selectedGroupId = selectedScope === 'personal' ? null : selectedScope
+  const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => games.filter((game) => !votes[game.id] && !played.includes(game.id)), [games, votes, played])
   const ranking = useMemo(() => games.slice().sort((a, b) => (votes[b.id] === 'like') - (votes[a.id] === 'like') || (b.score || 0) - (a.score || 0) || (b.picks || 0) - (a.picks || 0)), [games, votes])
@@ -64,22 +79,47 @@ export default function Games() {
 
   useEffect(() => {
     refreshContext()
-  }, [activeGroupId])
+  }, [activeContextGroupId])
+
+  useEffect(() => {
+    if (!hasSupabase || setupState !== 'ready') return
+    loadGames(selectedGroupId)
+  }, [selectedScope, setupState])
 
   useEffect(() => {
     function handleGroupChange() {
-      setActiveGroupState(getActiveGroup())
+      const nextGroupId = getActiveGroupId()
+      const nextScope = nextGroupId || 'personal'
+      setActiveGroupState(nextGroupId ? getActiveGroup() : null)
+      setActiveContextGroupId(nextGroupId)
+      saveSelectedScope(nextScope)
     }
 
     window.addEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
     return () => window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
   }, [])
 
+  function saveSelectedScope(scope) {
+    const nextScope = scope || 'personal'
+    setSelectedScopeState(nextScope)
+    if (typeof window !== 'undefined') localStorage.setItem(GAMES_SCOPE_STORAGE_KEY, nextScope)
+  }
+
+  function setSelectedScope(scope) {
+    const nextScope = scope || 'personal'
+    saveSelectedScope(nextScope)
+    setActiveContextGroupId(nextScope === 'personal' ? '' : nextScope)
+    setActiveGroupState(nextScope === 'personal' ? null : groups.find((group) => group.id === nextScope) || activeGroup)
+    setActiveGroupContext(nextScope === 'personal' ? '' : nextScope)
+  }
+
   async function refreshContext() {
     if (!hasSupabase) return
 
-    const group = getActiveGroup()
-    setActiveGroupState(group)
+    const localGroup = getActiveGroup()
+    const activeId = getActiveGroupId()
+    setActiveGroupState(localGroup)
+    setActiveContextGroupId(activeId)
 
     try {
       const session = await getCurrentSession()
@@ -89,8 +129,21 @@ export default function Games() {
         return
       }
 
+      const remoteGroups = await getRemoteGroups().catch(() => [])
+      setGroups(remoteGroups)
+
+      let nextScope = activeId || selectedScope || 'personal'
+      if (nextScope !== 'personal' && !remoteGroups.some((remoteGroup) => remoteGroup.id === nextScope)) {
+        nextScope = 'personal'
+        setActiveGroupContext('')
+        setActiveContextGroupId('')
+      }
+
+      const remoteActiveGroup = nextScope === 'personal' ? null : remoteGroups.find((remoteGroup) => remoteGroup.id === nextScope) || null
+      setActiveGroupState(remoteActiveGroup)
+      saveSelectedScope(nextScope)
       setSetupState('ready')
-      await loadGames(group?.id || null)
+      await loadGames(nextScope === 'personal' ? null : nextScope)
     } catch (error) {
       clearRemoteState()
       setSetupState('signed-out')
@@ -106,7 +159,7 @@ export default function Games() {
     setResults([])
   }
 
-  async function loadGames(groupId = activeGroupId) {
+  async function loadGames(groupId = selectedGroupId) {
     try {
       const rows = await getGames(groupId)
       setGames(rows)
@@ -164,14 +217,14 @@ export default function Games() {
       const fullGame = { ...(details || game), nominated_by: activeHandle || game.nominated_by || 'You' }
 
       if (hasSupabase) {
-        const saved = await saveGame(fullGame, activeHandle || 'anonymous', activeGroupId)
+        const saved = await saveGame(fullGame, activeHandle || 'anonymous', selectedGroupId)
         setGames((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current])
       } else {
         setGames((current) => current.some((item) => item.id === fullGame.id) ? current : [fullGame, ...current])
       }
 
       clearSearch()
-      showMessage(`"${fullGame.title}" added.`)
+      showMessage(`"${fullGame.title}" added to ${destinationLabel}.`)
     } catch (error) {
       showMessage(error.message || 'Could not add that game.', 'error')
     }
@@ -184,8 +237,8 @@ export default function Games() {
 
     if (hasSupabase) {
       try {
-        await voteGame(game, vote, activeGroupId)
-        await loadGames(activeGroupId)
+        await voteGame(game, vote, selectedGroupId)
+        await loadGames(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save vote.', 'error')
         return
@@ -204,8 +257,8 @@ export default function Games() {
 
     if (hasSupabase) {
       try {
-        await markGamePlayed(game, ratings[game.id] || null, activeGroupId)
-        await loadGames(activeGroupId)
+        await markGamePlayed(game, ratings[game.id] || null, selectedGroupId)
+        await loadGames(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save played game.', 'error')
         return
@@ -223,8 +276,8 @@ export default function Games() {
 
     if (hasSupabase) {
       try {
-        await saveGameRating(game, rating, activeGroupId)
-        await loadGames(activeGroupId)
+        await saveGameRating(game, rating, selectedGroupId)
+        await loadGames(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save rating.', 'error')
       }
@@ -268,9 +321,17 @@ export default function Games() {
       <PageHero
         eyebrow="Game night"
         title="Pick what to play"
-        description="Search real games and add them into the active navbar context. Switch between Personal and groups from the top bar."
+        description="Search real games and save them to your personal library or a clique. The Save to menu follows the active navbar space."
         warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your game picks under one name.' : null)}
-        actions={!hasSupabase ? <button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset local demo</button> : null}
+        actions={hasSupabase ? (
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+            Save to
+            <select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value)} disabled={!canUseLibrary} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-semibold normal-case tracking-normal text-white outline-none disabled:opacity-50">
+              <option value="personal">Personal library</option>
+              {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+          </label>
+        ) : <button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset local demo</button>}
       >
         <form onSubmit={handleSearch} className="mt-5">
           <div className="flex gap-2">
