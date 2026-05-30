@@ -84,10 +84,15 @@ function sessionName(session, profile, fallback = '') {
 function LogoMark() {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <span aria-hidden="true" className="relative grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white text-neutral-950 shadow-lg shadow-white/10 sm:h-10 sm:w-10">
-        <span className="text-[11px] font-black leading-none tracking-tighter sm:text-xs">CB</span>
-        <span className="absolute bottom-1 right-1 text-[8px] leading-none">✦</span>
-      </span>
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true" className="h-10 w-10 shrink-0 text-white sm:h-11 sm:w-11">
+        <path d="M13 29c0-9.5 7.7-17.2 17.2-17.2h18.6" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+        <path d="M13 35v8c0 8 6.5 14.5 14.5 14.5h13.2c8 0 14.5-6.5 14.5-14.5 0-7.4-5.6-13.5-12.8-14.4" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M17 36c8.7-3.5 18.7-3.5 30 0 5.2 1.6 7.9 4.2 7.9 7.4 0 4.8-6.6 8.8-20.2 8.8-14.3 0-21.7-4-21.7-10.8V29" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="24" cy="25" r="4" fill="currentColor" />
+        <circle cx="34" cy="22" r="4.5" fill="currentColor" />
+        <circle cx="45" cy="25" r="4" fill="currentColor" />
+        <path d="M33 37l2.2 5.2L40 44l-4.8 1.8L33 51l-2.2-5.2L26 44l4.8-1.8L33 37Z" fill="currentColor" />
+      </svg>
       <span className="block text-2xl font-black tracking-tight text-white sm:text-3xl">CliqueBase</span>
     </div>
   )
