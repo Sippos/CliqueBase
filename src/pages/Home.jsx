@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import PageShell from '../components/PageShell.jsx'
-import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, parseInviteCode } from '../lib/groups.js'
+import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, parseInviteCode, setActiveGroup } from '../lib/groups.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
 
 function StatCard({ label, value, detail }) {
@@ -135,6 +135,7 @@ function InviteCard({ inviteDraft, setInviteDraft, inviteError, setInviteError, 
 
 export default function Home() {
   const navigate = useNavigate()
+  const { groupId: routeGroupId } = useParams()
   const [inviteDraft, setInviteDraft] = useState('')
   const [inviteError, setInviteError] = useState('')
   const [loading, setLoading] = useState(hasSupabase)
@@ -144,11 +145,12 @@ export default function Home() {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    refreshDashboard()
-    function handleGroupChange() { refreshDashboard() }
+    if (routeGroupId) setActiveGroup(routeGroupId)
+    refreshDashboard(routeGroupId || null)
+    function handleGroupChange() { refreshDashboard(routeGroupId || null) }
     window.addEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
     return () => window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
-  }, [])
+  }, [routeGroupId])
 
   const movieItems = useMemo(() => normalizeItems(media.movies, 'Movie', 'MOV', '/movies'), [media.movies])
   const seriesItems = useMemo(() => normalizeItems(media.series, 'Series', 'SER', '/series'), [media.series])
@@ -164,11 +166,11 @@ export default function Home() {
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
   const totalPicks = useMemo(() => allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0), [allItems])
 
-  async function refreshDashboard() {
+  async function refreshDashboard(preferredGroupId = null) {
     setLoading(true)
     setMessage('')
     if (!hasSupabase) {
-      const group = getActiveGroup()
+      const group = preferredGroupId ? setActiveGroup(preferredGroupId) : getActiveGroup()
       setContext({ type: group ? 'group' : 'personal', name: group?.name || 'My Library', groupId: group?.id || null })
       setMedia({ movies: [], series: [], games: [] })
       setStatus('local')
@@ -185,16 +187,17 @@ export default function Home() {
         return
       }
       const remoteGroups = await getRemoteGroups().catch(() => [])
-      const activeId = getActiveGroupId()
+      const activeId = preferredGroupId || getActiveGroupId()
       const group = remoteGroups.find((item) => item.id === activeId) || null
       const groupId = group?.id || null
+      if (preferredGroupId && group) setActiveGroup(group.id)
       setContext({ type: group ? 'group' : 'personal', name: group?.name || 'My Library', groupId })
       const [movies, seriesRows, games] = await Promise.all([getMovies(groupId), getSeries(groupId), getGames(groupId)])
       setMedia({ movies, series: seriesRows, games })
       setStatus('ready')
     } catch (error) {
       setStatus('error')
-      setMessage(error.message || 'Could not load My Library.')
+      setMessage(error.message || 'Could not load this workspace.')
       setMedia({ movies: [], series: [], games: [] })
     } finally {
       setLoading(false)
@@ -212,7 +215,7 @@ export default function Home() {
   }
 
   return (
-    <PageShell active="library">
+    <PageShell active={context.type === 'group' ? 'cliques' : 'library'}>
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
         <div className="grid gap-0 md:grid-cols-[1.05fr_0.95fr]">
           <div className="p-5 sm:p-8">
