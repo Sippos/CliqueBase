@@ -1,19 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { StatusMessage } from '../components/MediaBlocks.jsx'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
-import { createGroup as createLocalGroup, getActiveGroup, getActiveGroupId, getGroupInvitePath, getGroupInviteUrl, getGroupOpenPath, getGroups, joinGroup as joinLocalGroup, parseInviteCode, setActiveGroup } from '../lib/groups.js'
-import { createRemoteGroup, getCurrentSession, getGames, getMovies, getProfile, getRemoteGroups, getSeries, hasSupabase, joinRemoteGroup, saveGame as saveGameToLibrary, saveMovie as saveMovieToLibrary, saveSeries as saveSeriesToLibrary } from '../lib/supabaseClient.js'
-
-const mediaShortcuts = [
-  { to: '/movies', label: 'Movies', icon: 'movies' },
-  { to: '/series', label: 'Series', icon: 'series' },
-  { to: '/games', label: 'Games', icon: 'games' },
-  { to: '/videos', label: 'Videos', icon: 'videos' },
-  { to: '/music', label: 'Music', icon: 'music' },
-]
+import { createGroup as createLocalGroup, getGroupInvitePath, getGroupInviteUrl, getGroupOpenPath, getGroups, joinGroup as joinLocalGroup, parseInviteCode, setActiveGroup } from '../lib/groups.js'
+import { createRemoteGroup, getCurrentSession, getGames, getMovies, getProfile, getRemoteGroups, getSeries, hasSupabase, joinRemoteGroup } from '../lib/supabaseClient.js'
 
 function copyToClipboard(value) {
   if (!value) return Promise.resolve(false)
@@ -27,20 +19,7 @@ function getProfileName(session, profile, fallback = '') {
   return profile?.display_name || fallback || session?.user?.user_metadata?.display_name || ''
 }
 
-function toCliqueItem(item, category, icon, doneKey, doneLabel) {
-  return {
-    ...item,
-    category,
-    icon,
-    done: Boolean(item?.[doneKey]),
-    doneLabel,
-    rating: item?.rating ?? null,
-    score: Number(item?.score || 0),
-    picks: Number(item?.picks || 0),
-  }
-}
-
-function sortCliqueItems(items) {
+function rankedItems(items) {
   return items.slice().sort((a, b) => (
     (b.rating || 0) - (a.rating || 0)
     || (b.score || 0) - (a.score || 0)
@@ -49,22 +28,142 @@ function sortCliqueItems(items) {
   ))
 }
 
-function itemLibraryPayload(item) {
+function normalizeContentItem(item, category, icon, doneKey) {
   return {
     ...item,
-    id: String(item.id),
-    nominated_by: item.nominated_by || 'clique pick',
+    category,
+    icon,
+    done: Boolean(item?.[doneKey]),
+    rating: item?.rating ?? null,
+    score: Number(item?.score || 0),
+    picks: Number(item?.picks || 0),
   }
 }
 
-function GroupCard({ group, onCopy }) {
+function categorySummary(items, title, singular, icon, doneKey) {
+  const normalized = rankedItems(items.map((item) => normalizeContentItem(item, singular, icon, doneKey)))
+  return {
+    title,
+    singular,
+    icon,
+    items: normalized,
+    top: normalized[0] || null,
+    count: normalized.length,
+    score: normalized.reduce((sum, item) => sum + Number(item.score || 0), 0),
+    picks: normalized.reduce((sum, item) => sum + Number(item.picks || 0), 0),
+    done: normalized.filter((item) => item.done).length,
+    rated: normalized.filter((item) => item.rating).length,
+  }
+}
+
+function buildGroupSummary(movies = [], series = [], games = []) {
+  const categories = [
+    categorySummary(movies, 'Movies', 'Movie', 'movies', 'watched'),
+    categorySummary(series, 'Series', 'Series', 'series', 'finished'),
+    categorySummary(games, 'Games', 'Game', 'games', 'played'),
+  ]
+
+  return {
+    categories,
+    items: categories.reduce((sum, category) => sum + category.count, 0),
+    score: categories.reduce((sum, category) => sum + category.score, 0),
+    picks: categories.reduce((sum, category) => sum + category.picks, 0),
+    done: categories.reduce((sum, category) => sum + category.done, 0),
+  }
+}
+
+function emptyGroupSummary() {
+  return buildGroupSummary([], [], [])
+}
+
+function MetricBox({ value, label }) {
   return (
-    <article className="rounded-[1.6rem] border border-white/10 bg-white/[0.03] p-4 text-white transition hover:border-white/20 hover:bg-white/[0.045]">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="rounded-2xl border border-white/10 bg-neutral-950/70 px-4 py-3 text-center">
+      <div className="text-2xl font-black text-white">{value}</div>
+      <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">{label}</div>
+    </div>
+  )
+}
+
+function TopContentTile({ category }) {
+  const item = category.top
+  const image = item?.backdrop || item?.poster
+
+  if (!item) {
+    return (
+      <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-neutral-950/50 p-4">
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300">
+          <AppIcon name={category.icon} size={14} />
+          {category.title}
+        </div>
+        <p className="mt-4 text-sm text-neutral-500">No {category.title.toLowerCase()} yet.</p>
+      </div>
+    )
+  }
+
+  return (
+    <Link to={`/${category.title.toLowerCase()}`} className="group overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/75 transition hover:border-white/25 hover:bg-neutral-900">
+      <div className="relative h-32 overflow-hidden bg-neutral-900">
+        {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 transition group-hover:scale-105" /> : null}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950">
+          <AppIcon name={category.icon} size={12} strokeWidth={2.5} />
+          Top {category.singular}
+        </span>
+      </div>
+      <div className="p-4">
+        <h3 className="line-clamp-1 text-lg font-black text-white">{item.title}</h3>
+        <p className="mt-1 line-clamp-2 text-sm leading-5 text-neutral-400">{item.overview || `Leading ${category.singular.toLowerCase()} by score and picks in this clique.`}</p>
+        <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold text-neutral-300">
+          <span className="rounded-full border border-white/10 px-2.5 py-1">Score {item.score || 0}</span>
+          <span className="rounded-full border border-white/10 px-2.5 py-1">{item.picks || 0} picks</span>
+          {item.rating ? <span className="rounded-full border border-white/10 px-2.5 py-1">★ {Number(item.rating).toFixed(1)}</span> : null}
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+function GroupContentOverview({ summary, loading }) {
+  if (loading) {
+    return (
+      <div className="mt-5 grid gap-3 lg:grid-cols-3">
+        {[0, 1, 2].map((item) => <div key={item} className="h-56 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}
+      </div>
+    )
+  }
+
+  const safeSummary = summary || emptyGroupSummary()
+
+  return (
+    <div className="mt-5 border-t border-white/10 pt-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">Content overview</p>
+          <h3 className="mt-1 text-xl font-black text-white">Category leaders in this clique</h3>
+        </div>
+        <div className="grid grid-cols-3 gap-2 sm:min-w-[20rem]">
+          <MetricBox value={safeSummary.items} label="Items" />
+          <MetricBox value={safeSummary.score} label="Score" />
+          <MetricBox value={safeSummary.done} label="Done" />
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        {safeSummary.categories.map((category) => <TopContentTile key={category.title} category={category} />)}
+      </div>
+    </div>
+  )
+}
+
+function GroupCard({ group, summary, summaryLoading, onCopy, onOpen }) {
+  return (
+    <article className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 text-white shadow-2xl shadow-black/15 transition hover:border-white/20 hover:bg-white/[0.045] sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">{group.isPublic ? 'Public clique' : 'Private clique'}</p>
-          <h2 className="mt-1 truncate text-2xl font-black">{group.name}</h2>
-          <p className="mt-1 text-sm text-neutral-400">{group.members?.length || 1} members</p>
+          <h2 className="mt-1 truncate text-3xl font-black">{group.name}</h2>
+          <p className="mt-2 text-sm text-neutral-400">{group.members?.length || 1} members</p>
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -78,8 +177,9 @@ function GroupCard({ group, onCopy }) {
           </button>
           <Link
             to={getGroupOpenPath(group)}
+            onClick={() => onOpen(group)}
             aria-label={`Open ${group.name}`}
-            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"
+            className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"
           >
             <AppIcon name="explore" size={17} />
             Open
@@ -92,6 +192,8 @@ function GroupCard({ group, onCopy }) {
           <span key={member} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-neutral-300">{member}</span>
         )) : <span>Members appear here after people join.</span>}
       </div>
+
+      <GroupContentOverview summary={summary} loading={summaryLoading} />
     </article>
   )
 }
@@ -118,275 +220,66 @@ function CompactInviteForm({ value, setValue, loading, onJoin, readOnly = false 
   )
 }
 
-function CliquePickTile({ item, flipped, onToggle, onCopyToLibrary, onInfo }) {
-  const summary = item.overview || item.description || `${item.category} picked by this clique.`
-
-  function handleKeyDown(event) {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      onToggle(item)
-    }
-  }
-
-  return (
-    <article
-      tabIndex={0}
-      role="button"
-      aria-pressed={flipped}
-      aria-label={`${flipped ? 'Hide actions for' : 'Show actions for'} ${item.title}`}
-      onClick={() => onToggle(item)}
-      onKeyDown={handleKeyDown}
-      className="group min-w-[10.5rem] outline-none sm:min-w-0"
-      style={{ perspective: '900px' }}
-    >
-      <div
-        className="relative min-h-[18rem] rounded-2xl transition-transform duration-500 group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-white/50"
-        style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
-      >
-        <div className="absolute inset-0 overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/75 transition group-hover:border-white/25 group-hover:bg-neutral-900" style={{ backfaceVisibility: 'hidden' }}>
-          <div className="relative h-36 overflow-hidden bg-neutral-900">
-            {item.poster ? (
-              <img src={item.poster} alt="" className="h-full w-full object-cover opacity-90 transition group-hover:scale-105" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-neutral-400">
-                <AppIcon name={item.icon} size={34} strokeWidth={1.7} />
-              </div>
-            )}
-            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/70 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white backdrop-blur">
-              <AppIcon name={item.icon} size={12} />
-              {item.category}
-            </span>
-            <span className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-black/70 text-white backdrop-blur">
-              <AppIcon name="info" size={15} />
-            </span>
-          </div>
-          <div className="p-3">
-            <h3 className="line-clamp-2 min-h-[2.25rem] text-sm font-black leading-tight text-white">{item.title}</h3>
-            <p className="mt-1 truncate text-xs text-neutral-500">Added by {item.nominated_by || 'Someone'}</p>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">Score {item.score || 0}</span>
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">{item.picks || 0} picks</span>
-              {item.rating ? <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">Rating {Number(item.rating).toFixed(1)}</span> : null}
-              {item.done ? <span className="rounded-full bg-white px-2 py-1 text-[11px] font-black text-neutral-950">{item.doneLabel}</span> : null}
-            </div>
-          </div>
-        </div>
-
-        <div className="absolute inset-0 flex flex-col rounded-2xl border border-white/15 bg-neutral-950 p-3 shadow-2xl shadow-black/30" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-          <div className="flex items-start justify-between gap-2">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-neutral-950">
-              <AppIcon name={item.icon} size={18} />
-            </span>
-            <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">Actions</span>
-          </div>
-          <h3 className="mt-3 line-clamp-2 text-base font-black leading-tight text-white">{item.title}</h3>
-          <p className="mt-2 line-clamp-4 flex-1 text-xs leading-5 text-neutral-400">{summary}</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={(event) => { event.stopPropagation(); onCopyToLibrary(item) }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-white px-3 py-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200"
-            >
-              <AppIcon name="dashboard" size={14} />
-              Copy
-            </button>
-            <button
-              type="button"
-              onClick={(event) => { event.stopPropagation(); onInfo(item) }}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-white transition hover:bg-white hover:text-neutral-950"
-            >
-              <AppIcon name="info" size={14} />
-              Info
-            </button>
-          </div>
-          <p className="mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-600">Tap again to flip back</p>
-        </div>
-      </div>
-    </article>
-  )
-}
-
-function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy, onCopyItem, onInfoItem }) {
-  const [flippedId, setFlippedId] = useState(null)
-  const topItems = sortCliqueItems(items).slice(0, 8)
-  const totalScore = items.reduce((sum, item) => sum + Number(item.score || 0), 0)
-  const completedCount = items.filter((item) => item.done).length
-
-  useEffect(() => {
-    setFlippedId(null)
-  }, [group?.id])
-
-  function toggleItem(item) {
-    const itemKey = `${item.category}-${item.id}`
-    setFlippedId((current) => current === itemKey ? null : itemKey)
-  }
-
-  return (
-    <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Clique overview</p>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <h2 className="truncate text-3xl font-black text-white">{group?.name || 'Choose a clique'}</h2>
-            {group ? (
-              <Link to={getGroupOpenPath(group)} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-200 transition hover:bg-white hover:text-neutral-950">
-                <AppIcon name="explore" size={14} />
-                Open clique page
-              </Link>
-            ) : null}
-          </div>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">
-            {group ? 'See what this clique has actually picked, voted for, and rated.' : 'Open a clique below or create one to see its shared picks here.'}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 sm:min-w-[20rem]">
-          <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3 text-center">
-            <div className="text-2xl font-black text-white">{items.length}</div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Picks</div>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3 text-center">
-            <div className="text-2xl font-black text-white">{totalScore}</div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Score</div>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3 text-center">
-            <div className="text-2xl font-black text-white">{completedCount}</div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Done</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2">
-          {mediaShortcuts.map((shortcut) => (
-            <Link key={shortcut.to} to={shortcut.to} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-neutral-950/70 px-3 py-2 text-sm font-bold text-neutral-200 transition hover:bg-white hover:text-neutral-950">
-              <AppIcon name={shortcut.icon} size={16} />
-              {shortcut.label}
-            </Link>
-          ))}
-        </div>
-
-        {group ? (
-          <div className="flex flex-wrap gap-2">
-            <Link to={getGroupOpenPath(group)} className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">
-              <AppIcon name="explore" size={16} />
-              Open
-            </Link>
-            <button type="button" onClick={() => onCopy(group)} className="inline-flex w-fit items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">
-              <AppIcon name="link" size={16} />
-              Copy invite
-            </button>
-          </div>
-        ) : <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{groupCount} cliques total</span>}
-      </div>
-
-      <div className="mt-5 border-t border-white/10 pt-5">
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">Shared picks</p>
-            <h3 className="mt-1 text-xl font-black text-white">What the clique voted for</h3>
-          </div>
-          {itemsLoading && !topItems.length ? <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-400">Loading…</span> : null}
-        </div>
-
-        {topItems.length ? (
-          <div className="grid grid-flow-col auto-cols-[10.5rem] gap-3 overflow-x-auto pb-1 sm:grid-flow-row sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-            {topItems.map((item) => {
-              const itemKey = `${item.category}-${item.id}`
-              return (
-                <CliquePickTile
-                  key={itemKey}
-                  item={item}
-                  flipped={flippedId === itemKey}
-                  onToggle={toggleItem}
-                  onCopyToLibrary={onCopyItem}
-                  onInfo={onInfoItem}
-                />
-              )
-            })}
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-dashed border-white/10 bg-neutral-950/50 p-5 text-sm leading-6 text-neutral-400">
-            {group ? 'No shared picks in this clique yet. Open Movies, Series, or Games above and add the first pick.' : 'Open a clique below to show its voted movies, series, and games.'}
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
 export default function Groups({ inviteMode = false }) {
-  const { code, groupId } = useParams()
+  const { code } = useParams()
   const inviteCode = parseInviteCode(code || '')
   const [groups, setGroups] = useState([])
-  const [activeGroup, setActiveGroupState] = useState(null)
+  const [groupSummaries, setGroupSummaries] = useState({})
+  const [summariesLoading, setSummariesLoading] = useState(false)
   const [session, setSession] = useState(null)
   const [handle, setHandle] = useState('')
   const [draftGroup, setDraftGroup] = useState('')
   const [manualInvite, setManualInvite] = useState('')
   const [message, setMessage] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [cliqueItems, setCliqueItems] = useState([])
-  const [cliqueItemsLoading, setCliqueItemsLoading] = useState(false)
-  const loadedItemsKeyRef = useRef('')
 
   useEffect(() => {
     refresh()
   }, [])
 
   useEffect(() => {
-    if (!groupId) return
-    const group = setActiveGroup(groupId)
-    loadedItemsKeyRef.current = ''
-    refresh(group)
-  }, [groupId])
-
-  useEffect(() => {
     let cancelled = false
-    const activeGroupId = activeGroup?.id || ''
-    const sessionUserId = session?.user?.id || ''
-    const cacheKey = `${sessionUserId}:${activeGroupId}`
 
-    async function loadCliqueItems() {
-      if (!activeGroupId || !hasSupabase || !sessionUserId) {
-        setCliqueItems([])
-        setCliqueItemsLoading(false)
-        loadedItemsKeyRef.current = ''
+    async function loadGroupSummaries() {
+      if (!groups.length) {
+        setGroupSummaries({})
+        setSummariesLoading(false)
         return
       }
 
-      if (loadedItemsKeyRef.current === cacheKey) return
-      loadedItemsKeyRef.current = cacheKey
-      setCliqueItemsLoading(true)
+      if (!hasSupabase || !session?.user) {
+        setGroupSummaries(Object.fromEntries(groups.map((group) => [group.id, emptyGroupSummary()])))
+        setSummariesLoading(false)
+        return
+      }
 
+      setSummariesLoading(true)
       try {
-        const [movies, series, games] = await Promise.all([
-          getMovies(activeGroupId),
-          getSeries(activeGroupId),
-          getGames(activeGroupId),
-        ])
-        if (cancelled) return
-        setCliqueItems(sortCliqueItems([
-          ...movies.map((movie) => toCliqueItem(movie, 'Movie', 'movies', 'watched', 'Watched')),
-          ...series.map((seriesItem) => toCliqueItem(seriesItem, 'Series', 'series', 'finished', 'Finished')),
-          ...games.map((game) => toCliqueItem(game, 'Game', 'games', 'played', 'Played')),
-        ]))
+        const entries = await Promise.all(groups.map(async (group) => {
+          const [movies, series, games] = await Promise.all([
+            getMovies(group.id),
+            getSeries(group.id),
+            getGames(group.id),
+          ])
+          return [group.id, buildGroupSummary(movies, series, games)]
+        }))
+
+        if (!cancelled) setGroupSummaries(Object.fromEntries(entries))
       } catch (error) {
         if (!cancelled) {
-          loadedItemsKeyRef.current = ''
-          setCliqueItems([])
-          showMessage(error.message || 'Could not load clique picks.', 'error')
+          setGroupSummaries(Object.fromEntries(groups.map((group) => [group.id, emptyGroupSummary()])))
+          showMessage(error.message || 'Could not load clique overviews.', 'error')
         }
       } finally {
-        if (!cancelled) setCliqueItemsLoading(false)
+        if (!cancelled) setSummariesLoading(false)
       }
     }
 
-    loadCliqueItems()
+    loadGroupSummaries()
     return () => { cancelled = true }
-  }, [activeGroup?.id, session?.user?.id])
+  }, [groups, session?.user?.id])
 
-  async function refresh(nextActive = null) {
+  async function refresh() {
     const savedHandle = getSavedHandle()
     setHandle(savedHandle)
 
@@ -404,15 +297,10 @@ export default function Groups({ inviteMode = false }) {
           }
           const remoteGroups = await getRemoteGroups().catch(() => [])
           setGroups(remoteGroups)
-          const activeId = nextActive?.id || groupId || getActiveGroupId()
-          const active = activeId ? remoteGroups.find((group) => group.id === activeId) || null : null
-          setActiveGroupState(active)
-          if (activeId && !active) setActiveGroup('')
           return
         }
 
         setGroups([])
-        setActiveGroupState(null)
         return
       } catch (error) {
         showMessage(error.message || 'Could not load cliques.', 'error')
@@ -420,7 +308,6 @@ export default function Groups({ inviteMode = false }) {
     }
 
     setGroups(getGroups())
-    setActiveGroupState(nextActive || getActiveGroup())
   }
 
   const inviteGroup = useMemo(() => {
@@ -433,31 +320,6 @@ export default function Groups({ inviteMode = false }) {
     setTimeout(() => setMessage(null), 2600)
   }
 
-  async function copyItemToLibrary(item) {
-    if (!hasSupabase || !session?.user) {
-      showMessage('Sign in first to copy picks to your library.', 'error')
-      return
-    }
-
-    const payload = itemLibraryPayload(item)
-    const nominatedBy = payload.nominated_by || handle || 'clique pick'
-
-    try {
-      if (item.category === 'Movie') await saveMovieToLibrary(payload, nominatedBy)
-      else if (item.category === 'Series') await saveSeriesToLibrary(payload, nominatedBy)
-      else if (item.category === 'Game') await saveGameToLibrary(payload, nominatedBy)
-      else throw new Error('This content type cannot be copied yet.')
-      showMessage(`${item.title} copied to My Library.`)
-    } catch (error) {
-      showMessage(error.message || 'Could not copy this pick.', 'error')
-    }
-  }
-
-  function showItemInfo(item) {
-    const info = item.overview || item.description || `${item.title} has no extra info stored yet.`
-    showMessage(info.length > 150 ? `${info.slice(0, 150)}…` : info)
-  }
-
   async function handleCreate(event) {
     event.preventDefault()
     const activeHandle = handle || getSavedHandle() || 'anonymous'
@@ -466,12 +328,9 @@ export default function Groups({ inviteMode = false }) {
       const created = session?.user && hasSupabase
         ? await createRemoteGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
         : createLocalGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
-      loadedItemsKeyRef.current = ''
-      setCliqueItems([])
       setActiveGroup(created.id)
-      setActiveGroupState(created)
       setDraftGroup('')
-      await refresh(created)
+      await refresh()
       showMessage(`${created.name} is ready to share.`)
     } catch (error) {
       showMessage(error.message || 'Could not create clique.', 'error')
@@ -500,18 +359,19 @@ export default function Groups({ inviteMode = false }) {
         : joinLocalGroup(parsed, activeHandle)
 
       if (!joined) throw new Error('Could not join that invite.')
-      loadedItemsKeyRef.current = ''
-      setCliqueItems([])
       setActiveGroup(joined.id)
-      setActiveGroupState(joined)
       setManualInvite('')
-      await refresh(joined)
+      await refresh()
       showMessage(`Joined ${joined.name}.`)
     } catch (error) {
       showMessage(error.message || 'Could not join that invite.', 'error')
     } finally {
       setLoading(false)
     }
+  }
+
+  function openGroup(group) {
+    setActiveGroup(group.id)
   }
 
   async function copyInvite(group) {
@@ -558,19 +418,24 @@ export default function Groups({ inviteMode = false }) {
         </section>
       ) : null}
 
-      <CliqueOverview group={activeGroup} groupCount={groups.length} items={cliqueItems} itemsLoading={cliqueItemsLoading} onCopy={copyInvite} onCopyItem={copyItemToLibrary} onInfoItem={showItemInfo} />
-
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex items-end justify-between gap-3 px-1">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Your cliques</p>
-            <h2 className="mt-1 text-2xl font-black text-white">Joined cliques</h2>
+            <h2 className="mt-1 text-3xl font-black text-white">Joined cliques</h2>
           </div>
           <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{groups.length} total</span>
         </div>
 
         {groups.length ? groups.map((group) => (
-          <GroupCard key={group.id} group={group} onCopy={copyInvite} />
+          <GroupCard
+            key={group.id}
+            group={group}
+            summary={groupSummaries[group.id]}
+            summaryLoading={summariesLoading}
+            onCopy={copyInvite}
+            onOpen={openGroup}
+          />
         )) : (
           <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-neutral-400">
             Create your first clique or join a friend’s invite link.
