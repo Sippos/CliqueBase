@@ -28,8 +28,12 @@ function CategoryBadge({ category }) {
   )
 }
 
-function MetricPill({ children }) {
-  return <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs font-semibold text-neutral-200">{children}</span>
+function MetricPill({ children, active = false }) {
+  return (
+    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${active ? 'border-white bg-white text-neutral-950 shadow-lg shadow-white/10' : 'border-white/10 bg-white/[0.05] text-neutral-200'}`}>
+      {children}
+    </span>
+  )
 }
 
 function InfoButton({ item, onInfo, className = '' }) {
@@ -212,9 +216,9 @@ function DetailRow({ label, value }) {
   if (!normalized) return null
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2">
-      <dt className="text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-500">{label}</dt>
-      <dd className="mt-0.5 text-[13px] font-semibold leading-5 text-white">{normalized}</dd>
+    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.025] px-3 py-1.5">
+      <dt className="text-[9px] font-bold uppercase tracking-[0.16em] text-neutral-500">{label}</dt>
+      <dd className="text-[13px] font-semibold leading-none text-white">{normalized}</dd>
     </div>
   )
 }
@@ -227,7 +231,7 @@ function GenreChips({ genres }) {
   if (!values.length) return null
 
   return (
-    <section className="mt-5">
+    <section className="mt-4">
       <h3 className="text-[10px] font-bold uppercase tracking-[0.22em] text-neutral-500">Genres</h3>
       <div className="mt-2 flex flex-wrap gap-2">
         {values.map((genre) => (
@@ -240,25 +244,26 @@ function GenreChips({ genres }) {
   )
 }
 
-function SourcePanel({ groupName, nominatedBy }) {
+function SourceLine({ groupName, nominatedBy }) {
   return (
-    <div className="mt-4 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:grid-cols-2">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
-          <AppIcon name="users" size={13} strokeWidth={2.2} />
-          Clique
-        </div>
-        <p className="mt-1 truncate text-sm font-black text-white">{groupName || 'Public clique'}</p>
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
-          <AppIcon name="user" size={13} strokeWidth={2.2} />
-          Suggested by
-        </div>
-        <p className="mt-1 truncate text-sm font-black text-white">{nominatedBy || 'Someone'}</p>
-      </div>
-    </div>
+    <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-400">
+      <span className="inline-flex items-center gap-1.5">
+        <AppIcon name="users" size={14} strokeWidth={2.2} />
+        {groupName || 'Public clique'}
+      </span>
+      <span className="text-neutral-600">·</span>
+      <span className="inline-flex items-center gap-1.5">
+        <AppIcon name="user" size={14} strokeWidth={2.2} />
+        Suggested by <span className="font-semibold text-neutral-200">{nominatedBy || 'Someone'}</span>
+      </span>
+    </p>
   )
+}
+
+function WatchedLabel({ category }) {
+  if (category === 'Series') return 'Finished'
+  if (category === 'Games') return 'Played'
+  return 'Watched'
 }
 
 function hasMetadata(item) {
@@ -346,24 +351,14 @@ function DetailModal({ item, saving, onCopy, onClose }) {
 
         <div className="flex max-h-[90vh] flex-col overflow-y-auto p-6">
           <div className="flex items-start justify-between gap-4">
-            <h2 className="min-w-0 text-3xl font-black leading-tight text-white">{displayItem.title}</h2>
+            <div className="min-w-0">
+              <h2 className="text-3xl font-black leading-tight text-white">{displayItem.title}</h2>
+              <SourceLine groupName={displayItem.groupName} nominatedBy={displayItem.nominatedBy} />
+            </div>
             <button type="button" onClick={onClose} className="text-2xl text-neutral-400 transition hover:text-white">×</button>
           </div>
 
-          <SourcePanel groupName={displayItem.groupName} nominatedBy={displayItem.nominatedBy} />
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            <MetricPill>Score {displayItem.score || 0}</MetricPill>
-            <MetricPill>{displayItem.picks || 0} picks</MetricPill>
-            {displayItem.rating ? <MetricPill>Your rating {Number(displayItem.rating).toFixed(1)}</MetricPill> : null}
-            {sourceRating !== null && sourceRating !== undefined ? <MetricPill>{displayItem.category === 'Games' ? 'RAWG' : 'TMDB'} {Number(sourceRating).toFixed(1)}</MetricPill> : null}
-            {displayItem.completed ? <MetricPill>Completed</MetricPill> : null}
-          </div>
-
-          {detailsLoading ? <p className="mt-4 text-sm text-neutral-500">Loading API details…</p> : null}
-          {detailsError && !hasMetadata(displayItem) ? <p className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs leading-5 text-yellow-100">{detailsError}</p> : null}
-
-          <dl className="mt-5 grid max-w-md grid-cols-2 gap-2">
+          <dl className="mt-4 flex flex-wrap gap-2">
             <DetailRow label="Released" value={releaseValue} />
             <DetailRow label="Runtime" value={displayItem.runtime ? `${displayItem.runtime} min` : null} />
             <DetailRow label="Director / Regie" value={creator} />
@@ -374,17 +369,28 @@ function DetailModal({ item, saving, onCopy, onClose }) {
 
           <GenreChips genres={displayItem.genres} />
 
-          {showEmptyMetadata ? (
-            <p className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-neutral-400">
-              No extra media metadata is available for this item yet. Apply the latest public leaderboard SQL migration and make sure the item was saved from the TMDB/RAWG detail API so year, genre, runtime, and overview can be stored.
-            </p>
-          ) : null}
+          {detailsLoading ? <p className="mt-4 text-sm text-neutral-500">Loading API details…</p> : null}
+          {detailsError && !hasMetadata(displayItem) ? <p className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs leading-5 text-yellow-100">{detailsError}</p> : null}
 
           {displayItem.overview || displayItem.description ? (
             <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <h3 className="text-xs uppercase tracking-[0.22em] text-neutral-500">Overview</h3>
               <p className="mt-2 text-sm leading-6 text-neutral-300">{displayItem.overview || displayItem.description}</p>
             </section>
+          ) : null}
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <MetricPill>Score {displayItem.score || 0}</MetricPill>
+            <MetricPill>{displayItem.picks || 0} picks</MetricPill>
+            {displayItem.rating ? <MetricPill>Your rating {Number(displayItem.rating).toFixed(1)}</MetricPill> : null}
+            {sourceRating !== null && sourceRating !== undefined ? <MetricPill>{displayItem.category === 'Games' ? 'RAWG' : 'TMDB'} {Number(sourceRating).toFixed(1)}</MetricPill> : null}
+            {displayItem.completed ? <MetricPill active><WatchedLabel category={displayItem.category} /></MetricPill> : null}
+          </div>
+
+          {showEmptyMetadata ? (
+            <p className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-neutral-400">
+              No extra media metadata is available for this item yet. Apply the latest public leaderboard SQL migration and make sure the item was saved from the TMDB/RAWG detail API so year, genre, runtime, and overview can be stored.
+            </p>
           ) : null}
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
