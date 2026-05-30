@@ -29,9 +29,9 @@ function profileNameFromUser(user) {
   return clean(user?.user_metadata?.display_name) || clean(user?.email?.split('@')[0]) || 'Friend'
 }
 
-function normalizeMovie(row) {
+function normalizeMediaRow(row, idColumn, doneColumn) {
   return {
-    id: String(row.movie_id),
+    id: String(row[idColumn]),
     groupId: row.group_id || null,
     title: row.title,
     year: row.year || '',
@@ -45,8 +45,20 @@ function normalizeMovie(row) {
     nominated_by: row.nominated_by,
     picks: Number(row.picks || 0),
     score: Number(row.score || 0),
-    watched: Boolean(row.watched),
+    [doneColumn]: Boolean(row[doneColumn]),
     rating: row.my_rating ?? null,
+  }
+}
+
+function normalizeMovie(row) {
+  return normalizeMediaRow(row, 'movie_id', 'watched')
+}
+
+function normalizeSeries(row) {
+  return {
+    ...normalizeMediaRow(row, 'series_id', 'finished'),
+    seasons: row.seasons ?? null,
+    episodes: row.episodes ?? null,
   }
 }
 
@@ -71,22 +83,34 @@ function firstRpcRow(data) {
   return Array.isArray(data) ? data[0] : data
 }
 
-function moviePayload(movie, nominatedBy = 'anonymous', groupId = null) {
+function mediaPayload(item, idColumn, nominatedBy = 'anonymous', groupId = null) {
   const payload = {
-    movie_id: String(movie.id),
-    title: movie.title,
-    year: movie.year || null,
-    released: movie.released || null,
-    poster: movie.poster || null,
-    backdrop: movie.backdrop || null,
-    overview: movie.overview || null,
-    tmdb_rating: movie.tmdbRating ?? null,
-    runtime: movie.runtime ?? null,
-    genres: movie.genres || [],
+    [idColumn]: String(item.id),
+    title: item.title,
+    year: item.year || null,
+    released: item.released || null,
+    poster: item.poster || null,
+    backdrop: item.backdrop || null,
+    overview: item.overview || null,
+    tmdb_rating: item.tmdbRating ?? null,
+    runtime: item.runtime ?? null,
+    genres: item.genres || [],
     nominated_by: nominatedBy || 'anonymous',
   }
   if (groupId) payload.group_id = groupId
   return payload
+}
+
+function moviePayload(movie, nominatedBy = 'anonymous', groupId = null) {
+  return mediaPayload(movie, 'movie_id', nominatedBy, groupId)
+}
+
+function seriesPayload(series, nominatedBy = 'anonymous', groupId = null) {
+  return {
+    ...mediaPayload(series, 'series_id', nominatedBy, groupId),
+    seasons: series.seasons ?? null,
+    episodes: series.episodes ?? null,
+  }
 }
 
 export async function getCurrentSession() {
@@ -249,4 +273,54 @@ export async function rateMovie(movie, rating, groupId = null) {
   const { data, error } = await query.eq('movie_id', String(movie.id)).select().single()
   if (error) throw error
   return normalizeMovie(data)
+}
+
+export async function getSeries(groupId = null) {
+  const client = requireSupabase()
+  let query = client.from('series').select('*')
+  if (groupId) query = query.eq('group_id', groupId)
+  const { data, error } = await query
+    .order('finished', { ascending: true })
+    .order('score', { ascending: false })
+    .order('picks', { ascending: false })
+  if (error) throw error
+  return (data || []).map(normalizeSeries)
+}
+
+export async function saveSeries(series, nominatedBy = 'anonymous', groupId = null) {
+  const client = requireSupabase()
+  const payload = seriesPayload(series, nominatedBy, groupId)
+  const options = groupId ? { onConflict: 'group_id,series_id' } : { onConflict: 'series_id' }
+  const { data, error } = await client.from('series').upsert(payload, options).select().single()
+  if (error) throw error
+  return normalizeSeries(data)
+}
+
+export async function voteSeries(series, vote, groupId = null) {
+  const client = requireSupabase()
+  const delta = vote === 'like' ? 1 : -1
+  const payload = groupId
+    ? { series_id_input: String(series.id), vote_delta_input: delta, group_id_input: groupId }
+    : { series_id_input: String(series.id), vote_delta_input: delta }
+  const { data, error } = await client.rpc('vote_series', payload)
+  if (error) throw error
+  return data
+}
+
+export async function markSeriesFinished(series, rating = null, groupId = null) {
+  const client = requireSupabase()
+  let query = client.from('series').update({ finished: true, my_rating: rating, updated_at: new Date().toISOString() })
+  if (groupId) query = query.eq('group_id', groupId)
+  const { data, error } = await query.eq('series_id', String(series.id)).select().single()
+  if (error) throw error
+  return normalizeSeries(data)
+}
+
+export async function rateSeries(series, rating, groupId = null) {
+  const client = requireSupabase()
+  let query = client.from('series').update({ my_rating: rating, updated_at: new Date().toISOString() })
+  if (groupId) query = query.eq('group_id', groupId)
+  const { data, error } = await query.eq('series_id', String(series.id)).select().single()
+  if (error) throw error
+  return normalizeSeries(data)
 }
