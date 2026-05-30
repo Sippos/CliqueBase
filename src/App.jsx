@@ -7,6 +7,7 @@ import Videos from './pages/Videos.jsx'
 import Music from './pages/Music.jsx'
 import Groups from './pages/Groups.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
+import Share from './pages/Share.jsx'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
       <Route path="/videos" element={<Videos />} />
       <Route path="/music" element={<Music />} />
 
+      <Route path="/share/:type/:id" element={<Share />} />
       <Route path="/groups" element={<Groups />} />
       <Route path="/cliques" element={<Groups />} />
       <Route path="/g/:groupId" element={<Home scope="group" />} />
