@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">CliqueBase logo mark</title>
+  <desc id="desc">A stylized CliqueBase mark with a group, sparkle, and connected C and B shapes.</desc>
+  <g stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke-width="10" d="M105 16H62C37 16 18 32 18 53c0 12 6 22 16 29 12-5 27-8 45-8 23 0 38 7 38 20 0 16-24 26-58 26-23 0-43-5-58-16" />
+    <path stroke-width="10" d="M12 78v19c0 19 22 29 55 29 34 0 58-11 58-29 0-12-8-20-23-25 14-7 22-18 22-31 0-16-13-27-32-30" />
+    <path stroke-width="8" d="M35 74c9-5 23-8 40-8 20 0 35 5 41 15" />
+    <path stroke-width="8" d="M31 91c10 7 27 11 47 11 16 0 30-3 40-9" />
+    <circle cx="45" cy="42" r="9" stroke-width="6" />
+    <circle cx="64" cy="36" r="10" stroke-width="6" />
+    <circle cx="83" cy="42" r="9" stroke-width="6" />
+    <path stroke-width="6" d="M35 61c2-9 8-14 17-14 6 0 11 3 14 7 3-4 8-7 15-7 9 0 15 5 17 14" />
+    <path stroke-width="5" d="M64 75l6 14 14 6-14 6-6 14-6-14-14-6 14-6 6-14z" />
+  </g>
+</svg>
