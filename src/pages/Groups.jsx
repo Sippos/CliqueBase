@@ -1,10 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
-import { PageHero, StatusMessage } from '../components/MediaBlocks.jsx'
+import { StatusMessage } from '../components/MediaBlocks.jsx'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
 import { createGroup as createLocalGroup, getActiveGroup, getGroupInvitePath, getGroupInviteUrl, getGroupOpenPath, getGroups, joinGroup as joinLocalGroup, parseInviteCode, setActiveGroup } from '../lib/groups.js'
-import { createRemoteGroup, getCurrentSession, getProfile, getRemoteGroups, hasSupabase, joinRemoteGroup, saveProfile } from '../lib/supabaseClient.js'
+import { createRemoteGroup, getCurrentSession, getProfile, getRemoteGroups, hasSupabase, joinRemoteGroup } from '../lib/supabaseClient.js'
+
+const mediaShortcuts = [
+  { to: '/movies', label: 'Movies', icon: 'movies' },
+  { to: '/series', label: 'Series', icon: 'series' },
+  { to: '/games', label: 'Games', icon: 'games' },
+  { to: '/videos', label: 'Videos', icon: 'videos' },
+  { to: '/music', label: 'Music', icon: 'music' },
+]
 
 function copyToClipboard(value) {
   if (!value) return Promise.resolve(false)
@@ -15,34 +24,123 @@ function copyToClipboard(value) {
 }
 
 function getProfileName(session, profile, fallback = '') {
-  return profile?.display_name || fallback || session?.user?.user_metadata?.display_name || session?.user?.email?.split('@')[0] || ''
+  return profile?.display_name || fallback || session?.user?.user_metadata?.display_name || ''
 }
 
 function GroupCard({ group, active, onActivate, onCopy }) {
   return (
-    <article className={`rounded-[2rem] border p-4 ${active ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-white'}`}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className={`text-xs uppercase tracking-[0.3em] ${active ? 'text-neutral-500' : 'text-neutral-500'}`}>{group.isPublic ? 'Public group' : 'Private group'}</p>
-          <h2 className="mt-2 text-2xl font-black">{group.name}</h2>
-          <p className={`mt-2 text-sm ${active ? 'text-neutral-600' : 'text-neutral-400'}`}>{group.members?.length || 1} members</p>
+    <article className={`rounded-[1.6rem] border p-4 transition ${active ? 'border-white bg-white text-neutral-950 shadow-2xl shadow-white/10' : 'border-white/10 bg-white/[0.03] text-white hover:border-white/20 hover:bg-white/[0.045]'}`}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className={`text-[10px] font-black uppercase tracking-[0.26em] ${active ? 'text-neutral-500' : 'text-neutral-500'}`}>{group.isPublic ? 'Public clique' : 'Private clique'}</p>
+          <h2 className="mt-1 truncate text-2xl font-black">{group.name}</h2>
+          <p className={`mt-1 text-sm ${active ? 'text-neutral-600' : 'text-neutral-400'}`}>{group.members?.length || 1} members</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => onActivate(group)} className={`rounded-2xl px-4 py-2 text-sm font-semibold ${active ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>
-            {active ? 'Active' : 'Use group'}
+
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => onActivate(group)}
+            className={`inline-flex h-11 items-center gap-2 rounded-2xl px-4 text-sm font-black transition ${active ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950 hover:bg-neutral-200'}`}
+          >
+            <AppIcon name="users" size={16} />
+            {active ? 'Active' : 'Use'}
           </button>
-          <button type="button" onClick={() => onCopy(group)} className={`rounded-2xl px-4 py-2 text-sm font-semibold ${active ? 'border border-neutral-300 text-neutral-950' : 'border border-white/10 text-white'}`}>
-            Copy invite
+          <button
+            type="button"
+            onClick={() => onCopy(group)}
+            aria-label={`Copy invite for ${group.name}`}
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${active ? 'border-neutral-300 text-neutral-950 hover:bg-neutral-100' : 'border-white/10 text-white hover:bg-white hover:text-neutral-950'}`}
+          >
+            <AppIcon name="link" size={17} />
           </button>
-          <Link to={getGroupOpenPath(group)} className={`rounded-2xl px-4 py-2 text-sm font-semibold ${active ? 'border border-neutral-300 text-neutral-950' : 'border border-white/10 text-white'}`}>
-            Open
+          <Link
+            to={getGroupOpenPath(group)}
+            aria-label={`Open ${group.name}`}
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${active ? 'border-neutral-300 text-neutral-950 hover:bg-neutral-100' : 'border-white/10 text-white hover:bg-white hover:text-neutral-950'}`}
+          >
+            <AppIcon name="explore" size={17} />
           </Link>
         </div>
       </div>
-      <div className={`mt-4 rounded-2xl p-3 text-sm ${active ? 'bg-neutral-100 text-neutral-700' : 'bg-neutral-900 text-neutral-300'}`}>
-        {group.members?.length ? group.members.join(' · ') : 'Members appear here after people join.'}
+
+      <div className={`mt-4 flex flex-wrap gap-2 rounded-2xl p-3 text-sm ${active ? 'bg-neutral-100 text-neutral-700' : 'bg-neutral-900 text-neutral-300'}`}>
+        {group.members?.length ? group.members.map((member) => (
+          <span key={member} className={`rounded-full px-3 py-1 text-xs font-semibold ${active ? 'bg-white text-neutral-700' : 'bg-white/[0.06] text-neutral-300'}`}>{member}</span>
+        )) : <span>Members appear here after people join.</span>}
       </div>
     </article>
+  )
+}
+
+function CompactCreateForm({ draftGroup, setDraftGroup, loading, onCreate }) {
+  return (
+    <form onSubmit={onCreate} className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/10 bg-neutral-950/70 p-1.5">
+      <span className="ml-3 hidden text-neutral-500 sm:inline-flex"><AppIcon name="users" size={18} /></span>
+      <input value={draftGroup} onChange={(event) => setDraftGroup(event.target.value)} placeholder="New clique name" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500" />
+      <button disabled={loading} aria-label="Create clique" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-lg font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">+</button>
+    </form>
+  )
+}
+
+function CompactInviteForm({ value, setValue, loading, onJoin, readOnly = false }) {
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/10 bg-neutral-950/70 p-1.5">
+      <span className="ml-3 hidden text-neutral-500 sm:inline-flex"><AppIcon name="link" size={18} /></span>
+      <input value={value} onChange={(event) => setValue?.(event.target.value)} readOnly={readOnly} placeholder="Invite link or code" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500" />
+      <button type="button" disabled={loading} onClick={onJoin} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">
+        Join
+      </button>
+    </div>
+  )
+}
+
+function CliqueOverview({ group, groupCount, onCopy }) {
+  return (
+    <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Clique overview</p>
+          <h2 className="mt-2 truncate text-3xl font-black text-white">{group?.name || 'No active clique'}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">
+            {group ? 'This clique is the active shared space. Media pages now save searches, votes, ratings, and picks here.' : 'Choose a clique below or create one to start a shared ranking space.'}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 sm:min-w-[20rem]">
+          <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3 text-center">
+            <div className="text-2xl font-black text-white">{groupCount}</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Cliques</div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3 text-center">
+            <div className="text-2xl font-black text-white">{group?.members?.length || 0}</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Members</div>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3 text-center">
+            <div className="text-2xl font-black text-white">{group?.isPublic ? 'On' : 'Off'}</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Public</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {mediaShortcuts.map((shortcut) => (
+            <Link key={shortcut.to} to={shortcut.to} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-neutral-950/70 px-3 py-2 text-sm font-bold text-neutral-200 transition hover:bg-white hover:text-neutral-950">
+              <AppIcon name={shortcut.icon} size={16} />
+              {shortcut.label}
+            </Link>
+          ))}
+        </div>
+
+        {group ? (
+          <button type="button" onClick={() => onCopy(group)} className="inline-flex w-fit items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">
+            <AppIcon name="link" size={16} />
+            Copy invite
+          </button>
+        ) : null}
+      </div>
+    </section>
   )
 }
 
@@ -53,7 +151,6 @@ export default function Groups({ inviteMode = false }) {
   const [activeGroup, setActiveGroupState] = useState(null)
   const [session, setSession] = useState(null)
   const [handle, setHandle] = useState('')
-  const [draftHandle, setDraftHandle] = useState('')
   const [draftGroup, setDraftGroup] = useState('')
   const [manualInvite, setManualInvite] = useState('')
   const [message, setMessage] = useState(null)
@@ -72,7 +169,6 @@ export default function Groups({ inviteMode = false }) {
   async function refresh(nextActive = null) {
     const savedHandle = getSavedHandle()
     setHandle(savedHandle)
-    setDraftHandle((current) => current || savedHandle)
 
     if (hasSupabase) {
       try {
@@ -85,7 +181,6 @@ export default function Groups({ inviteMode = false }) {
           if (displayName) {
             saveSharedHandle(displayName)
             setHandle(displayName)
-            setDraftHandle(displayName)
           }
           const remoteGroups = await getRemoteGroups().catch(() => [])
           setGroups(remoteGroups)
@@ -98,7 +193,7 @@ export default function Groups({ inviteMode = false }) {
         setActiveGroupState(null)
         return
       } catch (error) {
-        showMessage(error.message || 'Could not load groups.', 'error')
+        showMessage(error.message || 'Could not load cliques.', 'error')
       }
     }
 
@@ -116,40 +211,21 @@ export default function Groups({ inviteMode = false }) {
     setTimeout(() => setMessage(null), 2600)
   }
 
-  async function saveHandle(event) {
-    event?.preventDefault?.()
-    const saved = saveSharedHandle(draftHandle)
-    if (!saved) {
-      showMessage('Add a profile name first.', 'error')
-      return ''
-    }
-    try {
-      if (session?.user && hasSupabase) await saveProfile(saved)
-      setHandle(saved)
-      setDraftHandle(saved)
-      showMessage(`Continuing as ${saved}.`)
-      return saved
-    } catch (error) {
-      showMessage(error.message || 'Could not save profile name.', 'error')
-      return saved
-    }
-  }
-
   async function handleCreate(event) {
     event.preventDefault()
-    const activeHandle = handle || await saveHandle() || 'anonymous'
+    const activeHandle = handle || getSavedHandle() || 'anonymous'
     setLoading(true)
     try {
       const created = session?.user && hasSupabase
-        ? await createRemoteGroup(draftGroup || `${activeHandle}'s group`, activeHandle)
-        : createLocalGroup(draftGroup || `${activeHandle}'s group`, activeHandle)
+        ? await createRemoteGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
+        : createLocalGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
       setActiveGroup(created.id)
       setActiveGroupState(created)
       setDraftGroup('')
       await refresh(created)
       showMessage(`${created.name} is ready to share.`)
     } catch (error) {
-      showMessage(error.message || 'Could not create group.', 'error')
+      showMessage(error.message || 'Could not create clique.', 'error')
     } finally {
       setLoading(false)
     }
@@ -161,7 +237,7 @@ export default function Groups({ inviteMode = false }) {
       showMessage('Paste an invite link or code first.', 'error')
       return
     }
-    const activeHandle = handle || await saveHandle() || 'anonymous'
+    const activeHandle = handle || getSavedHandle() || 'anonymous'
 
     if (hasSupabase && !session?.user) {
       showMessage('Sign in from Profile first, then use this invite link again.', 'error')
@@ -198,52 +274,33 @@ export default function Groups({ inviteMode = false }) {
     showMessage(copied ? 'Invite link copied.' : `Invite path: ${getGroupInvitePath(group)}`)
   }
 
-  const title = inviteMode ? 'Join a group' : groupId && activeGroup ? activeGroup.name : 'Groups and invites'
+  const title = inviteMode ? 'Join clique' : 'Cliques'
   const copy = inviteMode
-    ? 'Open an invite link, sign in if needed, and join the shared voting space.'
-    : 'Create a group, paste an invite code, or switch between your shared voting spaces.'
+    ? 'Accept the invite and make this your active shared voting space.'
+    : 'Create, join, and switch between shared ranking spaces.'
 
   return (
     <PageShell active="groups">
-      <PageHero eyebrow="Groups" title={title} description={copy}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <form onSubmit={saveHandle} className="rounded-3xl border border-white/10 bg-neutral-950/80 p-3">
-            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-neutral-500">Display name</label>
-            <div className="mt-2 flex gap-2">
-              <input value={draftHandle} onChange={(event) => setDraftHandle(event.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-              <button className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950">Save</button>
-            </div>
-          </form>
-
-          {inviteMode ? (
-            <div className="rounded-3xl border border-white/10 bg-neutral-950/80 p-3">
-              <label className="text-xs font-semibold uppercase tracking-[0.25em] text-neutral-500">Invite</label>
-              <div className="mt-2 flex gap-2">
-                <input value={inviteCode || ''} readOnly className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                <button type="button" disabled={loading} onClick={() => joinInvite(inviteCode)} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 disabled:opacity-60">Join</button>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleCreate} className="rounded-3xl border border-white/10 bg-neutral-950/80 p-3">
-              <label className="text-xs font-semibold uppercase tracking-[0.25em] text-neutral-500">Create group</label>
-              <div className="mt-2 flex gap-2">
-                <input value={draftGroup} onChange={(event) => setDraftGroup(event.target.value)} placeholder="Friday movie crew" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                <button disabled={loading} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 disabled:opacity-60">Create</button>
-              </div>
-            </form>
-          )}
-        </div>
-
-        {!inviteMode ? (
-          <div className="mt-3 rounded-3xl border border-white/10 bg-neutral-950/80 p-3">
-            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-neutral-500">Paste invite link or code</label>
-            <div className="mt-2 flex gap-2">
-              <input value={manualInvite} onChange={(event) => setManualInvite(event.target.value)} placeholder="Paste invite link or code" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-              <button type="button" disabled={loading} onClick={() => joinInvite(manualInvite)} className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-white hover:bg-white hover:text-neutral-950 disabled:opacity-60">Join</button>
-            </div>
+      <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Cliques</p>
+            <h1 className="mt-1 text-3xl font-black text-white sm:text-4xl">{title}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">{copy}</p>
           </div>
-        ) : null}
-      </PageHero>
+
+          <div className="flex w-full flex-col gap-2 lg:max-w-2xl lg:flex-row">
+            {inviteMode ? (
+              <CompactInviteForm value={inviteCode || ''} readOnly loading={loading} onJoin={() => joinInvite(inviteCode)} />
+            ) : (
+              <>
+                <CompactCreateForm draftGroup={draftGroup} setDraftGroup={setDraftGroup} loading={loading} onCreate={handleCreate} />
+                <CompactInviteForm value={manualInvite} setValue={setManualInvite} loading={loading} onJoin={() => joinInvite(manualInvite)} />
+              </>
+            )}
+          </div>
+        </div>
+      </section>
 
       <StatusMessage message={message} />
 
@@ -254,30 +311,27 @@ export default function Groups({ inviteMode = false }) {
           ) : inviteGroup ? (
             <>Invite found for <strong className="text-white">{inviteGroup.name}</strong>. Press Join to activate it.</>
           ) : (
-            <>Press Join to accept this invite. The group will become your active context.</>
+            <>Press Join to accept this invite. The clique will become your active context.</>
           )}
         </section>
       ) : null}
 
-      {activeGroup ? (
-        <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Active group</p>
-              <h2 className="mt-1 text-3xl font-black text-white">{activeGroup.name}</h2>
-              <p className="mt-2 text-sm text-neutral-400">Shared votes and saved content use this group when selected.</p>
-            </div>
-            <button type="button" onClick={() => copyInvite(activeGroup)} className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950">Copy invite link</button>
-          </div>
-        </section>
-      ) : null}
+      <CliqueOverview group={activeGroup} groupCount={groups.length} onCopy={copyInvite} />
 
       <section className="space-y-3">
+        <div className="flex items-end justify-between gap-3 px-1">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Your cliques</p>
+            <h2 className="mt-1 text-2xl font-black text-white">Switch space</h2>
+          </div>
+          <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{groups.length} total</span>
+        </div>
+
         {groups.length ? groups.map((group) => (
           <GroupCard key={group.id} group={group} active={activeGroup?.id === group.id} onActivate={activate} onCopy={copyInvite} />
         )) : (
           <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-neutral-400">
-            Create your first group or join a friend’s invite link.
+            Create your first clique or join a friend’s invite link.
           </div>
         )}
       </section>
