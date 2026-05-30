@@ -84,12 +84,19 @@ function sessionName(session, profile, fallback = '') {
 function LogoMark() {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <img
-        src="/cliquebase-logo-mark.png?v=3"
-        alt=""
+      <svg
+        viewBox="0 0 64 64"
+        fill="none"
         aria-hidden="true"
-        className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
-      />
+        className="h-12 w-12 shrink-0 rounded-2xl border border-white/10 bg-white/[0.03] text-white sm:h-14 sm:w-14"
+      >
+        <rect x="7" y="7" width="50" height="50" rx="14" stroke="currentColor" strokeWidth="2" opacity="0.28" />
+        <path d="M19 39c1.8-5.8 6.2-9.2 13-9.2s11.2 3.4 13 9.2" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        <path d="M24.5 23.5c0-4.1 3.2-7.3 7.5-7.3s7.5 3.2 7.5 7.3-3.2 7.3-7.5 7.3-7.5-3.2-7.5-7.3Z" stroke="currentColor" strokeWidth="3" />
+        <path d="M14 35c1.1-4.2 4-6.9 8.5-7.7M50 35c-1.1-4.2-4-6.9-8.5-7.7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" opacity="0.65" />
+        <path d="M17.5 20.5l2-4 2 4 4 2-4 2-2 4-2-4-4-2 4-2ZM46 15l1.3-2.7L48.6 15l2.8 1.3-2.8 1.4-1.3 2.6-1.3-2.6-2.8-1.4L46 15Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" opacity="0.82" />
+        <path d="M18 47h28" stroke="currentColor" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
+      </svg>
       <div className="min-w-0">
         <span className="block text-2xl font-black tracking-tight text-white sm:text-3xl">CliqueBase</span>
         <span className="block text-xs uppercase tracking-[0.28em] text-neutral-500">Find the next pick</span>
