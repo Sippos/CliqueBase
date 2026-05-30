@@ -212,9 +212,9 @@ function DetailRow({ label, value }) {
   if (!normalized) return null
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-      <dt className="text-[10px] font-bold uppercase tracking-[0.2em] text-neutral-500">{label}</dt>
-      <dd className="mt-1 text-sm font-semibold leading-5 text-white">{normalized}</dd>
+    <div className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2">
+      <dt className="text-[9px] font-bold uppercase tracking-[0.18em] text-neutral-500">{label}</dt>
+      <dd className="mt-0.5 text-[13px] font-semibold leading-5 text-white">{normalized}</dd>
     </div>
   )
 }
@@ -242,23 +242,20 @@ function GenreChips({ genres }) {
 
 function SourcePanel({ groupName, nominatedBy }) {
   return (
-    <div className="mt-4 rounded-3xl border border-white/10 bg-white/[0.035] p-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-neutral-500">Public recommendation</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
-            <AppIcon name="users" size={14} strokeWidth={2.2} />
-            Clique
-          </div>
-          <p className="mt-1 truncate text-sm font-black text-white">{groupName || 'Public clique'}</p>
+    <div className="mt-4 grid gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:grid-cols-2">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <AppIcon name="users" size={13} strokeWidth={2.2} />
+          Clique
         </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
-            <AppIcon name="user" size={14} strokeWidth={2.2} />
-            Suggested by
-          </div>
-          <p className="mt-1 truncate text-sm font-black text-white">{nominatedBy || 'Someone'}</p>
+        <p className="mt-1 truncate text-sm font-black text-white">{groupName || 'Public clique'}</p>
+      </div>
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <AppIcon name="user" size={13} strokeWidth={2.2} />
+          Suggested by
         </div>
+        <p className="mt-1 truncate text-sm font-black text-white">{nominatedBy || 'Someone'}</p>
       </div>
     </div>
   )
@@ -349,10 +346,7 @@ function DetailModal({ item, saving, onCopy, onClose }) {
 
         <div className="flex max-h-[90vh] flex-col overflow-y-auto p-6">
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">{meta.label} info</p>
-              <h2 className="mt-2 text-3xl font-black leading-tight text-white">{displayItem.title}</h2>
-            </div>
+            <h2 className="min-w-0 text-3xl font-black leading-tight text-white">{displayItem.title}</h2>
             <button type="button" onClick={onClose} className="text-2xl text-neutral-400 transition hover:text-white">×</button>
           </div>
 
@@ -369,7 +363,7 @@ function DetailModal({ item, saving, onCopy, onClose }) {
           {detailsLoading ? <p className="mt-4 text-sm text-neutral-500">Loading API details…</p> : null}
           {detailsError && !hasMetadata(displayItem) ? <p className="mt-4 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-3 text-xs leading-5 text-yellow-100">{detailsError}</p> : null}
 
-          <dl className="mt-5 grid grid-cols-2 gap-2">
+          <dl className="mt-5 grid max-w-md grid-cols-2 gap-2">
             <DetailRow label="Released" value={releaseValue} />
             <DetailRow label="Runtime" value={displayItem.runtime ? `${displayItem.runtime} min` : null} />
             <DetailRow label="Director / Regie" value={creator} />
