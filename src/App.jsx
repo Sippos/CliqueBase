@@ -8,8 +8,18 @@ import Music from './pages/Music.jsx'
 import Groups from './pages/Groups.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
 import Share from './pages/Share.jsx'
+import { ACTIVE_GROUP_STORAGE_KEY } from './lib/groups.js'
+
+function syncCliqueScopeFromUrl() {
+  if (typeof window === 'undefined') return
+  const params = new URLSearchParams(window.location.search)
+  const cliqueId = params.get('clique') || params.get('group') || params.get('scope')
+  if (cliqueId) window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, cliqueId)
+}
 
 export default function App() {
+  syncCliqueScopeFromUrl()
+
   return (
     <Routes>
       <Route path="/" element={<Leaderboard />} />
