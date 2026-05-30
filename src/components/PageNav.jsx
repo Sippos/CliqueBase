@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import AppIcon from './AppIcon.jsx'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
@@ -31,8 +31,8 @@ import {
 } from '../lib/supabaseClient.js'
 
 const primaryLinks = [
-  { key: 'explore', to: '/explore', label: 'Explore', icon: 'explore', description: 'Public discovery' },
-  { key: 'library', to: '/dashboard', label: 'My Library', icon: 'dashboard', description: 'Private dashboard' },
+  { key: 'explore', to: '/explore', label: 'Explore', icon: 'explore', description: 'Global rankings' },
+  { key: 'library', to: '/dashboard', label: 'My Library', icon: 'dashboard', description: 'Your private picks' },
   { key: 'groups', to: '/groups', label: 'Cliques', icon: 'users', description: 'Shared spaces' },
 ]
 
@@ -43,6 +43,9 @@ const mediaLinks = [
   { key: 'videos', to: '/videos', label: 'Videos', icon: 'videos' },
   { key: 'music', to: '/music', label: 'Music', icon: 'music' },
 ]
+
+const allMediaOption = { key: 'all', label: 'All media', icon: 'explore' }
+const mediaKeys = mediaLinks.map((link) => link.key)
 
 const activeMap = {
   home: 'library',
@@ -60,8 +63,12 @@ function normalizeActiveKey(active) {
 
 function isPrimaryActive(linkKey, activeKey) {
   if (linkKey === activeKey) return true
-  if (linkKey === 'library' && ['movies', 'series', 'games', 'videos', 'music'].includes(activeKey)) return true
+  if (linkKey === 'library' && mediaKeys.includes(activeKey)) return true
   return false
+}
+
+function isKnownMedia(value) {
+  return mediaKeys.includes(value)
 }
 
 async function copyToClipboard(value) {
@@ -99,6 +106,7 @@ function LogoMark() {
 }
 
 export default function PageNav({ active = 'library' }) {
+  const location = useLocation()
   const [handle, setHandle] = useState('')
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
@@ -119,10 +127,17 @@ export default function PageNav({ active = 'library' }) {
 
   const activeKey = normalizeActiveKey(active)
   const activePrimary = primaryLinks.find((link) => isPrimaryActive(link.key, activeKey)) || primaryLinks[1]
-  const activeMedia = mediaLinks.find((link) => link.key === activeKey)
+  const queryMedia = new URLSearchParams(location.search).get('media')
+  const activeMedia = mediaLinks.find((link) => link.key === activeKey) || mediaLinks.find((link) => link.key === queryMedia)
+  const activeMediaKey = activeMedia?.key || null
   const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : 'Profile'
   const spaceLabel = activeGroup?.name || 'My Library'
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
+  const mediaSummary = activePrimary.key === 'explore'
+    ? 'Explore starts on All media. Pick a type to narrow global rankings.'
+    : activePrimary.key === 'groups'
+      ? 'Cliques start on All media. Pick a type when you only want matching shared spaces.'
+      : `Library filters apply to ${spaceLabel}. All media returns to your dashboard.`
 
   function flash(text) {
     setMessage(text)
@@ -142,6 +157,27 @@ export default function PageNav({ active = 'library' }) {
     setActiveGroupState(null)
     setProfileNameOpen(false)
     setActiveGroup('')
+  }
+
+  function sectionRoot() {
+    if (activePrimary.key === 'explore') return '/explore'
+    if (activePrimary.key === 'groups') return '/groups'
+    return '/dashboard'
+  }
+
+  function mediaHref(key) {
+    if (key === 'all') return sectionRoot()
+    if (activePrimary.key === 'explore') return `/explore?media=${key}`
+    if (activePrimary.key === 'groups') return `/groups?media=${key}`
+    return mediaLinks.find((link) => link.key === key)?.to || '/dashboard'
+  }
+
+  function handlePrimaryClick(link) {
+    if (link.key === 'library') {
+      usePersonalLibrary()
+      return
+    }
+    closeMenus()
   }
 
   async function refreshGroups() {
@@ -368,51 +404,47 @@ export default function PageNav({ active = 'library' }) {
             <LogoMark />
           </Link>
 
-          <div className="relative flex min-w-0 flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
-            <div className="relative">
-              <button type="button" onClick={() => { setMainOpen((value) => !value); setMediaOpen(false) }} className="flex w-full min-w-0 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-neutral-950 shadow-lg shadow-white/5 transition hover:bg-neutral-200 sm:w-auto">
-                <AppIcon name={activePrimary.icon} size={18} />
-                <span className="truncate">{activePrimary.label}</span>
-                <AppIcon name="chevronDown" size={16} className="text-neutral-500" />
-              </button>
-
-              {mainOpen ? (
-                <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,24rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
-                  <div className="grid gap-2">
-                    {primaryLinks.map((link) => (
-                      <Link key={link.key} to={link.to} onClick={link.key === 'library' ? usePersonalLibrary : closeMenus} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${isPrimaryActive(link.key, activeKey) ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
-                        <AppIcon name={link.icon} size={18} />
-                        <span><span className="block">{link.label}</span><span className="block text-xs font-normal opacity-60">{link.description}</span></span>
-                      </Link>
-                    ))}
-                  </div>
-                  <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs text-neutral-400">
-                    <span className="block uppercase tracking-[0.2em] text-neutral-500">Current workspace</span>
-                    <strong className="mt-1 block text-sm text-white">{spaceLabel}</strong>
-                    {activeGroup ? <Link to={getGroupOpenPath(activeGroup)} onClick={closeMenus} className="mt-2 inline-flex font-semibold text-white underline underline-offset-4">Open clique dashboard</Link> : null}
-                  </div>
-                </div>
-              ) : null}
-            </div>
+          <div className="flex min-w-0 flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+            <nav aria-label="Primary navigation" className="flex min-w-0 rounded-full border border-white/10 bg-white/[0.035] p-1">
+              {primaryLinks.map((link) => {
+                const selected = isPrimaryActive(link.key, activeKey)
+                return (
+                  <Link
+                    key={link.key}
+                    to={link.to}
+                    onClick={() => handlePrimaryClick(link)}
+                    aria-current={selected ? 'page' : undefined}
+                    title={link.description}
+                    className={`inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-black transition sm:flex-none ${selected ? 'bg-white text-neutral-950 shadow-lg shadow-white/5' : 'text-neutral-300 hover:bg-white/10 hover:text-white'}`}
+                  >
+                    <AppIcon name={link.icon} size={17} />
+                    <span className="truncate">{link.label}</span>
+                  </Link>
+                )
+              })}
+            </nav>
 
             <div className="relative">
               <button type="button" onClick={() => { setMediaOpen((value) => !value); setMainOpen(false) }} className="flex w-full min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-bold text-neutral-200 transition hover:bg-white/10 hover:text-white sm:w-auto">
-                <AppIcon name={activeMedia?.icon || 'movies'} size={18} />
-                <span className="truncate">{activeMedia?.label || 'Media'}</span>
+                <AppIcon name={activeMedia?.icon || allMediaOption.icon} size={18} />
+                <span className="truncate">{activeMedia?.label || allMediaOption.label}</span>
                 <AppIcon name="chevronDown" size={16} className="text-neutral-500" />
               </button>
 
               {mediaOpen ? (
                 <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,22rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
                   <div className="grid gap-2">
-                    {mediaLinks.map((link) => (
-                      <Link key={link.key} to={link.to} onClick={closeMenus} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${activeKey === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
-                        <AppIcon name={link.icon} size={18} />
-                        <span>{link.label}</span>
-                      </Link>
-                    ))}
+                    {[allMediaOption, ...mediaLinks].map((link) => {
+                      const selected = link.key === 'all' ? !activeMediaKey : activeMediaKey === link.key
+                      return (
+                        <Link key={link.key} to={mediaHref(link.key)} onClick={closeMenus} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${selected ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
+                          <AppIcon name={link.icon} size={18} />
+                          <span>{link.label}</span>
+                        </Link>
+                      )
+                    })}
                   </div>
-                  <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-5 text-neutral-400">New picks and ratings save to <strong className="text-white">{spaceLabel}</strong>.</p>
+                  <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-5 text-neutral-400">{mediaSummary}</p>
                 </div>
               ) : null}
             </div>
