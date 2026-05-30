@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
@@ -157,7 +157,15 @@ function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy }) {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Clique overview</p>
-          <h2 className="mt-2 truncate text-3xl font-black text-white">{group?.name || 'No active clique'}</h2>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h2 className="truncate text-3xl font-black text-white">{group?.name || 'No active clique'}</h2>
+            {group ? (
+              <Link to={getGroupOpenPath(group)} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-200 transition hover:bg-white hover:text-neutral-950">
+                <AppIcon name="explore" size={14} />
+                Open clique page
+              </Link>
+            ) : null}
+          </div>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">
             {group ? 'See what this clique has actually picked, voted for, and rated.' : 'Choose a clique below or create one to see its shared picks here.'}
           </p>
@@ -190,10 +198,16 @@ function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy }) {
         </div>
 
         {group ? (
-          <button type="button" onClick={() => onCopy(group)} className="inline-flex w-fit items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">
-            <AppIcon name="link" size={16} />
-            Copy invite
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Link to={getGroupOpenPath(group)} className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">
+              <AppIcon name="explore" size={16} />
+              Open
+            </Link>
+            <button type="button" onClick={() => onCopy(group)} className="inline-flex w-fit items-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">
+              <AppIcon name="link" size={16} />
+              Copy invite
+            </button>
+          </div>
         ) : <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{groupCount} cliques total</span>}
       </div>
 
@@ -203,7 +217,7 @@ function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy }) {
             <p className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">Shared picks</p>
             <h3 className="mt-1 text-xl font-black text-white">What the clique voted for</h3>
           </div>
-          {itemsLoading ? <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-400">Loading…</span> : null}
+          {itemsLoading && !topItems.length ? <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-400">Loading…</span> : null}
         </div>
 
         {topItems.length ? (
@@ -233,6 +247,7 @@ export default function Groups({ inviteMode = false }) {
   const [loading, setLoading] = useState(false)
   const [cliqueItems, setCliqueItems] = useState([])
   const [cliqueItemsLoading, setCliqueItemsLoading] = useState(false)
+  const loadedItemsKeyRef = useRef('')
 
   useEffect(() => {
     refresh()
@@ -241,25 +256,33 @@ export default function Groups({ inviteMode = false }) {
   useEffect(() => {
     if (!groupId) return
     const group = setActiveGroup(groupId)
+    loadedItemsKeyRef.current = ''
     refresh(group)
   }, [groupId])
 
   useEffect(() => {
     let cancelled = false
+    const activeGroupId = activeGroup?.id || ''
+    const sessionUserId = session?.user?.id || ''
+    const cacheKey = `${sessionUserId}:${activeGroupId}`
 
     async function loadCliqueItems() {
-      if (!activeGroup?.id || !hasSupabase || !session?.user) {
+      if (!activeGroupId || !hasSupabase || !sessionUserId) {
         setCliqueItems([])
         setCliqueItemsLoading(false)
+        loadedItemsKeyRef.current = ''
         return
       }
 
+      if (loadedItemsKeyRef.current === cacheKey) return
+      loadedItemsKeyRef.current = cacheKey
       setCliqueItemsLoading(true)
+
       try {
         const [movies, series, games] = await Promise.all([
-          getMovies(activeGroup.id),
-          getSeries(activeGroup.id),
-          getGames(activeGroup.id),
+          getMovies(activeGroupId),
+          getSeries(activeGroupId),
+          getGames(activeGroupId),
         ])
         if (cancelled) return
         setCliqueItems(sortCliqueItems([
@@ -269,6 +292,7 @@ export default function Groups({ inviteMode = false }) {
         ]))
       } catch (error) {
         if (!cancelled) {
+          loadedItemsKeyRef.current = ''
           setCliqueItems([])
           showMessage(error.message || 'Could not load clique picks.', 'error')
         }
@@ -336,6 +360,8 @@ export default function Groups({ inviteMode = false }) {
       const created = session?.user && hasSupabase
         ? await createRemoteGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
         : createLocalGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
+      loadedItemsKeyRef.current = ''
+      setCliqueItems([])
       setActiveGroup(created.id)
       setActiveGroupState(created)
       setDraftGroup('')
@@ -368,6 +394,8 @@ export default function Groups({ inviteMode = false }) {
         : joinLocalGroup(parsed, activeHandle)
 
       if (!joined) throw new Error('Could not join that invite.')
+      loadedItemsKeyRef.current = ''
+      setCliqueItems([])
       setActiveGroup(joined.id)
       setActiveGroupState(joined)
       setManualInvite('')
@@ -381,6 +409,8 @@ export default function Groups({ inviteMode = false }) {
   }
 
   function activate(group) {
+    loadedItemsKeyRef.current = ''
+    setCliqueItems([])
     const next = setActiveGroup(group.id)
     setActiveGroupState(next || group)
     showMessage(`${group.name} is now active.`)
@@ -391,22 +421,19 @@ export default function Groups({ inviteMode = false }) {
     showMessage(copied ? 'Invite link copied.' : `Invite path: ${getGroupInvitePath(group)}`)
   }
 
-  const title = inviteMode ? 'Join clique' : 'Cliques'
-  const copy = inviteMode
-    ? 'Accept the invite and make this your active shared voting space.'
-    : 'Create, join, and switch between shared ranking spaces.'
-
   return (
     <PageShell active="groups">
-      <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Cliques</p>
-            <h1 className="mt-1 text-3xl font-black text-white sm:text-4xl">{title}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">{copy}</p>
+      <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-3 shadow-2xl shadow-black/20 backdrop-blur">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="flex shrink-0 items-center justify-between gap-3 rounded-full border border-white/10 bg-neutral-950/70 px-4 py-3 text-sm font-black text-white lg:w-auto">
+            <span className="inline-flex items-center gap-2">
+              <AppIcon name="users" size={17} />
+              {inviteMode ? 'Join invite' : 'Cliques'}
+            </span>
+            <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-neutral-400">{groups.length}</span>
           </div>
 
-          <div className="flex w-full flex-col gap-2 lg:max-w-2xl lg:flex-row">
+          <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row">
             {inviteMode ? (
               <CompactInviteForm value={inviteCode || ''} readOnly loading={loading} onJoin={() => joinInvite(inviteCode)} />
             ) : (
