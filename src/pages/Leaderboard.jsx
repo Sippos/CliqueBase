@@ -86,27 +86,83 @@ function FeaturedPickCard({ item }) {
   )
 }
 
-function ContentCard({ item }) {
+function GroupStat({ icon, children }) {
   return (
-    <article className="group overflow-hidden rounded-3xl border border-white/10 bg-neutral-900 transition hover:-translate-y-0.5 hover:border-white/20">
-      <div className="relative">
-        <PickPoster item={item} />
-        <div className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/70 px-3 py-1 text-xs font-black text-white shadow-lg shadow-black/30 backdrop-blur">
-          #{item.rank || '—'}
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-semibold text-neutral-300">
+      <AppIcon name={icon} size={13} strokeWidth={2.2} className="text-neutral-400" />
+      {children}
+    </span>
+  )
+}
+
+function GroupMiniTile({ item }) {
+  const meta = getCategoryMeta(item?.category)
+
+  return (
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/70">
+      <div className="relative h-24 overflow-hidden bg-neutral-900">
+        {item?.poster ? (
+          <img src={item.poster} alt="" className="h-full w-full object-cover opacity-90" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-neutral-300">
+            <AppIcon name={meta.icon} size={28} strokeWidth={1.7} />
+          </div>
+        )}
+        <span className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white backdrop-blur">
+          <AppIcon name={meta.icon} size={14} strokeWidth={2.2} />
+        </span>
+      </div>
+      <div className="p-2">
+        <p className="truncate text-xs font-black text-white">{item.title}</p>
+        <p className="mt-0.5 text-[11px] font-semibold text-neutral-500">Score {item.score || 0}</p>
+      </div>
+    </div>
+  )
+}
+
+function GroupSummaryCard({ group }) {
+  const allItems = group.publicItems || group.topItems || []
+  const topItems = (group.topItems || allItems).slice(0, 4)
+  const categoryCounts = featuredCategories.map((category) => ({
+    category,
+    count: allItems.filter((item) => item.category === category).length,
+  }))
+
+  return (
+    <article className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-4 shadow-2xl shadow-black/20 backdrop-blur transition hover:border-white/20 hover:bg-white/[0.05]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.22em] text-neutral-500">Public clique #{group.rank}</p>
+          <h3 className="mt-1 truncate text-2xl font-black text-white">{group.name}</h3>
         </div>
-        <div className="absolute right-3 top-3">
-          <CategoryBadge category={item.category} />
+        <div className="rounded-2xl border border-white/10 bg-neutral-950/70 px-3 py-2 text-right">
+          <div className="text-lg font-black text-white">{Number(group.averageRating || 0).toFixed(1)}</div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">Avg</div>
         </div>
       </div>
-      <div className="p-4">
-        <h3 className="line-clamp-2 text-xl font-black leading-tight text-white">{item.title}</h3>
-        <p className="mt-2 truncate text-sm text-neutral-400">{item.groupName || 'Public clique'}{item.nominatedBy ? ` · Added by ${item.nominatedBy}` : ''}</p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <MetricPill>Score {item.score || 0}</MetricPill>
-          <MetricPill>{item.picks || 0} picks</MetricPill>
-          {item.rating ? <MetricPill>Rating {Number(item.rating).toFixed(1)}</MetricPill> : null}
-          {item.completed ? <MetricPill>Completed</MetricPill> : null}
-        </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <GroupStat icon="users">{group.memberCount || 0} members</GroupStat>
+        <GroupStat icon="explore">{group.itemCount || 0} items</GroupStat>
+        <GroupStat icon="dashboard">Score {group.totalScore || 0}</GroupStat>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {topItems.length ? topItems.map((item) => <GroupMiniTile key={`${group.id}-${item.category}-${item.id}`} item={item} />) : (
+          <div className="col-span-2 rounded-2xl border border-dashed border-white/10 bg-neutral-950/50 p-4 text-sm text-neutral-500">No public picks in this clique yet.</div>
+        )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {categoryCounts.map(({ category, count }) => {
+          const meta = getCategoryMeta(category)
+          return (
+            <span key={category} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-neutral-400">
+              <AppIcon name={meta.icon} size={13} strokeWidth={2.2} />
+              {count} {meta.plural}
+            </span>
+          )
+        })}
       </div>
     </article>
   )
@@ -137,6 +193,7 @@ function ExploreBoard() {
     return () => { cancelled = true }
   }, [])
 
+  const groups = board.groups || []
   const topContent = board.topContent || []
   const bestByCategory = useMemo(() => {
     const map = new Map()
@@ -151,39 +208,30 @@ function ExploreBoard() {
 
   if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading Explore...</div>
   if (message) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
-  if (!topContent.length) return <EmptyState />
+  if (!topContent.length && !groups.length) return <EmptyState />
 
   return (
     <>
-      <section className="mb-5 px-1">
-        <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">Explore</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl">Community rankings</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">The best movies, series, and games from public cliques, ranked globally by score, picks, and ratings.</p>
-      </section>
-
       {featuredItems.length ? (
-        <section className="mb-6">
-          <div className="mb-3 flex items-end justify-between gap-3 px-1">
-            <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Best by category</p>
-              <h2 className="mt-1 text-2xl font-black text-white">Top public picks</h2>
-            </div>
-          </div>
+        <section className="mb-6 pt-1">
+          <h1 className="mb-3 px-1 text-2xl font-black text-white sm:text-3xl">Top public picks</h1>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {featuredItems.map((item) => <FeaturedPickCard key={`${item.category}-${item.groupId}-${item.id}`} item={item} />)}
           </div>
         </section>
       ) : null}
 
-      <section className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
-        <div className="mb-4 px-1">
-          <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Global ranking</p>
-          <h2 className="mt-1 text-2xl font-black text-white">Best ranked content</h2>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {topContent.slice(0, 12).map((item) => <ContentCard key={`${item.category}-${item.groupId}-${item.id}`} item={item} />)}
-        </div>
-      </section>
+      {groups.length ? (
+        <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
+          <div className="mb-4 px-1">
+            <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Public cliques</p>
+            <h2 className="mt-1 text-2xl font-black text-white">Group summaries</h2>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-2">
+            {groups.slice(0, 10).map((group) => <GroupSummaryCard key={group.id} group={group} />)}
+          </div>
+        </section>
+      ) : null}
     </>
   )
 }
