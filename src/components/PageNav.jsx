@@ -31,15 +31,17 @@ import {
 } from '../lib/supabaseClient.js'
 
 const primaryLinks = [
-  { key: 'explore', to: '/explore', label: 'Explore', icon: 'explore' },
-  { key: 'library', to: '/dashboard', label: 'My Library', icon: 'dashboard' },
-  { key: 'groups', to: '/groups', label: 'Cliques', icon: 'users' },
+  { key: 'explore', to: '/explore', label: 'Explore', icon: 'explore', description: 'Public discovery' },
+  { key: 'library', to: '/dashboard', label: 'My Library', icon: 'dashboard', description: 'Private dashboard' },
+  { key: 'groups', to: '/groups', label: 'Cliques', icon: 'users', description: 'Shared spaces' },
 ]
 
 const mediaLinks = [
   { key: 'movies', to: '/movies', label: 'Movies', icon: 'movies' },
   { key: 'series', to: '/series', label: 'Series', icon: 'series' },
   { key: 'games', to: '/games', label: 'Games', icon: 'games' },
+  { key: 'videos', to: '/videos', label: 'Videos', icon: 'videos' },
+  { key: 'music', to: '/music', label: 'Music', icon: 'music' },
 ]
 
 const activeMap = {
@@ -56,7 +58,7 @@ function normalizeActiveKey(active) {
   return activeMap[active] || active || 'library'
 }
 
-function isActive(linkKey, activeKey) {
+function isPrimaryActive(linkKey, activeKey) {
   if (linkKey === activeKey) return true
   if (linkKey === 'library' && ['movies', 'series', 'games', 'videos', 'music'].includes(activeKey)) return true
   return false
@@ -93,8 +95,8 @@ export default function PageNav({ active = 'library' }) {
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
   const [session, setSession] = useState(null)
-  const [navOpen, setNavOpen] = useState(false)
-  const [spaceOpen, setSpaceOpen] = useState(false)
+  const [mainOpen, setMainOpen] = useState(false)
+  const [mediaOpen, setMediaOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [groupDraft, setGroupDraft] = useState('')
@@ -107,8 +109,8 @@ export default function PageNav({ active = 'library' }) {
   const [loading, setLoading] = useState(false)
 
   const activeKey = normalizeActiveKey(active)
-  const activeLink = [...primaryLinks, ...mediaLinks].find((link) => isActive(link.key, activeKey)) || primaryLinks[1]
-  const showSpaceSwitcher = activeKey !== 'explore'
+  const activePrimary = primaryLinks.find((link) => isPrimaryActive(link.key, activeKey)) || primaryLinks[1]
+  const activeMedia = mediaLinks.find((link) => link.key === activeKey)
   const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : 'Profile'
   const spaceLabel = activeGroup?.name || 'My Library'
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
@@ -119,8 +121,8 @@ export default function PageNav({ active = 'library' }) {
   }
 
   function closeMenus() {
-    setNavOpen(false)
-    setSpaceOpen(false)
+    setMainOpen(false)
+    setMediaOpen(false)
   }
 
   function clearSessionUi() {
@@ -338,85 +340,54 @@ export default function PageNav({ active = 'library' }) {
             <LogoMark />
           </Link>
 
-          <div className="relative flex flex-col gap-2 md:flex-row md:items-center md:justify-center">
-            <div className="flex min-w-0 flex-wrap justify-center gap-2">
-              {primaryLinks.map((link) => (
-                <Link key={link.key} to={link.to} onClick={closeMenus} className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition ${isActive(link.key, activeKey) ? 'bg-white text-neutral-950' : 'border border-white/10 bg-white/[0.035] text-neutral-300 hover:bg-white/10 hover:text-white'}`}>
-                  <AppIcon name={link.icon} size={17} />
-                  {link.label}
-                </Link>
-              ))}
-              <button type="button" onClick={() => { setNavOpen((value) => !value); setSpaceOpen(false) }} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2.5 text-sm font-semibold text-neutral-300 hover:bg-white/10 hover:text-white md:hidden">
-                <AppIcon name={activeLink.icon} size={17} /> More
-                <AppIcon name="chevronDown" size={14} />
+          <div className="relative flex min-w-0 flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+            <div className="relative">
+              <button type="button" onClick={() => { setMainOpen((value) => !value); setMediaOpen(false) }} className="flex w-full min-w-0 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-neutral-950 shadow-lg shadow-white/5 transition hover:bg-neutral-200 sm:w-auto">
+                <AppIcon name={activePrimary.icon} size={18} />
+                <span className="truncate">{activePrimary.label}</span>
+                <AppIcon name="chevronDown" size={16} className="text-neutral-500" />
               </button>
-            </div>
 
-            <div className="hidden justify-center gap-2 md:flex">
-              {mediaLinks.map((link) => (
-                <Link key={link.key} to={link.to} onClick={closeMenus} className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold transition ${activeKey === link.key ? 'bg-white text-neutral-950' : 'border border-white/10 bg-white/[0.035] text-neutral-300 hover:bg-white/10 hover:text-white'}`}>
-                  <AppIcon name={link.icon} size={15} />
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-
-            {showSpaceSwitcher ? (
-              <button type="button" onClick={() => { setSpaceOpen((value) => !value); setNavOpen(false) }} className="inline-flex min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2.5 text-sm font-semibold text-neutral-300 hover:bg-white/10 hover:text-white">
-                <span className={`h-2 w-2 shrink-0 rounded-full ${activeGroup ? 'bg-emerald-400' : 'bg-neutral-500'}`}></span>
-                <span className="truncate">{spaceLabel}</span>
-                <AppIcon name="chevronDown" size={14} className="text-neutral-500" />
-              </button>
-            ) : null}
-
-            {navOpen ? (
-              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,22rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50 md:hidden">
-                <div className="grid gap-2">
-                  {mediaLinks.map((link) => (
-                    <Link key={link.key} to={link.to} onClick={closeMenus} className={`flex items-center gap-3 rounded-2xl px-4 py-3 ${activeKey === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200'}`}>
-                      <AppIcon name={link.icon} size={18} /> {link.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {spaceOpen && showSpaceSwitcher ? (
-              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,34rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
-                <div className="flex items-center justify-between gap-3 px-2">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Workspace</div>
-                    <h3 className="mt-1 text-lg font-black text-white">{spaceLabel}</h3>
+              {mainOpen ? (
+                <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,24rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
+                  <div className="grid gap-2">
+                    {primaryLinks.map((link) => (
+                      <Link key={link.key} to={link.to} onClick={link.key === 'library' ? usePersonalLibrary : closeMenus} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${isPrimaryActive(link.key, activeKey) ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
+                        <AppIcon name={link.icon} size={18} />
+                        <span><span className="block">{link.label}</span><span className="block text-xs font-normal opacity-60">{link.description}</span></span>
+                      </Link>
+                    ))}
                   </div>
-                  <Link to="/groups" onClick={closeMenus} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Manage</Link>
+                  <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs text-neutral-400">
+                    <span className="block uppercase tracking-[0.2em] text-neutral-500">Current workspace</span>
+                    <strong className="mt-1 block text-sm text-white">{spaceLabel}</strong>
+                    {activeGroup ? <Link to={getGroupOpenPath(activeGroup)} onClick={closeMenus} className="mt-2 inline-flex font-semibold text-white underline underline-offset-4">Open clique dashboard</Link> : null}
+                  </div>
                 </div>
+              ) : null}
+            </div>
 
-                <div className="mt-3 space-y-2">
-                  <Link to="/dashboard" onClick={usePersonalLibrary} className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left ${!activeGroup ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white hover:bg-white/10'}`}>
-                    <span><strong>My Library</strong><span className="block text-xs opacity-60">Private dashboard</span></span>
-                    <span className="text-xs font-bold">{!activeGroup ? 'Active' : 'Open'}</span>
-                  </Link>
+            <div className="relative">
+              <button type="button" onClick={() => { setMediaOpen((value) => !value); setMainOpen(false) }} className="flex w-full min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-bold text-neutral-200 transition hover:bg-white/10 hover:text-white sm:w-auto">
+                <AppIcon name={activeMedia?.icon || 'movies'} size={18} />
+                <span className="truncate">{activeMedia?.label || 'Media'}</span>
+                <AppIcon name="chevronDown" size={16} className="text-neutral-500" />
+              </button>
 
-                  {groups.map((group) => (
-                    <div key={group.id} className={`rounded-2xl p-3 ${activeGroup?.id === group.id ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white'}`}>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0">
-                          <div className="truncate font-bold">{group.name}</div>
-                          <div className="text-xs opacity-60">{group.members?.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private clique'}</div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Link to={getGroupOpenPath(group)} onClick={() => activateGroup(group)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{activeGroup?.id === group.id ? 'Active' : 'Open'}</Link>
-                          {usingRemoteGroups ? <button type="button" onClick={() => togglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Hide' : 'Make public'}</button> : null}
-                          <button type="button" onClick={() => copyInvite(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">Invite</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {!groups.length ? <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">No cliques yet. Create or join one from Manage.</p> : null}
+              {mediaOpen ? (
+                <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,22rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
+                  <div className="grid gap-2">
+                    {mediaLinks.map((link) => (
+                      <Link key={link.key} to={link.to} onClick={closeMenus} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${activeKey === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
+                        <AppIcon name={link.icon} size={18} />
+                        <span>{link.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                  <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-5 text-neutral-400">New picks and ratings save to <strong className="text-white">{spaceLabel}</strong>.</p>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
 
           <div className="flex justify-end">
@@ -482,6 +453,29 @@ export default function PageNav({ active = 'library' }) {
                 <button type="button" onClick={usePersonalLibrary} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Use My Library</button>
               </div>
             </section>
+
+            {groups.length ? (
+              <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+                <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Your cliques</p>
+                <div className="mt-3 space-y-2">
+                  {groups.map((group) => (
+                    <div key={group.id} className={`rounded-2xl p-3 ${activeGroup?.id === group.id ? 'bg-white text-neutral-950' : 'bg-neutral-900 text-white'}`}>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="truncate font-bold">{group.name}</div>
+                          <div className="text-xs opacity-60">{group.members?.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private clique'}</div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Link to={getGroupOpenPath(group)} onClick={() => { activateGroup(group); setAccountOpen(false) }} className={`rounded-xl px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{activeGroup?.id === group.id ? 'Active' : 'Open'}</Link>
+                          {usingRemoteGroups ? <button type="button" onClick={() => togglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Hide' : 'Make public'}</button> : null}
+                          <button type="button" onClick={() => copyInvite(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">Invite</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <form onSubmit={handleCreateGroup} className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
