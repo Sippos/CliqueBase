@@ -89,6 +89,7 @@ export default function PageNav({ active = 'home' }) {
   const activeLink = links.find((link) => link.key === active)
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
   const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : (hasSupabase ? 'Profile' : (handle || 'Profile'))
+  const groupLabel = activeGroup?.name || 'Personal'
   const availablePublicGroups = publicGroups.filter((group) => !groups.some((ownGroup) => ownGroup.id === group.id))
 
   function flash(message) {
@@ -380,22 +381,21 @@ export default function PageNav({ active = 'home' }) {
           </Link>
 
           <div className="relative flex min-w-0 justify-center">
-            <div className="flex min-w-0 overflow-hidden rounded-full border border-white/10 bg-white/[0.04] p-1 text-sm text-neutral-300">
-              <button type="button" onClick={() => { setNavOpen((value) => !value); setGroupsOpen(false) }} className="flex min-w-0 items-center gap-2 rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
-                <span className="text-neutral-500">Page</span>
-                <strong className="truncate text-white">{activeLink?.label || 'Home'}</strong>
+            <div className="flex w-full min-w-0 max-w-xl flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+              <button type="button" onClick={() => { setNavOpen((value) => !value); setGroupsOpen(false) }} className="flex min-w-0 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-neutral-950 shadow-lg shadow-white/5 transition hover:bg-neutral-200">
+                <span className="text-lg leading-none">{activeLink?.icon || '⌂'}</span>
+                <span className="truncate">{activeLink?.label || 'Home'}</span>
                 <span className="text-neutral-500">⌄</span>
               </button>
-              <button type="button" onClick={() => { setGroupsOpen((value) => !value); setNavOpen(false); loadPublicGroups() }} className="flex min-w-0 items-center gap-2 rounded-full px-4 py-2 transition hover:bg-white/10 hover:text-white">
-                <span className="text-neutral-500">Group</span>
-                <strong className="truncate text-white">{activeGroup?.name || 'Personal'}</strong>
+              <button type="button" onClick={() => { setGroupsOpen((value) => !value); setNavOpen(false); loadPublicGroups() }} className="flex min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2.5 text-xs font-semibold text-neutral-300 transition hover:bg-white/10 hover:text-white">
+                <span className={`h-2 w-2 shrink-0 rounded-full ${activeGroup ? 'bg-emerald-400' : 'bg-neutral-500'}`}></span>
+                <span className="truncate">{groupLabel}</span>
                 <span className="text-neutral-500">⌄</span>
               </button>
             </div>
 
             {navOpen ? (
-              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,28rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
-                <div className="mb-2 px-2 text-xs uppercase tracking-[0.3em] text-neutral-500">Navigate</div>
+              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,24rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
                 <div className="grid gap-2 sm:grid-cols-2">
                   {links.map((link) => (
                     <Link key={link.key} to={link.to} onClick={closeSwitchers} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
@@ -411,8 +411,8 @@ export default function PageNav({ active = 'home' }) {
               <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,34rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
                 <div className="flex items-center justify-between gap-3 px-2">
                   <div>
-                    <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Groups</div>
-                    <h3 className="mt-1 text-lg font-black text-white">Switch or scout</h3>
+                    <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Library context</div>
+                    <h3 className="mt-1 text-lg font-black text-white">{groupLabel}</h3>
                   </div>
                   <button type="button" onClick={() => { closeSwitchers(); setEditing(true) }} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Manage</button>
                 </div>
