@@ -1,6 +1,8 @@
 -- Member-to-member media sharing support.
 -- Adds searchable profile lookup by display name and a share inbox table.
 
+create extension if not exists pg_trgm;
+
 create table if not exists public.media_shares (
   id uuid primary key default gen_random_uuid(),
   sender_id uuid not null references auth.users(id) on delete cascade,
