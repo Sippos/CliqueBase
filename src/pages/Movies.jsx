@@ -3,10 +3,12 @@ import SwipeDeck from '../components/SwipeDeck.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { DetailPill, InfoModal, PageHero, RatedHistorySection, ResultRow, SearchResultsSection, StatusMessage, TopRankingSection, displayYear } from '../components/MediaBlocks.jsx'
 import { getSavedHandle } from '../lib/handle.js'
-import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
+import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, setActiveGroup as setActiveGroupContext } from '../lib/groups.js'
 import { demoMovies } from '../lib/demoMovies.js'
 import { getMovieDetails, searchMovies } from '../lib/tmdb.js'
 import { getCurrentSession, getMovies, getRemoteGroups, hasSupabase, markMovieWatched, rateMovie as saveMovieRating, saveMovie, voteMovie } from '../lib/supabaseClient.js'
+
+const MOVIES_SCOPE_STORAGE_KEY = 'cliquebase_movies_scope'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
@@ -17,6 +19,11 @@ function setupMessage(state) {
 function scopeLabel(scope, groups) {
   if (scope === 'personal') return 'Personal library'
   return groups.find((group) => group.id === scope)?.name || 'Selected group'
+}
+
+function getInitialScope() {
+  if (typeof window === 'undefined') return 'personal'
+  return getActiveGroupId() || 'personal'
 }
 
 export default function Movies() {
@@ -33,12 +40,12 @@ export default function Movies() {
   const [message, setMessage] = useState(null)
   const [groups, setGroups] = useState([])
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
-  const [selectedScope, setSelectedScope] = useState('personal')
+  const [activeContextGroupId, setActiveContextGroupId] = useState(() => getActiveGroupId())
+  const [selectedScope, setSelectedScopeState] = useState(() => getInitialScope())
   const [setupState, setSetupState] = useState(() => hasSupabase ? 'checking' : 'local')
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
-  const activeGroupId = activeGroup?.id || null
   const canUseLibrary = !hasSupabase || setupState === 'ready'
   const selectedGroupId = selectedScope === 'personal' ? null : selectedScope
   const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
@@ -49,7 +56,7 @@ export default function Movies() {
 
   useEffect(() => {
     refreshContext()
-  }, [activeGroupId])
+  }, [activeContextGroupId])
 
   useEffect(() => {
     if (!hasSupabase || setupState !== 'ready') return
@@ -58,18 +65,38 @@ export default function Movies() {
 
   useEffect(() => {
     function handleGroupChange() {
+      const nextGroupId = getActiveGroupId()
+      const nextScope = nextGroupId || 'personal'
       setActiveGroupState(getActiveGroup())
+      setActiveContextGroupId(nextGroupId)
+      saveSelectedScope(nextScope)
     }
 
     window.addEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
     return () => window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
   }, [])
 
+  function saveSelectedScope(scope) {
+    const nextScope = scope || 'personal'
+    setSelectedScopeState(nextScope)
+    if (typeof window !== 'undefined') localStorage.setItem(MOVIES_SCOPE_STORAGE_KEY, nextScope)
+  }
+
+  function setSelectedScope(scope) {
+    const nextScope = scope || 'personal'
+    saveSelectedScope(nextScope)
+    setActiveContextGroupId(nextScope === 'personal' ? '' : nextScope)
+    setActiveGroupState(nextScope === 'personal' ? null : groups.find((group) => group.id === nextScope) || activeGroup)
+    setActiveGroupContext(nextScope === 'personal' ? '' : nextScope)
+  }
+
   async function refreshContext() {
     if (!hasSupabase) return
 
     const group = getActiveGroup()
+    const activeId = getActiveGroupId()
     setActiveGroupState(group)
+    setActiveContextGroupId(activeId)
 
     try {
       const session = await getCurrentSession()
@@ -82,14 +109,19 @@ export default function Movies() {
       const remoteGroups = await getRemoteGroups().catch(() => [])
       setGroups(remoteGroups)
 
-      if (selectedScope !== 'personal' && !remoteGroups.some((remoteGroup) => remoteGroup.id === selectedScope)) {
-        setSelectedScope('personal')
-      } else if (selectedScope === 'personal' && group?.id && remoteGroups.some((remoteGroup) => remoteGroup.id === group.id)) {
-        setSelectedScope(group.id)
+      let nextScope = activeId || selectedScope || 'personal'
+      if (nextScope !== 'personal' && !remoteGroups.some((remoteGroup) => remoteGroup.id === nextScope)) {
+        nextScope = 'personal'
+        saveSelectedScope(nextScope)
+        setActiveGroupContext('')
+        setActiveContextGroupId('')
+        setActiveGroupState(null)
+      } else {
+        saveSelectedScope(nextScope)
       }
 
       setSetupState('ready')
-      await loadMovies(selectedScope === 'personal' ? null : selectedScope)
+      await loadMovies(nextScope === 'personal' ? null : nextScope)
     } catch (error) {
       clearRemoteState()
       setSetupState('signed-out')
