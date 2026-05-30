@@ -63,14 +63,14 @@ export function ResultRow({ item, onInfo, onAdd, onDone, addLabel = 'Add', doneL
   )
 }
 
-export function TopRankingSection({ eyebrow = 'Group pick', title, items, votes = {}, limit = 6, onInfo, onDone, onShare, doneLabel = 'Done', imageClass = 'h-14 w-10' }) {
+export function TopRankingSection({ eyebrow = '', title, items, votes = {}, limit = 6, onInfo, onDone, onShare, doneLabel = 'Done', imageClass = 'h-14 w-10' }) {
   const visible = items.slice(0, limit)
 
   return (
     <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
       <div className="mb-4 flex items-end justify-between gap-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">{eyebrow}</p>
+          {eyebrow ? <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">{eyebrow}</p> : null}
           <h2 className="mt-1 text-2xl font-bold text-white">{title}</h2>
         </div>
         <span className="text-sm text-neutral-500">Top {Math.min(limit, items.length)}</span>
