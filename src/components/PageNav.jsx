@@ -1,7 +1,31 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
-import { createGroup, getActiveGroup, getGroupInvitePath, getGroupInviteUrl, getGroups, joinGroup, setActiveGroup } from '../lib/groups.js'
+import {
+  GROUPS_CHANGED_EVENT,
+  createGroup as createLocalGroup,
+  getActiveGroup,
+  getActiveGroupId,
+  getGroupInvitePath,
+  getGroupInviteUrl,
+  getGroups,
+  joinGroup as joinLocalGroup,
+  parseInviteCode,
+  setActiveGroup,
+} from '../lib/groups.js'
+import {
+  createRemoteGroup,
+  getCurrentSession,
+  getProfile,
+  getRemoteGroups,
+  hasSupabase,
+  joinRemoteGroup,
+  onAuthStateChanged,
+  saveProfile,
+  signInWithEmail,
+  signOut,
+  signUpWithEmail,
+} from '../lib/supabaseClient.js'
 
 const links = [
   { key: 'home', to: '/', label: 'Home', icon: '⌂' },
@@ -26,71 +50,153 @@ async function copyToClipboard(value) {
   return false
 }
 
+function getSessionName(session, profile, fallback = '') {
+  return profile?.display_name || fallback || session?.user?.user_metadata?.display_name || session?.user?.email?.split('@')[0] || ''
+}
+
 export default function PageNav({ active = 'home' }) {
   const [handle, setHandle] = useState('')
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
+  const [session, setSession] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [groupDraft, setGroupDraft] = useState('')
   const [inviteDraft, setInviteDraft] = useState('')
   const [savedMessage, setSavedMessage] = useState('')
+  const [authMode, setAuthMode] = useState('sign-in')
+  const [authEmail, setAuthEmail] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
 
-  function refreshGroups() {
+  function flash(message) {
+    setSavedMessage(message)
+    setTimeout(() => setSavedMessage(''), 2200)
+  }
+
+  async function refreshGroups() {
+    const saved = getSavedHandle()
+    setHandle(saved)
+    setDraft((current) => current || saved)
+
+    if (hasSupabase) {
+      try {
+        const nextSession = await getCurrentSession()
+        setSession(nextSession)
+
+        if (nextSession?.user) {
+          const profile = await getProfile().catch(() => null)
+          const displayName = getSessionName(nextSession, profile, saved)
+          if (displayName) {
+            saveSharedHandle(displayName)
+            setHandle(displayName)
+            setDraft(displayName)
+          }
+
+          const remoteGroups = await getRemoteGroups()
+          setGroups(remoteGroups)
+
+          const activeId = getActiveGroupId()
+          const nextActive = remoteGroups.find((group) => group.id === activeId) || remoteGroups[0] || null
+          setActiveGroupState(nextActive)
+
+          if (nextActive && activeId !== nextActive.id) {
+            setActiveGroup(nextActive.id)
+          } else if (!nextActive && activeId) {
+            setActiveGroup('')
+          }
+
+          return
+        }
+      } catch (error) {
+        flash(error.message || 'Could not sync your account.')
+      }
+    }
+
+    setSession(null)
     setGroups(getGroups())
     setActiveGroupState(getActiveGroup())
   }
 
   useEffect(() => {
-    const saved = getSavedHandle()
-    setHandle(saved)
-    setDraft(saved)
     refreshGroups()
+
+    function handleGroupsChanged() {
+      refreshGroups()
+    }
+
+    window.addEventListener(GROUPS_CHANGED_EVENT, handleGroupsChanged)
+    const unsubscribe = hasSupabase ? onAuthStateChanged(() => refreshGroups()) : () => {}
+
+    return () => {
+      window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupsChanged)
+      unsubscribe()
+    }
   }, [])
 
-  function flash(message) {
-    setSavedMessage(message)
-    setTimeout(() => setSavedMessage(''), 1800)
-  }
-
-  function saveHandle() {
+  async function saveHandle() {
     const saved = saveSharedHandle(draft)
     if (!saved) {
       flash('Add a profile name first.')
       return ''
     }
 
-    setHandle(saved)
-    setDraft(saved)
-    flash(`Continuing as ${saved}`)
-    return saved
+    try {
+      if (session?.user) await saveProfile(saved)
+      setHandle(saved)
+      setDraft(saved)
+      flash(`Continuing as ${saved}`)
+      await refreshGroups()
+      return saved
+    } catch (error) {
+      flash(error.message || 'Could not save your profile.')
+      return saved
+    }
   }
 
-  function currentHandle() {
-    return handle || saveHandle() || 'anonymous'
+  async function currentHandle() {
+    return handle || await saveHandle() || 'anonymous'
   }
 
-  function handleCreateGroup(event) {
+  async function handleCreateGroup(event) {
     event.preventDefault()
-    const creator = currentHandle()
-    const group = createGroup(groupDraft || `${creator}'s clique`, creator)
-    setGroupDraft('')
-    refreshGroups()
-    flash(`${group.name} created and active.`)
+    const creator = await currentHandle()
+
+    try {
+      const group = session?.user && hasSupabase
+        ? await createRemoteGroup(groupDraft || `${creator}'s clique`, creator)
+        : createLocalGroup(groupDraft || `${creator}'s clique`, creator)
+
+      setActiveGroup(group.id)
+      setGroupDraft('')
+      await refreshGroups()
+      flash(`${group.name} created and active.`)
+    } catch (error) {
+      flash(error.message || 'Could not create the group.')
+    }
   }
 
-  function handleJoinGroup(event) {
+  async function handleJoinGroup(event) {
     event.preventDefault()
-    if (!inviteDraft.trim()) {
+    const code = parseInviteCode(inviteDraft)
+    if (!code) {
       flash('Paste an invite code first.')
       return
     }
 
-    const joined = joinGroup(inviteDraft.trim().replace(/^.*\/invite\//, ''), currentHandle())
-    setInviteDraft('')
-    refreshGroups()
-    flash(`Joined ${joined.name}.`)
+    try {
+      const joined = session?.user && hasSupabase
+        ? await joinRemoteGroup(code, await currentHandle())
+        : joinLocalGroup(code, await currentHandle())
+
+      setActiveGroup(joined.id)
+      setInviteDraft('')
+      await refreshGroups()
+      flash(`Joined ${joined.name}.`)
+    } catch (error) {
+      flash(error.message || 'Could not join that group.')
+    }
   }
 
   function activateGroup(group) {
@@ -104,7 +210,47 @@ export default function PageNav({ active = 'home' }) {
     flash(copied ? 'Invite link copied.' : `Invite: ${getGroupInvitePath(group)}`)
   }
 
+  async function handleAuthSubmit(event) {
+    event.preventDefault()
+
+    if (!authEmail.trim() || !authPassword) {
+      flash('Add an email and password first.')
+      return
+    }
+
+    setAuthLoading(true)
+    try {
+      const displayName = draft || handle || authEmail.split('@')[0]
+      if (authMode === 'sign-up') {
+        const result = await signUpWithEmail(authEmail, authPassword, displayName)
+        flash(result.session ? 'Account created and signed in.' : 'Account created. Check your email to confirm, then sign in.')
+      } else {
+        await signInWithEmail(authEmail, authPassword)
+        flash('Signed in.')
+      }
+
+      setAuthPassword('')
+      await refreshGroups()
+    } catch (error) {
+      flash(error.message || 'Authentication failed.')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  async function handleSignOut() {
+    try {
+      await signOut()
+      setSession(null)
+      await refreshGroups()
+      flash('Signed out. Local demo groups are still available.')
+    } catch (error) {
+      flash(error.message || 'Could not sign out.')
+    }
+  }
+
   const activeLink = links.find((link) => link.key === active)
+  const usingRemoteGroups = hasSupabase && Boolean(session?.user)
 
   return (
     <>
@@ -154,8 +300,8 @@ export default function PageNav({ active = 'home' }) {
             </nav>
 
             <div className="mt-auto rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Profile</p>
-              <p className="mt-2 text-sm text-neutral-300">{handle || 'No profile name yet'}</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">{usingRemoteGroups ? 'Account' : 'Local profile'}</p>
+              <p className="mt-2 text-sm text-neutral-300">{session?.user?.email || handle || 'No profile name yet'}</p>
               <p className="mt-1 text-sm text-neutral-500">{activeGroup ? `Active group: ${activeGroup.name}` : 'Create a group in Profile'}</p>
               <button type="button" onClick={() => { setMenuOpen(false); refreshGroups(); setEditing(true) }} className="mt-4 w-full rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950">Open profile</button>
             </div>
@@ -170,7 +316,7 @@ export default function PageNav({ active = 'home' }) {
               <div>
                 <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Profile & groups</div>
                 <h2 className="mt-1 text-2xl font-bold text-white">Your clique setup</h2>
-                <p className="mt-2 text-sm text-neutral-400">Manage your local profile, active group, and invite links from one place.</p>
+                <p className="mt-2 text-sm text-neutral-400">Create an account for real shared groups, or keep using local demo mode while Supabase is not configured.</p>
               </div>
               <button type="button" onClick={() => setEditing(false)} className="text-2xl text-neutral-400 hover:text-white">×</button>
             </div>
@@ -178,9 +324,36 @@ export default function PageNav({ active = 'home' }) {
             {savedMessage ? <p className="mt-4 rounded-2xl bg-emerald-700 p-3 text-sm text-white">{savedMessage}</p> : null}
 
             <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Account</div>
+                  <h3 className="mt-1 text-xl font-bold text-white">{session?.user ? 'Signed in' : 'Supabase Auth'}</h3>
+                  <p className="mt-1 text-sm text-neutral-400">{hasSupabase ? 'Use email and password to sync your groups across devices.' : 'Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable real accounts.'}</p>
+                </div>
+                {session?.user ? <button type="button" onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Sign out</button> : null}
+              </div>
+
+              {hasSupabase && session?.user ? (
+                <p className="mt-4 rounded-2xl bg-neutral-900 p-3 text-sm text-neutral-300">{session.user.email}</p>
+              ) : null}
+
+              {hasSupabase && !session?.user ? (
+                <form onSubmit={handleAuthSubmit} className="mt-4 grid gap-3">
+                  <div className="flex rounded-2xl border border-white/10 bg-neutral-900 p-1">
+                    <button type="button" onClick={() => setAuthMode('sign-in')} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button>
+                    <button type="button" onClick={() => setAuthMode('sign-up')} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button>
+                  </div>
+                  <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="you@example.com" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                  <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                  <button disabled={authLoading} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black disabled:opacity-60">{authLoading ? 'Working...' : authMode === 'sign-up' ? 'Create account' : 'Sign in'}</button>
+                </form>
+              ) : null}
+            </section>
+
+            <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <label className="block text-sm font-semibold text-neutral-300">Profile name</label>
               <div className="mt-2 flex gap-2">
-                <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
                 <button type="button" onClick={saveHandle} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black">Save</button>
               </div>
             </section>
@@ -190,7 +363,7 @@ export default function PageNav({ active = 'home' }) {
                 <div>
                   <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Active group</div>
                   <h3 className="mt-1 text-xl font-bold text-white">{activeGroup?.name || 'No group selected'}</h3>
-                  <p className="mt-1 text-sm text-neutral-400">New music links and future votes use this group context.</p>
+                  <p className="mt-1 text-sm text-neutral-400">New movie links and votes use this group context.</p>
                 </div>
                 {activeGroup ? (
                   <button type="button" onClick={() => copyInvite(activeGroup)} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Copy invite</button>
@@ -215,7 +388,7 @@ export default function PageNav({ active = 'home' }) {
             <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex items-end justify-between gap-3">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Your groups</div>
+                  <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">{usingRemoteGroups ? 'Your Supabase groups' : 'Your local groups'}</div>
                   <h3 className="mt-1 text-xl font-bold text-white">Switch context</h3>
                 </div>
                 <span className="text-sm text-neutral-500">{groups.length} group{groups.length === 1 ? '' : 's'}</span>
