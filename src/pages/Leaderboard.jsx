@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { getCommunityLeaderboard, hasSupabase } from '../lib/supabaseClient.js'
 
 const featuredCategories = ['Movies', 'Series', 'Games']
 
 const categoryMeta = {
-  Movies: { icon: '🎬', label: 'Movie', plural: 'Movies' },
-  Series: { icon: '📺', label: 'Series', plural: 'Series' },
-  Games: { icon: '🎮', label: 'Game', plural: 'Games' },
+  Movies: { icon: 'movies', label: 'Movie', plural: 'Movies' },
+  Series: { icon: 'series', label: 'Series', plural: 'Series' },
+  Games: { icon: 'games', label: 'Game', plural: 'Games' },
 }
 
 function getCategoryMeta(category = 'Pick') {
-  return categoryMeta[category] || { icon: '★', label: category || 'Pick', plural: category || 'Picks' }
+  return categoryMeta[category] || { icon: 'explore', label: category || 'Pick', plural: category || 'Picks' }
 }
 
 function CategoryBadge({ category }) {
@@ -20,7 +21,7 @@ function CategoryBadge({ category }) {
 
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-lg shadow-black/30 backdrop-blur">
-      <span className="text-sm leading-none" aria-hidden="true">{meta.icon}</span>
+      <AppIcon name={meta.icon} size={14} strokeWidth={2.2} className="shrink-0" />
       {meta.label}
     </span>
   )
@@ -51,7 +52,9 @@ function PickPoster({ item, large = false }) {
   return (
     <div className={`${sizeClass} flex w-full items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950`}>
       <div className="text-center">
-        <div className="text-5xl" aria-hidden="true">{item?.icon || meta.icon}</div>
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-white" aria-hidden="true">
+          <AppIcon name={meta.icon} size={38} strokeWidth={1.7} />
+        </div>
         <p className="mt-3 text-xs uppercase tracking-[0.3em] text-neutral-500">{meta.plural}</p>
       </div>
     </div>
@@ -75,7 +78,7 @@ function FeaturedPickCard({ item }) {
           <div className="mt-4 flex flex-wrap gap-2">
             <MetricPill>Score {item.score || 0}</MetricPill>
             <MetricPill>{item.picks || 0} picks</MetricPill>
-            {item.rating ? <MetricPill>★ {Number(item.rating).toFixed(1)}</MetricPill> : null}
+            {item.rating ? <MetricPill>Rating {Number(item.rating).toFixed(1)}</MetricPill> : null}
           </div>
         </div>
       </div>
@@ -101,7 +104,7 @@ function ContentCard({ item }) {
         <div className="mt-4 flex flex-wrap gap-2">
           <MetricPill>Score {item.score || 0}</MetricPill>
           <MetricPill>{item.picks || 0} picks</MetricPill>
-          {item.rating ? <MetricPill>★ {Number(item.rating).toFixed(1)}</MetricPill> : null}
+          {item.rating ? <MetricPill>Rating {Number(item.rating).toFixed(1)}</MetricPill> : null}
           {item.completed ? <MetricPill>Completed</MetricPill> : null}
         </div>
       </div>
