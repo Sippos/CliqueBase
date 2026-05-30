@@ -3,7 +3,6 @@ import SwipeDeck from '../components/SwipeDeck.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { DetailPill, InfoModal, PageHero, StatusMessage, displayYear } from '../components/MediaBlocks.jsx'
 import { getSavedHandle } from '../lib/handle.js'
-import { demoVideos } from '../lib/demoMovies.js'
 
 function getYoutubeId(url) {
   const value = String(url || '').trim()
@@ -82,9 +81,9 @@ function VideoCard({ video, onInfo, onClassic }) {
 }
 
 export default function Videos() {
-  const [videos, setVideos] = useState(demoVideos)
+  const [videos, setVideos] = useState([])
   const [votes, setVotes] = useState({})
-  const [classics, setClassics] = useState(() => demoVideos.filter((item) => item.saved).map((item) => item.id))
+  const [classics, setClassics] = useState([])
   const [infoVideo, setInfoVideo] = useState(null)
   const [draft, setDraft] = useState({ url: '', title: '' })
   const [message, setMessage] = useState(null)
@@ -123,10 +122,10 @@ export default function Videos() {
     else showMessage(`You passed on "${video.title}".`)
   }
 
-  function resetPage() {
-    setVideos(demoVideos)
+  function clearPage() {
+    setVideos([])
     setVotes({})
-    setClassics(demoVideos.filter((item) => item.saved).map((item) => item.id))
+    setClassics([])
     setInfoVideo(null)
     setDraft({ url: '', title: '' })
     setMessage(null)
@@ -136,10 +135,10 @@ export default function Videos() {
     <PageShell active="videos">
       <PageHero
         eyebrow="Shared link dump"
-        title="Upload funny links"
+        title="Start a fresh video feed"
         description="Paste YouTube or other video links, keep a group feed, swipe the non-classics, and pin the best links forever."
         warning={!activeHandle ? 'Create a profile with the Profile button in the navbar before uploading so your name appears on links.' : null}
-        actions={<button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset</button>}
+        actions={<button type="button" onClick={clearPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Clear feed</button>}
       >
         <form onSubmit={(event) => addVideo(event, false)} className="mt-5 space-y-3">
           <input className="w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" placeholder="Paste YouTube / TikTok / Instagram / video link" value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} />
@@ -161,11 +160,11 @@ export default function Videos() {
           </div>
           <div className="text-sm text-neutral-500">{videos.length} uploaded link{videos.length === 1 ? '' : 's'}</div>
         </div>
-        {feedVideos.length === 0 ? <p className="text-neutral-400">No links uploaded yet.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{feedVideos.map((video) => <VideoCard key={video.id} video={{ ...video, saved: classics.includes(video.id) }} onInfo={setInfoVideo} onClassic={markClassic} />)}</div>}
+        {feedVideos.length === 0 ? <p className="rounded-2xl border border-dashed border-white/15 p-5 text-neutral-400">No links uploaded yet. Paste the first one above.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{feedVideos.map((video) => <VideoCard key={video.id} video={{ ...video, saved: classics.includes(video.id) }} onInfo={setInfoVideo} onClassic={markClassic} />)}</div>}
       </section>
 
       <section ref={deckRef} className="mb-10">
-        <SwipeDeck items={votePile} onSwipe={handleSwipe} itemLabel="videos" emptyLabel="No non-classic videos left to vote on" likeLabel="Classic" dislikeLabel="Pass" infoType="video" />
+        <SwipeDeck items={votePile} onSwipe={handleSwipe} itemLabel="videos" emptyLabel="No video links to vote on yet" likeLabel="Classic" dislikeLabel="Pass" infoType="video" />
       </section>
 
       <section className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
@@ -176,7 +175,7 @@ export default function Videos() {
           </div>
           <div className="max-w-xs text-sm text-neutral-500 sm:text-right">Pinned links the group wants to remember forever</div>
         </div>
-        {classicVideos.length === 0 ? <p className="text-neutral-400">No classics yet.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{classicVideos.map((video) => <VideoCard key={video.id} video={{ ...video, saved: true }} onInfo={setInfoVideo} onClassic={markClassic} />)}</div>}
+        {classicVideos.length === 0 ? <p className="rounded-2xl border border-dashed border-white/15 p-5 text-neutral-400">No classics yet.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{classicVideos.map((video) => <VideoCard key={video.id} video={{ ...video, saved: true }} onInfo={setInfoVideo} onClassic={markClassic} />)}</div>}
       </section>
 
       <InfoModal item={infoVideo} onClose={() => setInfoVideo(null)} year={displayYear(infoVideo?.year)}>
