@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import AppIcon from './AppIcon.jsx'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
 import {
   GROUPS_CHANGED_EVENT,
@@ -29,13 +30,13 @@ import {
 } from '../lib/supabaseClient.js'
 
 const links = [
-  { key: 'home', to: '/', label: 'Dashboard' },
-  { key: 'movies', to: '/movies', label: 'Movies' },
-  { key: 'series', to: '/series', label: 'Series' },
-  { key: 'games', to: '/games', label: 'Games' },
-  { key: 'videos', to: '/videos', label: 'Videos' },
-  { key: 'music', to: '/music', label: 'Music' },
-  { key: 'leaderboard', to: '/explore', label: 'Explore' },
+  { key: 'home', to: '/', label: 'Dashboard', icon: 'dashboard' },
+  { key: 'movies', to: '/movies', label: 'Movies', icon: 'movies' },
+  { key: 'series', to: '/series', label: 'Series', icon: 'series' },
+  { key: 'games', to: '/games', label: 'Games', icon: 'games' },
+  { key: 'videos', to: '/videos', label: 'Videos', icon: 'videos' },
+  { key: 'music', to: '/music', label: 'Music', icon: 'music' },
+  { key: 'leaderboard', to: '/explore', label: 'Explore', icon: 'explore' },
 ]
 
 async function copyToClipboard(value) {
@@ -84,7 +85,7 @@ export default function PageNav({ active = 'home' }) {
   const [authLoading, setAuthLoading] = useState(false)
   const [signOutLoading, setSignOutLoading] = useState(false)
 
-  const activeLink = links.find((link) => link.key === active)
+  const activeLink = links.find((link) => link.key === active) || links[0]
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
   const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : (hasSupabase ? 'Profile' : (handle || 'Profile'))
   const groupLabel = activeGroup?.name || 'Personal'
@@ -350,13 +351,14 @@ export default function PageNav({ active = 'home' }) {
           <div className="relative flex min-w-0 justify-center">
             <div className="flex w-full min-w-0 max-w-xl flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
               <button type="button" onClick={() => { setNavOpen((value) => !value); setGroupsOpen(false) }} className="flex min-w-0 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-neutral-950 shadow-lg shadow-white/5 transition hover:bg-neutral-200">
-                <span className="truncate">{activeLink?.label || 'Dashboard'}</span>
-                <span className="text-neutral-500">⌄</span>
+                <AppIcon name={activeLink.icon} size={18} />
+                <span className="truncate">{activeLink.label}</span>
+                <AppIcon name="chevronDown" size={16} className="text-neutral-500" />
               </button>
               <button type="button" onClick={() => { setGroupsOpen((value) => !value); setNavOpen(false) }} className="flex min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2.5 text-xs font-semibold text-neutral-300 transition hover:bg-white/10 hover:text-white">
                 <span className={`h-2 w-2 shrink-0 rounded-full ${activeGroup ? 'bg-emerald-400' : 'bg-neutral-500'}`}></span>
                 <span className="truncate">{groupLabel}</span>
-                <span className="text-neutral-500">⌄</span>
+                <AppIcon name="chevronDown" size={14} className="text-neutral-500" />
               </button>
             </div>
 
@@ -364,8 +366,9 @@ export default function PageNav({ active = 'home' }) {
               <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,22rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
                 <div className="grid gap-2">
                   {links.map((link) => (
-                    <Link key={link.key} to={link.to} onClick={closeSwitchers} className={`rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
-                      {link.label}
+                    <Link key={link.key} to={link.to} onClick={closeSwitchers} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
+                      <AppIcon name={link.icon} size={18} />
+                      <span>{link.label}</span>
                     </Link>
                   ))}
                 </div>
@@ -392,7 +395,7 @@ export default function PageNav({ active = 'home' }) {
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
                           <div className="truncate font-bold">{group.name}</div>
-                          <div className="text-xs opacity-60">{group.members.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private'}</div>
+                          <div className="text-xs opacity-60">{group.members?.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private'}</div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => activateGroup(group)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{activeGroup?.id === group.id ? 'Active' : 'Use'}</button>
@@ -410,7 +413,7 @@ export default function PageNav({ active = 'home' }) {
 
           <div className="flex shrink-0 justify-end">
             <button type="button" onClick={() => { refreshGroups(); closeSwitchers(); setEditing(true) }} aria-label="Open profile and groups" className="flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-3 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
-              <span className="sm:mr-1.5">👤</span>
+              <AppIcon name="user" size={18} className="sm:mr-1.5" />
               <span className="hidden max-w-[6rem] truncate sm:inline">{profileLabel}</span>
             </button>
           </div>
@@ -434,7 +437,7 @@ export default function PageNav({ active = 'home' }) {
             <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-xl text-neutral-950">👤</div>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name="user" size={22} /></div>
                   <div className="min-w-0">
                     <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Account</div>
                     <h3 className="mt-1 truncate text-xl font-bold text-white">{session?.user ? handle || 'Signed in' : 'Sign in or create account'}</h3>
@@ -442,7 +445,7 @@ export default function PageNav({ active = 'home' }) {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {(session?.user || !hasSupabase) ? <button type="button" onClick={() => setProfileEditOpen((value) => !value)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950" aria-label="Edit profile name">⚙️</button> : null}
+                  {(session?.user || !hasSupabase) ? <button type="button" onClick={() => setProfileEditOpen((value) => !value)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950" aria-label="Edit profile name"><AppIcon name="settings" size={18} /></button> : null}
                   {session?.user ? <button type="button" disabled={signOutLoading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">{signOutLoading ? 'Signing out...' : 'Sign out'}</button> : null}
                 </div>
               </div>
