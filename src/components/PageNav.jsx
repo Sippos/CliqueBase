@@ -373,13 +373,15 @@ export default function PageNav({ active = 'home' }) {
               ) : null}
             </section>
 
-            <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-              <label className="block text-sm font-semibold text-neutral-300">Profile name</label>
-              <div className="mt-2 flex gap-2">
-                <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                <button type="button" onClick={saveHandle} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black">Save</button>
-              </div>
-            </section>
+            {(session?.user || !hasSupabase) ? (
+              <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+                <label className="block text-sm font-semibold text-neutral-300">Profile name</label>
+                <div className="mt-2 flex gap-2">
+                  <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                  <button type="button" onClick={saveHandle} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black">Save</button>
+                </div>
+              </section>
+            ) : null}
 
             <section className="mt-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
