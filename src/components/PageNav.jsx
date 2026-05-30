@@ -27,16 +27,15 @@ import {
   signOut,
   signUpWithEmail,
 } from '../lib/supabaseClient.js'
-import { getPublicGroupsForDiscovery, joinPublicGroupById } from '../lib/publicGroups.js'
 
 const links = [
-  { key: 'home', to: '/', label: 'Home', icon: '⌂' },
-  { key: 'movies', to: '/movies', label: 'Movies', icon: '🎬' },
-  { key: 'series', to: '/series', label: 'Series', icon: '📺' },
-  { key: 'games', to: '/games', label: 'Games', icon: '🎮' },
-  { key: 'videos', to: '/videos', label: 'Videos', icon: '📹' },
-  { key: 'music', to: '/music', label: 'Music', icon: '🎵' },
-  { key: 'leaderboard', to: '/leaderboard', label: 'Board', icon: '🏆' },
+  { key: 'home', to: '/', label: 'Dashboard', icon: 'DB' },
+  { key: 'movies', to: '/movies', label: 'Movies', icon: 'MV' },
+  { key: 'series', to: '/series', label: 'Series', icon: 'SR' },
+  { key: 'games', to: '/games', label: 'Games', icon: 'GM' },
+  { key: 'videos', to: '/videos', label: 'Videos', icon: 'VD' },
+  { key: 'music', to: '/music', label: 'Music', icon: 'MS' },
+  { key: 'leaderboard', to: '/explore', label: 'Explore', icon: 'EX' },
 ]
 
 async function copyToClipboard(value) {
@@ -69,7 +68,6 @@ export default function PageNav({ active = 'home' }) {
   const [handle, setHandle] = useState('')
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
-  const [publicGroups, setPublicGroups] = useState([])
   const [session, setSession] = useState(null)
   const [navOpen, setNavOpen] = useState(false)
   const [groupsOpen, setGroupsOpen] = useState(false)
@@ -90,7 +88,6 @@ export default function PageNav({ active = 'home' }) {
   const usingRemoteGroups = hasSupabase && Boolean(session?.user)
   const profileLabel = session?.user ? (handle || session.user.email?.split('@')[0] || 'Account') : (hasSupabase ? 'Profile' : (handle || 'Profile'))
   const groupLabel = activeGroup?.name || 'Personal'
-  const availablePublicGroups = publicGroups.filter((group) => !groups.some((ownGroup) => ownGroup.id === group.id))
 
   function flash(message) {
     setSavedMessage(message)
@@ -112,19 +109,8 @@ export default function PageNav({ active = 'home' }) {
     setProfileEditOpen(false)
   }
 
-  async function loadPublicGroups() {
-    if (!hasSupabase) return
-    try {
-      const rows = await getPublicGroupsForDiscovery()
-      setPublicGroups(rows)
-    } catch {
-      setPublicGroups([])
-    }
-  }
-
   async function refreshGroups() {
     if (hasSupabase) {
-      await loadPublicGroups()
       try {
         const nextSession = await getCurrentSession()
         setSession(nextSession)
@@ -260,25 +246,6 @@ export default function PageNav({ active = 'home' }) {
     flash(`${group.name} is active.`)
   }
 
-  async function joinPublicGroup(group) {
-    if (!session?.user) {
-      flash('Sign in before joining public groups.')
-      setEditing(true)
-      closeSwitchers()
-      return
-    }
-
-    try {
-      const joined = await joinPublicGroupById(group.id, await currentHandle())
-      setActiveGroup(joined.id)
-      closeSwitchers()
-      await refreshGroups()
-      flash(`Joined ${joined.name}.`)
-    } catch (error) {
-      flash(error.message || 'Could not join public group.')
-    }
-  }
-
   async function copyInvite(group) {
     const copied = await copyToClipboard(getGroupInviteUrl(group))
     flash(copied ? 'Invite link copied.' : `Invite: ${getGroupInvitePath(group)}`)
@@ -293,7 +260,7 @@ export default function PageNav({ active = 'home' }) {
     try {
       await setGroupPublic(group.id, !group.isPublic)
       refreshGroups()
-      flash(!group.isPublic ? `${group.name} is public on the leaderboard.` : `${group.name} is private again.`)
+      flash(!group.isPublic ? `${group.name} is now visible in Explore.` : `${group.name} is private again.`)
     } catch (error) {
       flash(error.message || 'Could not update public discovery.')
     }
@@ -383,11 +350,11 @@ export default function PageNav({ active = 'home' }) {
           <div className="relative flex min-w-0 justify-center">
             <div className="flex w-full min-w-0 max-w-xl flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
               <button type="button" onClick={() => { setNavOpen((value) => !value); setGroupsOpen(false) }} className="flex min-w-0 items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-black text-neutral-950 shadow-lg shadow-white/5 transition hover:bg-neutral-200">
-                <span className="text-lg leading-none">{activeLink?.icon || '⌂'}</span>
-                <span className="truncate">{activeLink?.label || 'Home'}</span>
+                <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-neutral-950 px-2 text-[10px] font-black tracking-[0.12em] text-white">{activeLink?.icon || 'DB'}</span>
+                <span className="truncate">{activeLink?.label || 'Dashboard'}</span>
                 <span className="text-neutral-500">⌄</span>
               </button>
-              <button type="button" onClick={() => { setGroupsOpen((value) => !value); setNavOpen(false); loadPublicGroups() }} className="flex min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2.5 text-xs font-semibold text-neutral-300 transition hover:bg-white/10 hover:text-white">
+              <button type="button" onClick={() => { setGroupsOpen((value) => !value); setNavOpen(false) }} className="flex min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2.5 text-xs font-semibold text-neutral-300 transition hover:bg-white/10 hover:text-white">
                 <span className={`h-2 w-2 shrink-0 rounded-full ${activeGroup ? 'bg-emerald-400' : 'bg-neutral-500'}`}></span>
                 <span className="truncate">{groupLabel}</span>
                 <span className="text-neutral-500">⌄</span>
@@ -399,7 +366,7 @@ export default function PageNav({ active = 'home' }) {
                 <div className="grid gap-2 sm:grid-cols-2">
                   {links.map((link) => (
                     <Link key={link.key} to={link.to} onClick={closeSwitchers} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${active === link.key ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}>
-                      <span className="text-xl">{link.icon}</span>
+                      <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-[10px] font-black tracking-[0.12em] ${active === link.key ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{link.icon}</span>
                       <span>{link.label}</span>
                     </Link>
                   ))}
@@ -408,7 +375,7 @@ export default function PageNav({ active = 'home' }) {
             ) : null}
 
             {groupsOpen ? (
-              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,34rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
+              <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,32rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
                 <div className="flex items-center justify-between gap-3 px-2">
                   <div>
                     <div className="text-xs uppercase tracking-[0.3em] text-neutral-500">Library context</div>
@@ -427,31 +394,21 @@ export default function PageNav({ active = 'home' }) {
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
                           <div className="truncate font-bold">{group.name}</div>
-                          <div className="text-xs opacity-60">{group.members.length || 1} members · {group.isPublic ? 'Public' : 'Private'}</div>
+                          <div className="text-xs opacity-60">{group.members.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private'}</div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => activateGroup(group)} className={`rounded-xl px-3 py-2 text-xs font-semibold ${activeGroup?.id === group.id ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{activeGroup?.id === group.id ? 'Active' : 'Use'}</button>
-                          {usingRemoteGroups ? <button type="button" onClick={() => handleTogglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Private' : 'Public'}</button> : null}
+                          {usingRemoteGroups ? <button type="button" onClick={() => handleTogglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Hide' : 'Publish'}</button> : null}
                           <button type="button" onClick={() => copyInvite(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">Invite</button>
                         </div>
                       </div>
                     </div>
                   ))}
+                  {!groups.length ? <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">Create a group or join an invite from Manage.</p> : null}
                 </div>
 
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <div className="mb-2 px-2 text-xs uppercase tracking-[0.3em] text-neutral-500">Public groups</div>
-                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
-                    {availablePublicGroups.length ? availablePublicGroups.slice(0, 8).map((group) => (
-                      <div key={group.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white/[0.04] p-3 text-white">
-                        <div className="min-w-0">
-                          <div className="truncate font-bold">{group.name}</div>
-                          <div className="text-xs text-neutral-500">{group.memberCount || 0} members · {group.itemCount || 0} items · ★ {Number(group.averageRating || 0).toFixed(1)}</div>
-                        </div>
-                        <button type="button" onClick={() => joinPublicGroup(group)} className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-neutral-950">Join</button>
-                      </div>
-                    )) : <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">No public groups to scout yet.</p>}
-                  </div>
+                <div className="mt-4 border-t border-white/10 px-2 pt-4 text-sm text-neutral-400">
+                  Looking for public groups and global rankings? <Link to="/explore" onClick={closeSwitchers} className="font-semibold text-white underline decoration-white/30 underline-offset-4">Open Explore</Link>.
                 </div>
               </div>
             ) : null}
