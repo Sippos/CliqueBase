@@ -16,10 +16,10 @@ const initialTracks = [
     source: 'spotify',
     category: 'Pop',
     nominated_by: 'CliqueBase',
-    status: 'playlist',
-    favorite: true,
+    status: 'spotify',
+    priority: true,
     archived: false,
-    note: 'Already in the playlist.',
+    note: 'Already added to my Spotify playlist.',
   },
   {
     id: 'youtube-music-demo',
@@ -30,7 +30,7 @@ const initialTracks = [
     category: 'Classics',
     nominated_by: 'CliqueBase',
     status: 'suggestion',
-    favorite: false,
+    priority: false,
     archived: false,
     note: 'Someone said: we have to put that in the playlist.',
   },
@@ -62,6 +62,11 @@ function makeTitleFromUrl(url) {
   }
 }
 
+function makeSpotifySearchUrl(track) {
+  const query = [track.title, track.artist].filter(Boolean).join(' ')
+  return `https://open.spotify.com/search/${encodeURIComponent(query || track.url)}`
+}
+
 function makeTrack(draft, handle, group) {
   const source = detectSource(draft.url)
   const youtubeId = source === 'youtube' ? getYoutubeId(draft.url) : ''
@@ -76,20 +81,23 @@ function makeTrack(draft, handle, group) {
     nominated_by: handle || 'anonymous',
     groupId: group?.id || '',
     groupName: group?.name || '',
-    status: draft.addNow ? 'playlist' : 'suggestion',
-    favorite: draft.favorite || draft.addNow,
+    status: draft.alreadyAdded ? 'spotify' : 'suggestion',
+    priority: draft.priority || draft.alreadyAdded,
     archived: false,
     note: draft.note.trim(),
     poster: youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : '',
     createdAt: new Date().toISOString(),
+    addedAt: draft.alreadyAdded ? new Date().toISOString() : null,
   }
 }
 
-function TrackCard({ track, onAddToPlaylist, onMoveToSuggestions, onFavorite, onArchive, onRemove, onInfo, compact = false }) {
+function TrackCard({ track, onMarkAdded, onMoveToSuggestions, onPriority, onArchive, onRemove, onInfo, compact = false }) {
   const isSuggestion = track.status === 'suggestion'
+  const spotifyHref = track.source === 'spotify' ? track.url : makeSpotifySearchUrl(track)
+  const spotifyLabel = track.source === 'spotify' ? 'Open in Spotify' : 'Search Spotify'
 
   return (
-    <article className={`rounded-[2rem] border p-4 transition hover:-translate-y-0.5 ${track.archived ? 'border-white/5 bg-white/[0.015] opacity-60' : isSuggestion ? 'border-amber-300/20 bg-amber-300/[0.06] hover:bg-amber-300/[0.09]' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
+    <article className={`rounded-[2rem] border p-4 transition hover:-translate-y-0.5 ${track.archived ? 'border-white/5 bg-white/[0.015] opacity-60' : isSuggestion ? 'border-amber-300/20 bg-amber-300/[0.06] hover:bg-amber-300/[0.09]' : 'border-emerald-300/20 bg-emerald-300/[0.06] hover:bg-emerald-300/[0.09]'}`}>
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className={`${compact ? 'h-20 sm:w-28' : 'h-28 sm:w-44'} flex w-full items-center justify-center overflow-hidden rounded-3xl bg-neutral-900`}>
           {track.poster ? <img src={track.poster} alt="" className="h-full w-full object-cover" /> : <span className="text-5xl">{track.source === 'spotify' ? '🎧' : track.source === 'youtube' ? '▶️' : '🎵'}</span>}
@@ -98,8 +106,8 @@ function TrackCard({ track, onAddToPlaylist, onMoveToSuggestions, onFavorite, on
           <div className="flex flex-wrap gap-2">
             <DetailPill>{track.source}</DetailPill>
             <DetailPill>{track.category}</DetailPill>
-            <DetailPill>{isSuggestion ? 'Suggestion' : 'In playlist'}</DetailPill>
-            {track.favorite ? <DetailPill>Favorite</DetailPill> : null}
+            <DetailPill>{isSuggestion ? 'Friend suggestion' : 'Added to Spotify'}</DetailPill>
+            {track.priority ? <DetailPill>Priority</DetailPill> : null}
             {track.archived ? <DetailPill>Archived</DetailPill> : null}
             {track.groupName ? <DetailPill>{track.groupName}</DetailPill> : null}
           </div>
@@ -108,13 +116,13 @@ function TrackCard({ track, onAddToPlaylist, onMoveToSuggestions, onFavorite, on
           {track.note ? <p className="mt-2 text-sm text-neutral-500">{track.note}</p> : null}
           <p className="mt-2 truncate text-sm text-neutral-600">{track.url}</p>
           <div className="mt-4 flex flex-wrap gap-2">
+            <a href={spotifyHref} target="_blank" rel="noreferrer" className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">{spotifyLabel}</a>
             {isSuggestion ? (
-              <button type="button" onClick={() => onAddToPlaylist(track)} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Add to playlist</button>
+              <button type="button" onClick={() => onMarkAdded(track)} className="rounded-2xl border border-emerald-400/40 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-500 hover:text-white">Mark added to Spotify</button>
             ) : (
               <button type="button" onClick={() => onMoveToSuggestions(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Move back to suggestions</button>
             )}
-            <a href={track.url} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Open</a>
-            <button type="button" onClick={() => onFavorite(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">{track.favorite ? 'Unfavorite' : 'Favorite'}</button>
+            <button type="button" onClick={() => onPriority(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">{track.priority ? 'Unprioritize' : 'Prioritize'}</button>
             <button type="button" onClick={() => onArchive(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">{track.archived ? 'Restore' : 'Archive'}</button>
             <button type="button" onClick={() => onInfo(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Info</button>
             <button type="button" onClick={() => onRemove(track)} className="rounded-2xl border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500 hover:text-white">Delete</button>
@@ -127,7 +135,7 @@ function TrackCard({ track, onAddToPlaylist, onMoveToSuggestions, onFavorite, on
 
 export default function Music() {
   const [tracks, setTracks] = useState(initialTracks)
-  const [draft, setDraft] = useState({ url: '', title: '', artist: '', category: 'Chill', favorite: false, addNow: false, note: '' })
+  const [draft, setDraft] = useState({ url: '', title: '', artist: '', category: 'Chill', priority: false, alreadyAdded: false, note: '' })
   const [filter, setFilter] = useState('All')
   const [showArchived, setShowArchived] = useState(false)
   const [message, setMessage] = useState(null)
@@ -139,12 +147,12 @@ export default function Music() {
     return tracks
       .filter((track) => filter === 'All' || track.category === filter)
       .filter((track) => showArchived || !track.archived)
-      .sort((a, b) => Number(b.favorite) - Number(a.favorite) || String(a.title).localeCompare(String(b.title)))
+      .sort((a, b) => Number(b.priority) - Number(a.priority) || String(a.title).localeCompare(String(b.title)))
   }, [tracks, filter, showArchived])
 
   const suggestions = useMemo(() => filteredTracks.filter((track) => track.status === 'suggestion'), [filteredTracks])
-  const playlistTracks = useMemo(() => filteredTracks.filter((track) => track.status !== 'suggestion'), [filteredTracks])
-  const favoriteTracks = useMemo(() => tracks.filter((track) => track.favorite && !track.archived && track.status !== 'suggestion'), [tracks])
+  const addedToSpotify = useMemo(() => filteredTracks.filter((track) => track.status === 'spotify'), [filteredTracks])
+  const prioritySuggestions = useMemo(() => tracks.filter((track) => track.priority && !track.archived && track.status === 'suggestion'), [tracks])
   const categoryCounts = useMemo(() => {
     return CATEGORIES.reduce((acc, category) => {
       acc[category] = category === 'All' ? tracks.filter((track) => !track.archived).length : tracks.filter((track) => track.category === category && !track.archived).length
@@ -164,30 +172,30 @@ export default function Music() {
   function addTrack(event) {
     event.preventDefault()
     if (!draft.url.trim()) {
-      showMessage('Paste a Spotify or YouTube music link first.', 'warn')
+      showMessage('Paste a Spotify, YouTube Music, or song link first.', 'warn')
       return
     }
 
     const next = makeTrack(draft, activeHandle, activeGroup)
     setTracks((current) => [next, ...current])
-    setDraft({ url: '', title: '', artist: '', category: draft.category, favorite: false, addNow: false, note: '' })
+    setDraft({ url: '', title: '', artist: '', category: draft.category, priority: false, alreadyAdded: false, note: '' })
     setFilter(next.category)
-    showMessage(next.status === 'playlist' ? `${next.title} added to the playlist.` : `${next.title} added as a playlist suggestion.`)
+    showMessage(next.status === 'spotify' ? `${next.title} marked as added to Spotify.` : `${next.title} posted as a friend suggestion.`)
   }
 
-  function addToPlaylist(track) {
-    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, status: 'playlist', favorite: true } : item))
-    showMessage(`${track.title} moved into the playlist.`)
+  function markAddedToSpotify(track) {
+    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, status: 'spotify', priority: true, addedAt: new Date().toISOString() } : item))
+    showMessage(`${track.title} marked as added to your Spotify.`)
   }
 
   function moveToSuggestions(track) {
-    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, status: 'suggestion', favorite: false } : item))
-    showMessage(`${track.title} moved back to suggestions.`)
+    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, status: 'suggestion', addedAt: null } : item))
+    showMessage(`${track.title} moved back to friend suggestions.`)
   }
 
-  function toggleFavorite(track) {
-    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, favorite: !item.favorite } : item))
-    showMessage(track.favorite ? `${track.title} removed from favorites.` : `${track.title} marked as favorite.`)
+  function togglePriority(track) {
+    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, priority: !item.priority } : item))
+    showMessage(track.priority ? `${track.title} removed from priority.` : `${track.title} marked as priority.`)
   }
 
   function toggleArchive(track) {
@@ -202,9 +210,9 @@ export default function Music() {
   }
 
   const cardHandlers = {
-    onAddToPlaylist: addToPlaylist,
+    onMarkAdded: markAddedToSpotify,
     onMoveToSuggestions: moveToSuggestions,
-    onFavorite: toggleFavorite,
+    onPriority: togglePriority,
     onArchive: toggleArchive,
     onRemove: removeTrack,
     onInfo: setInfoTrack,
@@ -212,28 +220,28 @@ export default function Music() {
 
   return (
     <PageShell active="music">
-      <PageHero eyebrow="Playlist suggestions" title="We have to put that in the playlist" copy="When someone drops a Spotify or YouTube Music link, save it as a suggestion first. Then the group can move it into the real playlist database when it fits.">
+      <PageHero eyebrow="Friend music suggestions" title="Friends post tracks, you add them to Spotify" copy="Use this as a shared inbox for songs. Friends drop Spotify, YouTube Music, or song links; you open or search the track in Spotify and mark it as added when it is in your playlist.">
         <form onSubmit={addTrack} className="space-y-3 rounded-3xl border border-white/10 bg-neutral-950/80 p-3">
-          <input value={draft.url} onChange={(event) => updateDraft('url', event.target.value)} placeholder="Spotify or YouTube music URL" className="w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+          <input value={draft.url} onChange={(event) => updateDraft('url', event.target.value)} placeholder="Spotify / YouTube Music / song URL" className="w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
           <div className="grid gap-2 sm:grid-cols-3">
-            <input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Title optional" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+            <input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Song title optional" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
             <input value={draft.artist} onChange={(event) => updateDraft('artist', event.target.value)} placeholder="Artist optional" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
             <select value={draft.category} onChange={(event) => updateDraft('category', event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none">
               {FORM_CATEGORIES.map((category) => <option key={category}>{category}</option>)}
             </select>
           </div>
-          <textarea value={draft.note} onChange={(event) => updateDraft('note', event.target.value)} placeholder="Why should this go in the playlist?" className="min-h-24 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+          <textarea value={draft.note} onChange={(event) => updateDraft('note', event.target.value)} placeholder="Why should this go in my Spotify playlist?" className="min-h-24 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
-              <input type="checkbox" checked={draft.addNow} onChange={(event) => updateDraft('addNow', event.target.checked)} />
-              Add directly to playlist
+              <input type="checkbox" checked={draft.priority} onChange={(event) => updateDraft('priority', event.target.checked)} />
+              Mark as high priority
             </label>
             <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
-              <input type="checkbox" checked={draft.favorite} onChange={(event) => updateDraft('favorite', event.target.checked)} />
-              Mark as favorite
+              <input type="checkbox" checked={draft.alreadyAdded} onChange={(event) => updateDraft('alreadyAdded', event.target.checked)} />
+              I already added it to Spotify
             </label>
           </div>
-          <button className="w-full rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950">Suggest for playlist</button>
+          <button className="w-full rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950">Post music suggestion</button>
         </form>
       </PageHero>
 
@@ -241,7 +249,7 @@ export default function Music() {
 
       {activeGroup ? (
         <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 text-sm text-neutral-300">
-          Active group: <strong className="text-white">{activeGroup.name}</strong>. New suggestions are tied to this group.
+          Active group: <strong className="text-white">{activeGroup.name}</strong>. Friends can use the invite link and post suggestions into this context.
         </section>
       ) : null}
 
@@ -258,7 +266,7 @@ export default function Music() {
             Show archived
           </label>
           <div className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-400">
-            {suggestions.length} suggestions · {playlistTracks.length} in playlist
+            {suggestions.length} waiting · {addedToSpotify.length} added
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -275,31 +283,31 @@ export default function Music() {
           <section className="space-y-3">
             <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60">Incoming ideas</p>
-                <h2 className="mt-1 text-3xl font-black text-white">Playlist suggestions</h2>
+                <p className="text-xs uppercase tracking-[0.3em] text-amber-200/60">Friend inbox</p>
+                <h2 className="mt-1 text-3xl font-black text-white">Music suggestions</h2>
               </div>
-              <span className="text-sm text-neutral-500">Review first</span>
+              <span className="text-sm text-neutral-500">Open/search in Spotify, then mark added</span>
             </div>
-            {suggestions.length ? suggestions.map((track) => <TrackCard key={track.id} track={track} compact {...cardHandlers} />) : <p className="rounded-[2rem] border border-dashed border-white/15 p-8 text-center text-neutral-500">No suggestions waiting for this category.</p>}
+            {suggestions.length ? suggestions.map((track) => <TrackCard key={track.id} track={track} compact {...cardHandlers} />) : <p className="rounded-[2rem] border border-dashed border-white/15 p-8 text-center text-neutral-500">No friend suggestions waiting for this category.</p>}
           </section>
 
           <section className="space-y-3">
             <div className="flex items-end justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Accepted links</p>
-                <h2 className="mt-1 text-3xl font-black text-white">Playlist database</h2>
+                <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/60">Your Spotify</p>
+                <h2 className="mt-1 text-3xl font-black text-white">Added to my Spotify</h2>
               </div>
-              <span className="text-sm text-neutral-500">Saved library</span>
+              <span className="text-sm text-neutral-500">Manual confirmation list</span>
             </div>
-            {playlistTracks.length ? playlistTracks.map((track) => <TrackCard key={track.id} track={track} {...cardHandlers} />) : <p className="rounded-[2rem] border border-dashed border-white/15 p-8 text-center text-neutral-500">No playlist tracks in this category yet.</p>}
+            {addedToSpotify.length ? addedToSpotify.map((track) => <TrackCard key={track.id} track={track} {...cardHandlers} />) : <p className="rounded-[2rem] border border-dashed border-white/15 p-8 text-center text-neutral-500">Nothing marked as added to Spotify yet.</p>}
           </section>
         </div>
 
         <aside className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Playlist favorites</p>
-          <h2 className="mt-1 text-3xl font-black text-white">Best tracks</h2>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Priority suggestions</p>
+          <h2 className="mt-1 text-3xl font-black text-white">Add next</h2>
           <div className="mt-4 space-y-3">
-            {favoriteTracks.length ? favoriteTracks.map((track) => (
+            {prioritySuggestions.length ? prioritySuggestions.map((track) => (
               <button key={track.id} type="button" onClick={() => setInfoTrack(track)} className="flex w-full items-center gap-3 rounded-2xl bg-neutral-900 p-3 text-left transition hover:bg-neutral-800">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg text-neutral-950">{track.source === 'spotify' ? '🎧' : track.source === 'youtube' ? '▶️' : '🎵'}</div>
                 <div className="min-w-0 flex-1">
@@ -307,7 +315,7 @@ export default function Music() {
                   <div className="truncate text-xs text-neutral-500">{track.artist} · {track.category}</div>
                 </div>
               </button>
-            )) : <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">Accept and favorite tracks to build the group playlist.</p>}
+            )) : <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">Prioritize friend suggestions you want to add next.</p>}
           </div>
         </aside>
       </section>
@@ -317,12 +325,12 @@ export default function Music() {
           <>
             <DetailPill>{infoTrack.source}</DetailPill>
             <DetailPill>{infoTrack.category}</DetailPill>
-            <DetailPill>{infoTrack.status === 'suggestion' ? 'Suggestion' : 'In playlist'}</DetailPill>
-            {infoTrack.favorite ? <DetailPill>Favorite</DetailPill> : null}
+            <DetailPill>{infoTrack.status === 'suggestion' ? 'Friend suggestion' : 'Added to Spotify'}</DetailPill>
+            {infoTrack.priority ? <DetailPill>Priority</DetailPill> : null}
             {infoTrack.groupName ? <DetailPill>{infoTrack.groupName}</DetailPill> : null}
             <p className="mt-4 text-neutral-300">{infoTrack.artist}</p>
             {infoTrack.note ? <p className="mt-3 text-sm leading-6 text-neutral-400">{infoTrack.note}</p> : null}
-            <a href={infoTrack.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 font-semibold text-neutral-950">Open link</a>
+            <a href={infoTrack.source === 'spotify' ? infoTrack.url : makeSpotifySearchUrl(infoTrack)} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 font-semibold text-neutral-950">{infoTrack.source === 'spotify' ? 'Open in Spotify' : 'Search Spotify'}</a>
           </>
         ) : null}
       </InfoModal>
