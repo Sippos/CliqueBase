@@ -431,19 +431,24 @@ export default function PageNav({ active = 'library' }) {
                 {session?.user ? <button type="button" disabled={loading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">Sign out</button> : null}
               </div>
 
-              <label className="mt-4 block text-sm font-semibold text-neutral-300">Profile name</label>
-              <div className="mt-2 flex gap-2">
-                <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-                <button type="button" onClick={currentHandle} className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950">Save</button>
-              </div>
+              {session?.user ? (
+                <>
+                  <label className="mt-4 block text-sm font-semibold text-neutral-300">Profile name</label>
+                  <div className="mt-2 flex gap-2">
+                    <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                    <button type="button" onClick={currentHandle} className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950">Save</button>
+                  </div>
+                </>
+              ) : null}
 
               {hasSupabase && !session?.user ? (
                 <form onSubmit={handleAuth} className="mt-4 grid gap-3">
                   <div className="flex rounded-2xl border border-white/10 bg-neutral-900 p-1">
-                    <button type="button" onClick={() => setAuthMode('sign-in')} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button>
-                    <button type="button" onClick={() => setAuthMode('sign-up')} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button>
+                    <button type="button" onClick={() => { setAuthMode('sign-in'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button>
+                    <button type="button" onClick={() => { setAuthMode('sign-up'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button>
                   </div>
                   {authNotice ? <p className="rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-3 text-sm text-yellow-100">{authNotice}</p> : null}
+                  {authMode === 'sign-up' ? <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Profile name" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" /> : null}
                   <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="Email" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
                   <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
                   <button disabled={loading} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black disabled:opacity-60">{loading ? 'Working...' : authMode === 'sign-up' ? 'Create account' : 'Sign in'}</button>
