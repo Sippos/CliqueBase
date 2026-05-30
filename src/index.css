@@ -30,8 +30,7 @@ a[aria-label="CliqueBase global Explore"]::before {
   width: 3rem;
   height: 3rem;
   flex: 0 0 3rem;
-  border-radius: 0.9rem;
-  background: url("/cliquebase-logo-mark.svg?v=5") center / contain no-repeat;
+  background: url("/cliquebase-logo-mark.png?v=1") center / contain no-repeat;
 }
 
 @media (max-width: 640px) {
