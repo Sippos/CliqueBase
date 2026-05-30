@@ -1,49 +1,32 @@
 import { Link } from 'react-router-dom'
 import PageShell from '../components/PageShell.jsx'
-import { demoGames, demoMovies, demoSeries, demoVideos } from '../lib/demoMovies.js'
 import { getActiveGroup } from '../lib/groups.js'
 
-const demoMusic = [
-  { id: 'music-1', title: 'Instant Crush', picks: 3, score: 8, poster: '', category: 'Music', icon: '🎵' },
-  { id: 'music-2', title: 'Party playlist drop', picks: 2, score: 5, poster: '', category: 'Music', icon: '🎵' },
-  { id: 'music-3', title: 'YouTube music video', picks: 1, score: 3, poster: '', category: 'Music', icon: '🎵' },
-]
-
 const sections = [
-  { title: 'Movies', to: '/movies', items: demoMovies.slice().sort((a, b) => b.score - a.score).slice(0, 3) },
-  { title: 'Series', to: '/series', items: demoSeries.slice(0, 3) },
-  { title: 'Games', to: '/games', items: demoGames.slice(0, 3) },
-  { title: 'Videos', to: '/videos', items: demoVideos.slice(0, 2) },
-  { title: 'Music', to: '/music', items: demoMusic.slice(0, 3) },
+  { title: 'Movies', to: '/movies', icon: '🎬', description: 'Search a movie, save it to your personal library or group, then vote with friends.' },
+  { title: 'Series', to: '/series', icon: '📺', description: 'Build the first binge list from scratch instead of starting with demo picks.' },
+  { title: 'Games', to: '/games', icon: '🎮', description: 'Search the games API and add real suggestions to your library or group.' },
+  { title: 'Videos', to: '/videos', icon: '📹', description: 'Drop links into a fresh group feed when you are ready.' },
+  { title: 'Music', to: '/music', icon: '🎵', description: 'Paste song links into a simple fresh feed.' },
+  { title: 'Board', to: '/leaderboard', icon: '🏆', description: 'Community rankings will fill up once public groups start rating content.' },
 ]
 
-const featuredPool = [
-  ...demoMovies.slice(0, 4).map((item) => ({ ...item, category: 'Movie', icon: '🎬', action: '/movies' })),
-  ...demoSeries.slice(0, 4).map((item) => ({ ...item, category: 'Series', icon: '📺', action: '/series' })),
-  ...demoGames.slice(0, 4).map((item) => ({ ...item, category: 'Game', icon: '🎮', action: '/games' })),
-]
-
-function getFeaturedItem() {
-  if (!featuredPool.length) return null
-  const day = new Date().getDate()
-  return featuredPool[day % featuredPool.length]
-}
-
-function TopCard({ item, index }) {
+function StartCard({ section }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">{index + 1}</div>
-      {item.poster ? <img src={item.poster} alt="" className="h-14 w-10 rounded-lg object-cover" /> : <div className="flex h-14 w-10 items-center justify-center rounded-lg bg-neutral-800 text-lg">★</div>}
-      <div className="min-w-0 flex-1">
-        <div className="truncate font-semibold text-white">{item.title}</div>
-        <div className="mt-1 text-xs text-neutral-400">{item.picks} picks · score {item.score}</div>
+    <Link to={section.to} className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 transition hover:-translate-y-0.5 hover:bg-white/[0.06]">
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl text-neutral-950">{section.icon}</div>
+        <div className="min-w-0">
+          <h2 className="text-2xl font-black text-white">{section.title}</h2>
+          <p className="mt-2 text-sm leading-6 text-neutral-400">{section.description}</p>
+          <span className="mt-4 inline-flex rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-neutral-200">Open {section.title}</span>
+        </div>
       </div>
-    </div>
+    </Link>
   )
 }
 
 export default function Home() {
-  const featured = getFeaturedItem()
   const activeGroup = getActiveGroup()
 
   return (
@@ -53,58 +36,42 @@ export default function Home() {
           <div className="p-5 sm:p-8">
             <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">CliqueBase</p>
             <h1 className="mt-3 max-w-3xl text-4xl font-black tracking-tight text-white sm:text-6xl">
-              Decide what is worth watching, playing, hearing, and saving.
+              Start your own recommendation database.
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400 sm:text-lg">
-              Build a clique, collect recommendations, vote through the pile, and discover what public groups rate highest.
+              Create a group, invite friends, and build the first movie, series, game, video, and music lists from zero.
             </p>
             {activeGroup ? (
-              <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">
+              <p className="mt-4 inline-flex rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-100">
                 Active group: <strong className="ml-1 text-white">{activeGroup.name}</strong>
               </p>
             ) : (
               <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">
-                Open Profile to create your first group, then start voting with friends.
+                Use Personal library first, or open Profile to create your first group.
               </p>
             )}
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Link to="/movies" className="rounded-2xl bg-white px-5 py-3 text-center font-semibold text-neutral-950 transition hover:bg-neutral-200">
-                Start voting
+                Add first pick
               </Link>
-              <Link to="/leaderboard" className="rounded-2xl border border-white/10 px-5 py-3 text-center font-semibold text-white transition hover:bg-white hover:text-neutral-950">
-                Explore community
-              </Link>
+              <button type="button" className="rounded-2xl border border-white/10 px-5 py-3 text-center font-semibold text-white transition hover:bg-white hover:text-neutral-950">
+                Open Profile to create group
+              </button>
             </div>
           </div>
 
-          <div className="relative min-h-[320px] bg-neutral-900">
-            {featured?.poster ? <img src={featured.poster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70" /> : null}
-            <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/30 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-5">
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-300">Featured pick · {featured?.icon} {featured?.category}</p>
-              <h2 className="mt-2 text-3xl font-black text-white">{featured?.title || 'Start a new recommendation pile'}</h2>
-              <p className="mt-2 text-sm text-neutral-300">A rotating preview from movies, series, and games. Later this can become a live community or group highlight.</p>
-              {featured?.action ? <Link to={featured.action} className="mt-4 inline-flex rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Open {featured.category}</Link> : null}
+          <div className="relative flex min-h-[320px] items-end bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Fresh start</p>
+              <h2 className="mt-2 text-3xl font-black text-white">No global demo picks</h2>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Your dashboard fills up only with content you or your groups actually add.</p>
             </div>
           </div>
         </div>
       </section>
 
       <section className="mt-5 grid gap-4 lg:grid-cols-2">
-        {sections.map((section) => (
-          <Link key={section.title} to={section.to} className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.06]">
-            <div className="mb-4 flex items-end justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Top picks</p>
-                <h2 className="mt-1 text-2xl font-bold text-white">{section.title}</h2>
-              </div>
-              <span className="text-sm text-neutral-500">View all</span>
-            </div>
-            <div className="space-y-2">
-              {section.items.map((item, index) => <TopCard key={item.id} item={item} index={index} />)}
-            </div>
-          </Link>
-        ))}
+        {sections.map((section) => <StartCard key={section.title} section={section} />)}
       </section>
     </PageShell>
   )
