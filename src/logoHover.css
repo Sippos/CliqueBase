@@ -103,3 +103,24 @@ header.sticky a[aria-label^="CliqueBase"]:focus-visible > div::after {
     animation: none;
   }
 }
+
+/* Compact media filter menu: no explanatory copy, no oversized panel. */
+header.sticky div[class*="absolute"][class*="top-full"] {
+  width: max-content !important;
+  min-width: 12.5rem;
+  max-width: calc(100vw - 2rem) !important;
+}
+
+header.sticky div[class*="absolute"][class*="top-full"] > div {
+  width: max-content;
+  min-width: 100%;
+}
+
+header.sticky div[class*="absolute"][class*="top-full"] a {
+  min-width: 12rem;
+  white-space: nowrap;
+}
+
+header.sticky div[class*="absolute"][class*="top-full"] > p {
+  display: none !important;
+}
