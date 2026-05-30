@@ -40,6 +40,7 @@ function normalizeMediaRow(row, idColumn, doneColumn) {
     backdrop: row.backdrop,
     overview: row.overview || '',
     tmdbRating: row.tmdb_rating,
+    rawgRating: row.rawg_rating,
     runtime: row.runtime,
     genres: row.genres || [],
     nominated_by: row.nominated_by,
@@ -59,6 +60,14 @@ function normalizeSeries(row) {
     ...normalizeMediaRow(row, 'series_id', 'finished'),
     seasons: row.seasons ?? null,
     episodes: row.episodes ?? null,
+  }
+}
+
+function normalizeGame(row) {
+  return {
+    ...normalizeMediaRow(row, 'game_id', 'played'),
+    platform: row.platform || '',
+    platforms: row.platforms || [],
   }
 }
 
@@ -91,8 +100,9 @@ function mediaPayload(item, idColumn, nominatedBy = 'anonymous', groupId = null)
     released: item.released || null,
     poster: item.poster || null,
     backdrop: item.backdrop || null,
-    overview: item.overview || null,
+    overview: item.overview || item.description || null,
     tmdb_rating: item.tmdbRating ?? null,
+    rawg_rating: item.rawgRating ?? null,
     runtime: item.runtime ?? null,
     genres: item.genres || [],
     nominated_by: nominatedBy || 'anonymous',
@@ -110,6 +120,14 @@ function seriesPayload(series, nominatedBy = 'anonymous', groupId = null) {
     ...mediaPayload(series, 'series_id', nominatedBy, groupId),
     seasons: series.seasons ?? null,
     episodes: series.episodes ?? null,
+  }
+}
+
+function gamePayload(game, nominatedBy = 'anonymous', groupId = null) {
+  return {
+    ...mediaPayload(game, 'game_id', nominatedBy, groupId),
+    platform: game.platform || null,
+    platforms: game.platforms || (game.platform ? [game.platform] : []),
   }
 }
 
@@ -323,4 +341,61 @@ export async function rateSeries(series, rating, groupId = null) {
   const { data, error } = await query.eq('series_id', String(series.id)).select().single()
   if (error) throw error
   return normalizeSeries(data)
+}
+
+export async function getGames(groupId = null) {
+  const client = requireSupabase()
+  let query = client.from('games').select('*')
+  if (groupId) query = query.eq('group_id', groupId)
+  const { data, error } = await query
+    .order('played', { ascending: true })
+    .order('score', { ascending: false })
+    .order('picks', { ascending: false })
+  if (error) throw error
+  return (data || []).map(normalizeGame)
+}
+
+export async function saveGame(game, nominatedBy = 'anonymous', groupId = null) {
+  const client = requireSupabase()
+  const payload = gamePayload(game, nominatedBy, groupId)
+  const options = groupId ? { onConflict: 'group_id,game_id' } : { onConflict: 'game_id' }
+  const { data, error } = await client.from('games').upsert(payload, options).select().single()
+  if (error) throw error
+  return normalizeGame(data)
+}
+
+export async function voteGame(game, vote, groupId = null) {
+  const client = requireSupabase()
+  const delta = vote === 'like' ? 1 : -1
+  const payload = groupId
+    ? { game_id_input: String(game.id), vote_delta_input: delta, group_id_input: groupId }
+    : { game_id_input: String(game.id), vote_delta_input: delta }
+  const { data, error } = await client.rpc('vote_game', payload)
+  if (error) throw error
+  return data
+}
+
+export async function markGamePlayed(game, rating = null, groupId = null) {
+  const client = requireSupabase()
+  let query = client.from('games').update({ played: true, my_rating: rating, updated_at: new Date().toISOString() })
+  if (groupId) query = query.eq('group_id', groupId)
+  const { data, error } = await query.eq('game_id', String(game.id)).select().single()
+  if (error) throw error
+  return normalizeGame(data)
+}
+
+export async function rateGame(game, rating, groupId = null) {
+  const client = requireSupabase()
+  let query = client.from('games').update({ my_rating: rating, updated_at: new Date().toISOString() })
+  if (groupId) query = query.eq('group_id', groupId)
+  const { data, error } = await query.eq('game_id', String(game.id)).select().single()
+  if (error) throw error
+  return normalizeGame(data)
+}
+
+export async function getCommunityLeaderboard() {
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('get_community_leaderboard')
+  if (error) throw error
+  return data || { groups: [], topContent: [], totals: {} }
 }
