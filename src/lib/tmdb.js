@@ -34,6 +34,28 @@ function mapSeries(series) {
   }
 }
 
+function mapGame(game) {
+  const platforms = game.platforms?.map((entry) => entry.platform?.name).filter(Boolean) || []
+  const genres = game.genres?.map((genre) => genre.name).filter(Boolean) || []
+
+  return {
+    id: String(game.id),
+    title: game.name || 'Untitled game',
+    year: game.released ? game.released.split('-')[0] : '',
+    released: game.released || null,
+    poster: game.background_image || null,
+    backdrop: game.background_image_additional || game.background_image || null,
+    overview: game.description_raw || game.description || '',
+    description: game.description_raw || game.description || '',
+    rawgRating: game.rating ?? null,
+    genres,
+    platform: platforms.slice(0, 3).join(', '),
+    platforms,
+    picks: game.picks ?? 0,
+    score: game.score ?? 0,
+  }
+}
+
 function getId(value) {
   return typeof value === 'object' ? value?.id : value
 }
@@ -71,4 +93,17 @@ export async function getSeriesDetails(series) {
   if (!seriesId) return null
   const data = await fetchJson(`/api/tmdb/series?id=${encodeURIComponent(seriesId)}`)
   return { ...(typeof series === 'object' ? series : {}), ...mapSeries(data) }
+}
+
+export async function searchGames(query) {
+  if (!query.trim()) return []
+  const data = await fetchJson(`/api/games/search?q=${encodeURIComponent(query.trim())}`)
+  return (data.results || []).map(mapGame)
+}
+
+export async function getGameDetails(game) {
+  const gameId = getId(game)
+  if (!gameId) return null
+  const data = await fetchJson(`/api/games/game?id=${encodeURIComponent(gameId)}`)
+  return { ...(typeof game === 'object' ? game : {}), ...mapGame(data) }
 }
