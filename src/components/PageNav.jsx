@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle'
+import { getActiveGroup } from '../lib/groups.js'
 
 const links = [
   { key: 'home', to: '/', label: 'Home', icon: '⌂' },
@@ -8,11 +9,14 @@ const links = [
   { key: 'series', to: '/series', label: 'Series', icon: '📺' },
   { key: 'games', to: '/games', label: 'Games', icon: '🎮' },
   { key: 'videos', to: '/videos', label: 'Videos', icon: '📹' },
+  { key: 'music', to: '/music', label: 'Music', icon: '🎵' },
+  { key: 'groups', to: '/groups', label: 'Groups', icon: '👥' },
   { key: 'leaderboard', to: '/leaderboard', label: 'Board', icon: '🏆' },
 ]
 
 export default function PageNav({ active = 'home' }) {
   const [handle, setHandle] = useState('')
+  const [activeGroup, setActiveGroup] = useState(null)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [savedMessage, setSavedMessage] = useState('')
@@ -21,6 +25,7 @@ export default function PageNav({ active = 'home' }) {
     const saved = getSavedHandle()
     setHandle(saved)
     setDraft(saved)
+    setActiveGroup(getActiveGroup())
   }, [])
 
   function saveHandle() {
@@ -38,7 +43,7 @@ export default function PageNav({ active = 'home' }) {
   }
 
   const linkClass = (name) =>
-    `flex h-10 items-center justify-center rounded-full px-2 text-xs transition sm:h-11 sm:px-4 sm:text-sm ${
+    `flex h-10 items-center justify-center rounded-full px-2 text-xs transition sm:h-11 sm:px-3 sm:text-sm ${
       active === name
         ? 'bg-white font-semibold text-neutral-950'
         : 'text-neutral-300 hover:bg-white/10 hover:text-white'
@@ -48,7 +53,7 @@ export default function PageNav({ active = 'home' }) {
     <>
       <header className="mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-2 py-2 shadow-2xl shadow-black/30 backdrop-blur sm:rounded-full sm:px-4 sm:py-3">
         <div className="flex items-center gap-2 sm:gap-3">
-          <nav className="grid min-w-0 flex-1 grid-cols-6 gap-1 rounded-full bg-white/[0.04] p-1 text-center">
+          <nav className="grid min-w-0 flex-1 grid-cols-4 gap-1 rounded-full bg-white/[0.04] p-1 text-center sm:grid-cols-8">
             {links.map((link) => (
               <Link key={link.key} to={link.to} aria-label={link.label} title={link.label} className={linkClass(link.key)}>
                 <span className="text-base sm:hidden">{link.icon}</span>
@@ -59,7 +64,7 @@ export default function PageNav({ active = 'home' }) {
 
           <button type="button" onClick={() => setEditing(true)} aria-label="Profile" className="flex h-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 text-sm font-semibold text-white transition hover:bg-white hover:text-black sm:px-4">
             <span className="sm:mr-1.5">👤</span>
-            <span className="hidden max-w-[4.5rem] truncate sm:inline">{handle || 'Profile'}</span>
+            <span className="hidden max-w-[4.5rem] truncate sm:inline">{handle || activeGroup?.name || 'Profile'}</span>
           </button>
         </div>
       </header>
@@ -78,6 +83,12 @@ export default function PageNav({ active = 'home' }) {
             <p className="mt-3 text-sm text-neutral-400">
               This local profile name keeps the app usable while proper login and Supabase policies are added.
             </p>
+
+            {activeGroup ? (
+              <p className="mt-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-neutral-300">
+                Active group: <strong className="text-white">{activeGroup.name}</strong>
+              </p>
+            ) : null}
 
             <label className="mt-5 block text-sm font-semibold text-neutral-300">Profile name</label>
             <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="example: Sip" className="mt-2 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
