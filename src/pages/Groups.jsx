@@ -4,14 +4,12 @@ import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { DetailPill, InfoModal, StatusMessage, displayYear } from '../components/MediaBlocks.jsx'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
-import { createGroup as createLocalGroup, getGroupInvitePath, getGroupInviteUrl, getGroupOpenPath, getGroups, joinGroup as joinLocalGroup, parseInviteCode, setActiveGroup } from '../lib/groups.js'
+import { ACTIVE_GROUP_STORAGE_KEY, createGroup as createLocalGroup, getGroupInvitePath, getGroupInviteUrl, getGroupOpenPath, getGroups, joinGroup as joinLocalGroup, parseInviteCode, setActiveGroup } from '../lib/groups.js'
 import { createRemoteGroup, getCurrentSession, getGames, getMovies, getProfile, getRemoteGroups, getSeries, hasSupabase, joinRemoteGroup } from '../lib/supabaseClient.js'
 
 function copyToClipboard(value) {
   if (!value) return Promise.resolve(false)
-  if (navigator?.clipboard?.writeText) {
-    return navigator.clipboard.writeText(value).then(() => true).catch(() => false)
-  }
+  if (navigator?.clipboard?.writeText) return navigator.clipboard.writeText(value).then(() => true).catch(() => false)
   return Promise.resolve(false)
 }
 
@@ -63,12 +61,10 @@ function buildGroupSummary(movies = [], series = [], games = []) {
     categorySummary(series, 'Series', 'Series', 'series', 'finished', '/series'),
     categorySummary(games, 'Games', 'Game', 'games', 'played', '/games'),
   ]
-
   return {
     categories,
     items: categories.reduce((sum, category) => sum + category.count, 0),
     score: categories.reduce((sum, category) => sum + category.score, 0),
-    picks: categories.reduce((sum, category) => sum + category.picks, 0),
     done: categories.reduce((sum, category) => sum + category.done, 0),
   }
 }
@@ -86,23 +82,28 @@ function MetricBox({ value, label }) {
   )
 }
 
+function scopeMediaPath(group, category) {
+  const query = `?clique=${encodeURIComponent(group.id)}`
+  return `${category.to}${query}`
+}
+
 function TopContentTile({ group, category, onOpenItem, onOpenList }) {
   const item = category.top
   const image = item?.backdrop || item?.poster
 
   if (!item) {
     return (
-      <Link
-        to={category.to}
-        onClick={() => onOpenList(group)}
-        className="rounded-[1.5rem] border border-dashed border-white/10 bg-neutral-950/50 p-4 transition hover:border-white/25 hover:bg-neutral-900"
+      <button
+        type="button"
+        onClick={() => onOpenList(group, category)}
+        className="rounded-[1.5rem] border border-dashed border-white/10 bg-neutral-950/50 p-4 text-left transition hover:border-white/25 hover:bg-neutral-900"
       >
         <div className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300">
           <AppIcon name={category.icon} size={14} />
           {category.title}
         </div>
         <p className="mt-4 text-sm text-neutral-500">No {category.title.toLowerCase()} yet. Open the list to add one.</p>
-      </Link>
+      </button>
     )
   }
 
@@ -133,29 +134,24 @@ function TopContentTile({ group, category, onOpenItem, onOpenList }) {
         </div>
       </button>
 
-      <Link
-        to={category.to}
-        onClick={() => onOpenList(group)}
+      <a
+        href={scopeMediaPath(group, category)}
+        onClick={(event) => { event.stopPropagation(); onOpenList(group, category) }}
         aria-label={`Open ${category.title} list for ${group.name}`}
         className="absolute right-3 top-3 z-10 rounded-full bg-black/55 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"
       >
         {category.count}
-      </Link>
+      </a>
     </article>
   )
 }
 
 function GroupContentOverview({ group, summary, loading, onOpenItem, onOpenList }) {
   if (loading) {
-    return (
-      <div className="mt-5 grid gap-3 lg:grid-cols-3">
-        {[0, 1, 2].map((item) => <div key={item} className="h-56 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}
-      </div>
-    )
+    return <div className="mt-5 grid gap-3 lg:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-56 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}</div>
   }
 
   const safeSummary = summary || emptyGroupSummary()
-
   return (
     <div className="mt-5 border-t border-white/10 pt-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -172,13 +168,7 @@ function GroupContentOverview({ group, summary, loading, onOpenItem, onOpenList 
 
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
         {safeSummary.categories.map((category) => (
-          <TopContentTile
-            key={category.title}
-            group={group}
-            category={category}
-            onOpenItem={onOpenItem}
-            onOpenList={onOpenList}
-          />
+          <TopContentTile key={category.title} group={group} category={category} onOpenItem={onOpenItem} onOpenList={onOpenList} />
         ))}
       </div>
     </div>
@@ -194,22 +184,11 @@ function GroupCard({ group, summary, summaryLoading, onCopy, onOpen, onOpenItem,
           <h2 className="mt-1 truncate text-3xl font-black">{group.name}</h2>
           <p className="mt-2 text-sm text-neutral-400">{group.members?.length || 1} members</p>
         </div>
-
         <div className="flex shrink-0 flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onCopy(group)}
-            aria-label={`Copy invite for ${group.name}`}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 text-white transition hover:bg-white hover:text-neutral-950"
-          >
+          <button type="button" onClick={() => onCopy(group)} aria-label={`Copy invite for ${group.name}`} className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 text-white transition hover:bg-white hover:text-neutral-950">
             <AppIcon name="link" size={17} />
           </button>
-          <Link
-            to={getGroupOpenPath(group)}
-            onClick={() => onOpen(group)}
-            aria-label={`Open ${group.name}`}
-            className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"
-          >
+          <Link to={getGroupOpenPath(group)} onClick={() => onOpen(group)} aria-label={`Open ${group.name}`} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">
             <AppIcon name="explore" size={17} />
             Open
           </Link>
@@ -217,9 +196,7 @@ function GroupCard({ group, summary, summaryLoading, onCopy, onOpen, onOpenItem,
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 rounded-2xl bg-neutral-900 p-3 text-sm text-neutral-300">
-        {group.members?.length ? group.members.map((member) => (
-          <span key={member} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-neutral-300">{member}</span>
-        )) : <span>Members appear here after people join.</span>}
+        {group.members?.length ? group.members.map((member) => <span key={member} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-neutral-300">{member}</span>) : <span>Members appear here after people join.</span>}
       </div>
 
       <GroupContentOverview group={group} summary={summary} loading={summaryLoading} onOpenItem={onOpenItem} onOpenList={onOpenList} />
@@ -242,9 +219,7 @@ function CompactInviteForm({ value, setValue, loading, onJoin, readOnly = false 
     <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/10 bg-neutral-950/70 p-1.5">
       <span className="ml-3 hidden text-neutral-500 sm:inline-flex"><AppIcon name="link" size={18} /></span>
       <input value={value} onChange={(event) => setValue?.(event.target.value)} readOnly={readOnly} placeholder="Invite link or code" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500" />
-      <button type="button" disabled={loading} onClick={onJoin} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">
-        Join
-      </button>
+      <button type="button" disabled={loading} onClick={onJoin} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Join</button>
     </div>
   )
 }
@@ -263,37 +238,27 @@ export default function Groups({ inviteMode = false }) {
   const [selectedItem, setSelectedItem] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    refresh()
-  }, [])
+  useEffect(() => { refresh() }, [])
 
   useEffect(() => {
     let cancelled = false
-
     async function loadGroupSummaries() {
       if (!groups.length) {
         setGroupSummaries({})
         setSummariesLoading(false)
         return
       }
-
       if (!hasSupabase || !session?.user) {
         setGroupSummaries(Object.fromEntries(groups.map((group) => [group.id, emptyGroupSummary()])))
         setSummariesLoading(false)
         return
       }
-
       setSummariesLoading(true)
       try {
         const entries = await Promise.all(groups.map(async (group) => {
-          const [movies, series, games] = await Promise.all([
-            getMovies(group.id),
-            getSeries(group.id),
-            getGames(group.id),
-          ])
+          const [movies, series, games] = await Promise.all([getMovies(group.id), getSeries(group.id), getGames(group.id)])
           return [group.id, buildGroupSummary(movies, series, games)]
         }))
-
         if (!cancelled) setGroupSummaries(Object.fromEntries(entries))
       } catch (error) {
         if (!cancelled) {
@@ -304,7 +269,6 @@ export default function Groups({ inviteMode = false }) {
         if (!cancelled) setSummariesLoading(false)
       }
     }
-
     loadGroupSummaries()
     return () => { cancelled = true }
   }, [groups, session?.user?.id])
@@ -312,12 +276,10 @@ export default function Groups({ inviteMode = false }) {
   async function refresh() {
     const savedHandle = getSavedHandle()
     setHandle(savedHandle)
-
     if (hasSupabase) {
       try {
         const nextSession = await getCurrentSession()
         setSession(nextSession)
-
         if (nextSession?.user) {
           const profile = await getProfile().catch(() => null)
           const displayName = getProfileName(nextSession, profile, savedHandle)
@@ -325,18 +287,15 @@ export default function Groups({ inviteMode = false }) {
             saveSharedHandle(displayName)
             setHandle(displayName)
           }
-          const remoteGroups = await getRemoteGroups().catch(() => [])
-          setGroups(remoteGroups)
+          setGroups(await getRemoteGroups().catch(() => []))
           return
         }
-
         setGroups([])
         return
       } catch (error) {
         showMessage(error.message || 'Could not load cliques.', 'error')
       }
     }
-
     setGroups(getGroups())
   }
 
@@ -350,15 +309,18 @@ export default function Groups({ inviteMode = false }) {
     setTimeout(() => setMessage(null), 2600)
   }
 
+  function activateGroup(group) {
+    setActiveGroup(group.id)
+    if (typeof window !== 'undefined') window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, group.id)
+  }
+
   async function handleCreate(event) {
     event.preventDefault()
     const activeHandle = handle || getSavedHandle() || 'anonymous'
     setLoading(true)
     try {
-      const created = session?.user && hasSupabase
-        ? await createRemoteGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
-        : createLocalGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
-      setActiveGroup(created.id)
+      const created = session?.user && hasSupabase ? await createRemoteGroup(draftGroup || `${activeHandle}'s clique`, activeHandle) : createLocalGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
+      activateGroup(created)
       setDraftGroup('')
       await refresh()
       showMessage(`${created.name} is ready to share.`)
@@ -375,21 +337,16 @@ export default function Groups({ inviteMode = false }) {
       showMessage('Paste an invite link or code first.', 'error')
       return
     }
-    const activeHandle = handle || getSavedHandle() || 'anonymous'
-
     if (hasSupabase && !session?.user) {
       showMessage('Sign in from Profile first, then use this invite link again.', 'error')
       return
     }
-
+    const activeHandle = handle || getSavedHandle() || 'anonymous'
     setLoading(true)
     try {
-      const joined = session?.user && hasSupabase
-        ? await joinRemoteGroup(parsed, activeHandle)
-        : joinLocalGroup(parsed, activeHandle)
-
+      const joined = session?.user && hasSupabase ? await joinRemoteGroup(parsed, activeHandle) : joinLocalGroup(parsed, activeHandle)
       if (!joined) throw new Error('Could not join that invite.')
-      setActiveGroup(joined.id)
+      activateGroup(joined)
       setManualInvite('')
       await refresh()
       showMessage(`Joined ${joined.name}.`)
@@ -400,12 +357,9 @@ export default function Groups({ inviteMode = false }) {
     }
   }
 
-  function openGroup(group) {
-    setActiveGroup(group.id)
-  }
-
-  function openList(group) {
-    setActiveGroup(group.id)
+  function openList(group, category) {
+    activateGroup(group)
+    if (category?.to && typeof window !== 'undefined') window.location.href = scopeMediaPath(group, category)
   }
 
   async function copyInvite(group) {
@@ -418,22 +372,11 @@ export default function Groups({ inviteMode = false }) {
       <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-3 shadow-2xl shadow-black/20 backdrop-blur">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
           <div className="flex shrink-0 items-center justify-between gap-3 rounded-full border border-white/10 bg-neutral-950/70 px-4 py-3 text-sm font-black text-white lg:w-auto">
-            <span className="inline-flex items-center gap-2">
-              <AppIcon name="users" size={17} />
-              {inviteMode ? 'Join invite' : 'Cliques'}
-            </span>
+            <span className="inline-flex items-center gap-2"><AppIcon name="users" size={17} />{inviteMode ? 'Join invite' : 'Cliques'}</span>
             <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-neutral-400">{groups.length}</span>
           </div>
-
           <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row">
-            {inviteMode ? (
-              <CompactInviteForm value={inviteCode || ''} readOnly loading={loading} onJoin={() => joinInvite(inviteCode)} />
-            ) : (
-              <>
-                <CompactCreateForm draftGroup={draftGroup} setDraftGroup={setDraftGroup} loading={loading} onCreate={handleCreate} />
-                <CompactInviteForm value={manualInvite} setValue={setManualInvite} loading={loading} onJoin={() => joinInvite(manualInvite)} />
-              </>
-            )}
+            {inviteMode ? <CompactInviteForm value={inviteCode || ''} readOnly loading={loading} onJoin={() => joinInvite(inviteCode)} /> : <><CompactCreateForm draftGroup={draftGroup} setDraftGroup={setDraftGroup} loading={loading} onCreate={handleCreate} /><CompactInviteForm value={manualInvite} setValue={setManualInvite} loading={loading} onJoin={() => joinInvite(manualInvite)} /></>}
           </div>
         </div>
       </section>
@@ -442,13 +385,7 @@ export default function Groups({ inviteMode = false }) {
 
       {inviteMode ? (
         <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 text-neutral-300">
-          {hasSupabase && !session?.user ? (
-            <>This invite is ready. Sign in from <strong className="text-white">Profile</strong>, then come back to this link and press Join.</>
-          ) : inviteGroup ? (
-            <>Invite found for <strong className="text-white">{inviteGroup.name}</strong>. Press Join to add it to your cliques.</>
-          ) : (
-            <>Press Join to accept this invite. The clique will be added to your cliques.</>
-          )}
+          {hasSupabase && !session?.user ? <>This invite is ready. Sign in from <strong className="text-white">Profile</strong>, then come back to this link and press Join.</> : inviteGroup ? <>Invite found for <strong className="text-white">{inviteGroup.name}</strong>. Press Join to add it to your cliques.</> : <>Press Join to accept this invite. The clique will be added to your cliques.</>}
         </section>
       ) : null}
 
@@ -460,23 +397,7 @@ export default function Groups({ inviteMode = false }) {
           </div>
           <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{groups.length} total</span>
         </div>
-
-        {groups.length ? groups.map((group) => (
-          <GroupCard
-            key={group.id}
-            group={group}
-            summary={groupSummaries[group.id]}
-            summaryLoading={summariesLoading}
-            onCopy={copyInvite}
-            onOpen={openGroup}
-            onOpenItem={setSelectedItem}
-            onOpenList={openList}
-          />
-        )) : (
-          <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-neutral-400">
-            Create your first clique or join a friend’s invite link.
-          </div>
-        )}
+        {groups.length ? groups.map((group) => <GroupCard key={group.id} group={group} summary={groupSummaries[group.id]} summaryLoading={summariesLoading} onCopy={copyInvite} onOpen={activateGroup} onOpenItem={setSelectedItem} onOpenList={openList} />) : <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-neutral-400">Create your first clique or join a friend’s invite link.</div>}
       </section>
 
       <InfoModal item={selectedItem} onClose={() => setSelectedItem(null)} year={displayYear(selectedItem?.released || selectedItem?.year)} backdrop={selectedItem?.backdrop || selectedItem?.poster}>
