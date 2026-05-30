@@ -27,8 +27,8 @@ function Panel({ eyebrow, title, aside, children }) {
   )
 }
 
-function RankBubble({ label, light = false }) {
-  return <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-black ${light ? 'bg-white text-neutral-950' : 'bg-white/[0.08] text-white'}`}>{label}</div>
+function RankBubble({ label }) {
+  return <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-sm font-black text-white">{label}</div>
 }
 
 function Metric({ value, label, detail }) {
@@ -51,14 +51,14 @@ function EmptyPanel({ title, description }) {
 }
 
 function ContentRow({ item }) {
-  const rankLabel = item.rank ? `#${item.rank}` : item.icon || '•'
+  const rankLabel = item.rank ? `#${item.rank}` : item.category?.slice(0, 2)?.toUpperCase() || '•'
 
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
       <RankBubble label={rankLabel} />
       {item.poster ? <img src={item.poster} alt="" className="h-16 w-11 rounded-lg object-cover" /> : null}
       <div className="min-w-0 flex-1">
-        <div className="truncate text-lg font-bold text-white">{item.icon ? `${item.icon} ` : ''}{item.title}</div>
+        <div className="truncate text-lg font-bold text-white">{item.title}</div>
         <div className="mt-1 text-xs text-neutral-400">{item.category} · {item.groupName ? `from ${item.groupName}` : `by ${item.nominated_by || item.nominatedBy || 'Unknown'}`}</div>
         {item.rating ? <div className="mt-1 text-xs text-neutral-500">Rated ★ {Number(item.rating).toFixed(1)}/10</div> : null}
       </div>
@@ -90,9 +90,9 @@ function GroupCard({ group }) {
         <div className="mt-4 space-y-2">
           {publicItems.map((item) => (
             <div key={`${group.id}-${item.category}-${item.id}`} className="flex items-center gap-2 rounded-2xl bg-white/[0.04] p-2">
-              {item.poster ? <img src={item.poster} alt="" className="h-12 w-8 rounded-md object-cover" /> : <div className="flex h-12 w-8 items-center justify-center rounded-md bg-white/[0.06] text-xs">{item.icon}</div>}
+              {item.poster ? <img src={item.poster} alt="" className="h-12 w-8 rounded-md object-cover" /> : <div className="flex h-12 w-8 items-center justify-center rounded-md bg-white/[0.06] text-xs">{item.category?.slice(0, 2)}</div>}
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-bold text-white">{item.icon} {item.title}</div>
+                <div className="truncate text-sm font-bold text-white">{item.title}</div>
                 <div className="text-xs text-neutral-500">Score {item.score || 0} · {item.picks || 0} picks{item.rating ? ` · ★ ${Number(item.rating).toFixed(1)}` : ''}</div>
               </div>
             </div>
@@ -103,23 +103,23 @@ function GroupCard({ group }) {
   )
 }
 
-function FreshLeaderboard() {
+function FreshExplore() {
   return (
     <>
       <section className="mb-5 grid gap-3 md:grid-cols-4">
-        <StatCard label="Top public group" value="None yet" detail="Create a group and make it public to appear here." />
+        <StatCard label="Top public group" value="None yet" detail="Create a group and publish it to appear here." />
         <StatCard label="Top public item" value="None yet" detail="Public rankings start after real ratings exist." />
-        <StatCard label="Public groups" value="0" detail="No fake demo groups shown." />
-        <StatCard label="Public picks" value="0" detail="Start fresh with your own database." />
+        <StatCard label="Public groups" value="0" detail="No demo groups shown." />
+        <StatCard label="Public picks" value="0" detail="Global discovery starts from real groups." />
       </section>
-      <Panel eyebrow="Fresh start" title="No leaderboard data yet" aside="Real content only">
-        <EmptyPanel title="Build the board from zero" description="The leaderboard no longer shows demo rankings. Once your group adds and rates movies, series, or games, public rankings can appear here." />
+      <Panel eyebrow="Fresh start" title="No public Explore data yet" aside="Real content only">
+        <EmptyPanel title="Build Explore from public groups" description="Explore does not show your private dashboard. It fills when groups publish themselves and rate movies, series, or games." />
       </Panel>
     </>
   )
 }
 
-function CommunityLeaderboard() {
+function CommunityExplore() {
   const [board, setBoard] = useState({ groups: [], topContent: [], totals: {} })
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState(null)
@@ -133,7 +133,7 @@ function CommunityLeaderboard() {
         const data = await getCommunityLeaderboard()
         if (!cancelled) setBoard(data)
       } catch (error) {
-        if (!cancelled) setMessage(error.message || 'Could not load community leaderboard.')
+        if (!cancelled) setMessage(error.message || 'Could not load Explore.')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -154,23 +154,23 @@ function CommunityLeaderboard() {
   const topMovies = topContent.filter((item) => item.category === 'Movies').slice(0, 5)
   const topSeries = topContent.filter((item) => item.category === 'Series').slice(0, 5)
 
-  if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading community leaderboard...</div>
+  if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading Explore...</div>
   if (message) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
-  if (!groups.length && !topContent.length) return <FreshLeaderboard />
+  if (!groups.length && !topContent.length) return <FreshExplore />
 
   return (
     <>
       <section className="mb-5 grid gap-3 md:grid-cols-4">
-        <StatCard label="Top public group" value={topGroup?.name || 'No public groups yet'} detail={topGroup ? `★ ${Number(topGroup.averageRating || 0).toFixed(1)} avg · ${topGroup.memberCount} members` : 'Make a group public to join discovery.'} />
+        <StatCard label="Top public group" value={topGroup?.name || 'No public groups yet'} detail={topGroup ? `★ ${Number(topGroup.averageRating || 0).toFixed(1)} avg · ${topGroup.memberCount} members` : 'Publish a group to join discovery.'} />
         <StatCard label="Top public item" value={topItem?.title || 'No public content yet'} detail={topItem ? `${topItem.category} · ${topItem.groupName} · score ${topItem.score}` : 'Public groups need rated content.'} />
         <StatCard label="Public groups" value={totals.publicGroups || totals.groups || 0} detail={`${totals.members || 0} visible members`} />
         <StatCard label="Public picks" value={totals.picks || 0} detail={`${totals.items || 0} visible items · ${totals.score || 0} score`} />
       </section>
 
       <section className="mb-5 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-        <Panel eyebrow="Scout groups" title="Best rated public groups" aside="Only opted-in groups">
+        <Panel eyebrow="Explore groups" title="Best rated public groups" aside="Only opted-in groups">
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            {groups.length ? groups.slice(0, 8).map((group) => <GroupCard key={group.id} group={group} />) : <EmptyPanel title="No public groups yet" description="Make a group public when you are ready for people to scout it." />}
+            {groups.length ? groups.slice(0, 8).map((group) => <GroupCard key={group.id} group={group} />) : <EmptyPanel title="No public groups yet" description="Publish a group when you are ready for people to scout it." />}
           </div>
         </Panel>
 
@@ -182,13 +182,13 @@ function CommunityLeaderboard() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-3">
-        <Panel eyebrow="Movies" title="Top public movies" aside="Overall">
+        <Panel eyebrow="Movies" title="Top public movies" aside="Explore">
           <div className="space-y-3">{topMovies.length ? topMovies.map((item) => <ContentRow key={`movie-${item.groupId}-${item.id}`} item={item} />) : <p className="text-sm text-neutral-500">No public movies yet.</p>}</div>
         </Panel>
-        <Panel eyebrow="Series" title="Top public series" aside="Overall">
+        <Panel eyebrow="Series" title="Top public series" aside="Explore">
           <div className="space-y-3">{topSeries.length ? topSeries.map((item) => <ContentRow key={`series-${item.groupId}-${item.id}`} item={item} />) : <p className="text-sm text-neutral-500">No public series yet.</p>}</div>
         </Panel>
-        <Panel eyebrow="Games" title="Top public games" aside="Overall">
+        <Panel eyebrow="Games" title="Top public games" aside="Explore">
           <div className="space-y-3">{topGames.length ? topGames.map((item) => <ContentRow key={`game-${item.groupId}-${item.id}`} item={item} />) : <p className="text-sm text-neutral-500">No public games yet.</p>}</div>
         </Panel>
       </section>
@@ -200,12 +200,12 @@ export default function Leaderboard() {
   return (
     <PageShell active="leaderboard">
       <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20 sm:p-8">
-        <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">Community stats</p>
-        <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">Leaderboard</h1>
-        <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400">Scout public groups, discover their rated content, and see the top movies, series, and games across groups that opted into community discovery.</p>
+        <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">Global public discovery</p>
+        <h1 className="mt-3 text-4xl font-black tracking-tight text-white sm:text-5xl">Explore</h1>
+        <p className="mt-4 max-w-3xl text-base leading-7 text-neutral-400">Explore is separate from your Dashboard. It shows public groups and global rankings from groups that opted into discovery.</p>
       </section>
 
-      {hasSupabase ? <CommunityLeaderboard /> : <FreshLeaderboard />}
+      {hasSupabase ? <CommunityExplore /> : <FreshExplore />}
     </PageShell>
   )
 }
