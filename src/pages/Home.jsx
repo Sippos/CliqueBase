@@ -38,7 +38,7 @@ function LibrarySectionCard({ category, loading }) {
   const topTitle = top?.title || `No ${category.title.toLowerCase()} yet`
 
   return (
-    <article className="group relative min-h-[15rem] overflow-hidden rounded-[1.6rem] border border-white/10 bg-neutral-950 text-white transition hover:-translate-y-0.5 hover:border-white/25">
+    <article className="group relative min-h-[9.5rem] overflow-hidden rounded-[1.35rem] border border-white/10 bg-neutral-950 text-white transition hover:-translate-y-0.5 hover:border-white/25">
       {image ? (
         <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-74 transition duration-500 group-hover:scale-105" />
       ) : (
@@ -47,101 +47,43 @@ function LibrarySectionCard({ category, loading }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
       <Link to={category.to} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
 
-      <div className="relative z-10 flex h-full min-h-[15rem] flex-col justify-between p-4 pointer-events-none">
+      <div className="pointer-events-none relative z-10 flex h-full min-h-[9.5rem] flex-col justify-between p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="inline-flex items-center gap-2 text-xs font-black text-white drop-shadow">
-            <AppIcon name={category.icon} size={15} strokeWidth={2.4} />
+            <AppIcon name={category.icon} size={14} strokeWidth={2.4} />
             {category.title}
           </div>
           <Link
             to={category.to}
             aria-label={`Open ${category.title}`}
-            className="pointer-events-auto rounded-full bg-black/45 px-3 py-1.5 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"
+            className="pointer-events-auto rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"
           >
             {loading ? '…' : category.count}
           </Link>
         </div>
 
-        <h3 className="line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg">{loading ? 'Loading section…' : topTitle}</h3>
+        <h3 className="line-clamp-2 text-xl font-black leading-tight text-white drop-shadow-lg">{loading ? 'Loading section…' : topTitle}</h3>
       </div>
     </article>
   )
 }
 
-function RecentLibraryRow({ item }) {
-  const image = item.poster || item.backdrop
-  const icon = TYPE_ICONS[item.type] || 'dashboard'
-
-  return (
-    <Link to={item.to} className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-2.5 text-white transition hover:bg-white hover:text-neutral-950">
-      <div className="h-14 w-10 shrink-0 overflow-hidden rounded-xl bg-neutral-900">
-        {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-white/10" />}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] opacity-60">
-          <AppIcon name={icon} size={12} strokeWidth={2.4} />
-          <span>{item.type}</span>
-        </div>
-        <div className="mt-0.5 truncate text-sm font-black">{item.title}</div>
-      </div>
-      <span className="shrink-0 rounded-full border border-current/10 px-2.5 py-1 text-xs font-black">★ {item.rating ? Number(item.rating).toFixed(1) : '—'}</span>
-    </Link>
-  )
-}
-
 function LibraryOverviewPanel({ items, categories, loading }) {
-  const recentItems = items.slice(0, 3)
-  const totalRated = categories.reduce((sum, category) => sum + category.rated, 0)
-
   return (
-    <section className="mt-6 rounded-[1.9rem] border border-white/10 bg-neutral-950/70 p-4 shadow-2xl shadow-black/20">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20">
+      <div className="flex flex-wrap items-end justify-between gap-3 px-1">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500">Library overview</p>
-          <h2 className="mt-1 text-2xl font-black text-white">Category overview</h2>
+          <h2 className="mt-1 text-xl font-black text-white">Category overview</h2>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-2 text-right">
-          <p className="text-2xl font-black text-white">{loading ? '…' : items.length}</p>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">total items</p>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-right">
+          <p className="text-xl font-black text-white">{loading ? '…' : items.length}</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-neutral-500">total items</p>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
         {categories.map((category) => <LibrarySectionCard key={category.title} category={category} loading={loading} />)}
-      </div>
-
-      <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-3">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-500">Recent content</p>
-            <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs font-black text-neutral-400">{loading ? '…' : totalRated} rated</span>
-          </div>
-          {loading ? (
-            <div className="space-y-2">
-              {[0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-white/[0.06]" />)}
-            </div>
-          ) : recentItems.length ? (
-            <div className="space-y-2">
-              {recentItems.map((item) => <RecentLibraryRow key={`${item.type}-${item.id}`} item={item} />)}
-            </div>
-          ) : (
-            <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm leading-6 text-neutral-400">No saved content yet. Open Movies, Series, or Games and add your first item.</p>
-          )}
-        </div>
-
-        <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-500">What this is</p>
-          <h3 className="mt-2 text-xl font-black text-white">Your private media base</h3>
-          <p className="mt-2 text-sm leading-6 text-neutral-400">Keep your watched movies, finished series, and played games here. Clique voting stays in clique spaces.</p>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs font-black text-neutral-300">
-            {categories.map((category) => (
-              <Link key={category.title} to={category.to} className="rounded-2xl border border-white/10 px-2 py-3 transition hover:bg-white hover:text-neutral-950">
-                <AppIcon name={category.icon} size={16} className="mx-auto mb-1" strokeWidth={2.4} />
-                {category.title}
-              </Link>
-            ))}
-          </div>
-        </div>
       </div>
     </section>
   )
@@ -164,11 +106,11 @@ function LibraryShowcase({ items, loading }) {
 
   if (loading) {
     return (
-      <div className="relative flex min-h-[320px] items-end overflow-hidden bg-neutral-950 p-5">
+      <div className="relative flex min-h-[250px] items-end overflow-hidden bg-neutral-950 p-5">
         <div className="absolute inset-0 animate-pulse bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(0,0,0,0.45))]" />
         <div className="relative">
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Library reel</p>
-          <h2 className="mt-2 text-3xl font-black text-white">Loading your library…</h2>
+          <h2 className="mt-2 text-2xl font-black text-white">Loading your library…</h2>
         </div>
       </div>
     )
@@ -176,10 +118,10 @@ function LibraryShowcase({ items, loading }) {
 
   if (!items.length) {
     return (
-      <div className="relative flex min-h-[320px] items-end overflow-hidden bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5">
+      <div className="relative flex min-h-[250px] items-end overflow-hidden bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Empty library</p>
-          <h2 className="mt-2 text-3xl font-black text-white">Add the first item</h2>
+          <h2 className="mt-2 text-2xl font-black text-white">Add the first item</h2>
           <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Once you add watched movies, finished series, or played games, this corner becomes a slideshow of your library.</p>
         </div>
       </div>
@@ -190,7 +132,7 @@ function LibraryShowcase({ items, loading }) {
   const image = item.backdrop || item.poster
 
   return (
-    <div className="relative min-h-[320px] overflow-hidden bg-neutral-950">
+    <div className="relative min-h-[250px] overflow-hidden bg-neutral-950">
       <Link to={item.to} className="group absolute inset-0 flex items-end p-5">
         {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65 transition duration-700 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))]" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
@@ -200,13 +142,8 @@ function LibraryShowcase({ items, loading }) {
         </div>
         <div className="relative max-w-md">
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-300">{item.type}</p>
-          <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">{item.title}</h2>
-          <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-300">{item.overview || `Score ${item.score || 0} · ${item.picks || 0} picks`}</p>
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-white">
-            <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">Score {item.score || 0}</span>
-            <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">{item.picks || 0} picks</span>
-            {item.rating ? <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
-          </div>
+          <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">{item.title}</h2>
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-300">{item.overview || `Score ${item.score || 0} · ${item.picks || 0} picks`}</p>
         </div>
       </Link>
     </div>
@@ -371,11 +308,11 @@ export default function Home() {
   return (
     <PageShell active={context.type === 'group' ? 'cliques' : 'library'}>
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
-        <div className="grid gap-0 xl:grid-cols-[1.12fr_0.88fr]">
-          <div className="p-5 sm:p-8">
-            <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-6xl">{context.name}</h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400 sm:text-lg">{context.type === 'group' ? 'Shared movie, series, and game picks for this clique.' : 'Your watched movies, finished series, and played games in one place.'}</p>
-            {status === 'signed-out' ? <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join cliques.</p> : null}
+        <div className="grid gap-0 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="p-4 sm:p-6">
+            <h1 className="max-w-3xl text-3xl font-black tracking-tight text-white sm:text-5xl">{context.name}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400 sm:text-base">{context.type === 'group' ? 'Shared movie, series, and game picks for this clique.' : 'Your watched movies, finished series, and played games in one place.'}</p>
+            {status === 'signed-out' ? <p className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join cliques.</p> : null}
             <LibraryOverviewPanel items={loading ? [] : allItems} categories={categories} loading={loading} />
           </div>
           <LibraryShowcase items={loading ? [] : allItems} loading={loading} />
