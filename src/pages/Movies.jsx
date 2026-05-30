@@ -6,13 +6,17 @@ import { getSavedHandle } from '../lib/handle.js'
 import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
 import { demoMovies } from '../lib/demoMovies.js'
 import { getMovieDetails, searchMovies } from '../lib/tmdb.js'
-import { getCurrentSession, getMovies, hasSupabase, markMovieWatched, rateMovie as saveMovieRating, saveMovie, voteMovie } from '../lib/supabaseClient.js'
+import { getCurrentSession, getMovies, getRemoteGroups, hasSupabase, markMovieWatched, rateMovie as saveMovieRating, saveMovie, voteMovie } from '../lib/supabaseClient.js'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
-  if (state === 'signed-out') return 'Sign in from Profile, then create or select a group before adding movies.'
-  if (state === 'no-group') return 'Create or select a group in Profile before adding movies.'
+  if (state === 'signed-out') return 'Sign in from Profile to build your personal movie library and save picks to groups.'
   return null
+}
+
+function scopeLabel(scope, groups) {
+  if (scope === 'personal') return 'Personal library'
+  return groups.find((group) => group.id === scope)?.name || 'Selected group'
 }
 
 export default function Movies() {
@@ -27,13 +31,17 @@ export default function Movies() {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
+  const [groups, setGroups] = useState([])
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
+  const [selectedScope, setSelectedScope] = useState('personal')
   const [setupState, setSetupState] = useState(() => hasSupabase ? 'checking' : 'local')
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
   const activeGroupId = activeGroup?.id || null
-  const canUseGroup = !hasSupabase || setupState === 'ready'
+  const canUseLibrary = !hasSupabase || setupState === 'ready'
+  const selectedGroupId = selectedScope === 'personal' ? null : selectedScope
+  const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => movies.filter((movie) => !votes[movie.id] && !watched.includes(movie.id)), [movies, votes, watched])
   const ranking = useMemo(() => movies.slice().sort((a, b) => (votes[b.id] === 'like') - (votes[a.id] === 'like') || (b.score || 0) - (a.score || 0) || (b.picks || 0) - (a.picks || 0)), [movies, votes])
@@ -42,6 +50,11 @@ export default function Movies() {
   useEffect(() => {
     refreshContext()
   }, [activeGroupId])
+
+  useEffect(() => {
+    if (!hasSupabase || setupState !== 'ready') return
+    loadMovies(selectedGroupId)
+  }, [selectedScope, setupState])
 
   useEffect(() => {
     function handleGroupChange() {
@@ -65,13 +78,18 @@ export default function Movies() {
         setSetupState('signed-out')
         return
       }
-      if (!group?.id) {
-        clearRemoteState()
-        setSetupState('no-group')
-        return
+
+      const remoteGroups = await getRemoteGroups().catch(() => [])
+      setGroups(remoteGroups)
+
+      if (selectedScope !== 'personal' && !remoteGroups.some((remoteGroup) => remoteGroup.id === selectedScope)) {
+        setSelectedScope('personal')
+      } else if (selectedScope === 'personal' && group?.id && remoteGroups.some((remoteGroup) => remoteGroup.id === group.id)) {
+        setSelectedScope(group.id)
       }
+
       setSetupState('ready')
-      await loadMovies(group.id)
+      await loadMovies(selectedScope === 'personal' ? null : selectedScope)
     } catch (error) {
       clearRemoteState()
       setSetupState('signed-out')
@@ -87,8 +105,7 @@ export default function Movies() {
     setResults([])
   }
 
-  async function loadMovies(groupId = activeGroupId) {
-    if (!groupId) return
+  async function loadMovies(groupId = selectedGroupId) {
     try {
       const rows = await getMovies(groupId)
       setMovies(rows)
@@ -104,9 +121,9 @@ export default function Movies() {
     setTimeout(() => setMessage(null), 2400)
   }
 
-  function needGroup() {
-    if (canUseGroup) return false
-    showMessage(setupMessage(setupState) || 'Create or select a group first.', 'error')
+  function needLibrary() {
+    if (canUseLibrary) return false
+    showMessage(setupMessage(setupState) || 'Sign in first.', 'error')
     return true
   }
 
@@ -119,7 +136,7 @@ export default function Movies() {
   async function handleSearch(event) {
     event.preventDefault()
     if (!query.trim()) return
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setLoading(true)
     try {
@@ -134,34 +151,34 @@ export default function Movies() {
   }
 
   async function addMovie(movie) {
-    if (needGroup()) return
+    if (needLibrary()) return
     try {
       const details = await getMovieDetails(movie.id).catch(() => movie)
       const fullMovie = { ...(details || movie), nominated_by: activeHandle || 'You' }
 
       if (hasSupabase) {
-        const saved = await saveMovie(fullMovie, activeHandle || 'anonymous', activeGroupId)
+        const saved = await saveMovie(fullMovie, activeHandle || 'anonymous', selectedGroupId)
         setMovies((current) => current.some((item) => item.id === saved.id) ? current.map((item) => item.id === saved.id ? saved : item) : [saved, ...current])
       } else {
         setMovies((current) => current.some((item) => item.id === fullMovie.id) ? current : [fullMovie, ...current])
       }
 
       clearSearch()
-      showMessage(`"${fullMovie.title}" added to ${activeGroup?.name || 'the movie pile'}.`)
+      showMessage(`"${fullMovie.title}" added to ${destinationLabel}.`)
     } catch (error) {
       showMessage(error.message || 'Could not add movie.', 'error')
     }
   }
 
   async function handleSwipe(vote, movie) {
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setVotes((current) => ({ ...current, [movie.id]: vote }))
 
     if (hasSupabase) {
       try {
-        await voteMovie(movie, vote, activeGroupId)
-        await loadMovies(activeGroupId)
+        await voteMovie(movie, vote, selectedGroupId)
+        await loadMovies(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save vote.', 'error')
         return
@@ -172,7 +189,7 @@ export default function Movies() {
   }
 
   async function markWatched(movie) {
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setWatched((current) => current.includes(movie.id) ? current : [...current, movie.id])
     setVotes((current) => ({ ...current, [movie.id]: 'like' }))
@@ -180,8 +197,8 @@ export default function Movies() {
 
     if (hasSupabase) {
       try {
-        await markMovieWatched(movie, ratings[movie.id] || null, activeGroupId)
-        await loadMovies(activeGroupId)
+        await markMovieWatched(movie, ratings[movie.id] || null, selectedGroupId)
+        await loadMovies(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save watched movie.', 'error')
         return
@@ -192,15 +209,15 @@ export default function Movies() {
   }
 
   async function rateWatchedMovie(movie, rating) {
-    if (needGroup()) return
+    if (needLibrary()) return
 
     setRatings((current) => ({ ...current, [movie.id]: rating }))
     setEditingRating(null)
 
     if (hasSupabase) {
       try {
-        await saveMovieRating(movie, rating, activeGroupId)
-        await loadMovies(activeGroupId)
+        await saveMovieRating(movie, rating, selectedGroupId)
+        await loadMovies(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save rating.', 'error')
       }
@@ -220,7 +237,7 @@ export default function Movies() {
     }
   }
 
-  function resetPage() {
+  function refreshPage() {
     if (hasSupabase) {
       clearRemoteState()
       refreshContext()
@@ -242,13 +259,21 @@ export default function Movies() {
       <PageHero
         eyebrow="Movie night"
         title="Pick what to watch"
-        description="Search movies, add them to the active group, vote with friends, and keep a watched ranking with ratings."
+        description="Search movies, save them to your personal library or a group, vote through the pile, and keep a watched ranking with ratings."
         warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your picks under one name.' : null)}
-        actions={<button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Refresh</button>}
+        actions={hasSupabase ? (
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+            Save to
+            <select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value)} disabled={!canUseLibrary} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-semibold normal-case tracking-normal text-white outline-none disabled:opacity-50">
+              <option value="personal">Personal library</option>
+              {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+            </select>
+          </label>
+        ) : <button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset local demo</button>}
       >
-        {hasSupabase ? (
+        {hasSupabase && canUseLibrary ? (
           <p className="mt-4 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-sm text-neutral-300">
-            {canUseGroup ? <>Saving to <strong className="text-white">{activeGroup.name}</strong>.</> : 'No demo movies are loaded in Supabase mode. Sign in and create/select a group to start your real database.'}
+            Current destination: <strong className="text-white">{destinationLabel}</strong>.
           </p>
         ) : null}
 
@@ -256,7 +281,7 @@ export default function Movies() {
           <div className="flex gap-2">
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a movie..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
             {hasResults ? <button type="button" className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950" onClick={clearSearch}>Back</button> : null}
-            <button type="submit" disabled={loading || !canUseGroup} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{loading ? 'Searching...' : 'Search'}</button>
+            <button type="submit" disabled={loading || !canUseLibrary} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{loading ? 'Searching...' : 'Search'}</button>
           </div>
         </form>
       </PageHero>
@@ -272,7 +297,7 @@ export default function Movies() {
       ) : null}
 
       <section ref={deckRef} className="mb-8">
-        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="movies" emptyLabel={canUseGroup ? 'No movies yet. Search and add your first pick.' : 'Create or select a group to start voting.'} likeLabel="Watch" dislikeLabel="Pass" infoType="movie" loadDetails={getMovieDetails} />
+        <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="movies" emptyLabel={canUseLibrary ? 'No movies here yet. Search and add your first pick.' : 'Sign in to start your movie library.'} likeLabel="Watch" dislikeLabel="Pass" infoType="movie" loadDetails={getMovieDetails} />
       </section>
 
       <TopRankingSection title="Next movies" items={ranking} votes={votes} onInfo={openMovieInfo} onDone={markWatched} doneLabel="Watched" />
