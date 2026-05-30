@@ -33,46 +33,63 @@ function normalizeItems(rows, type, code, to) {
   })).sort((a, b) => b.sortValue - a.sortValue)
 }
 
-function LibraryMiniTile({ item, onShare }) {
-  const image = item.poster || item.backdrop
-  const icon = TYPE_ICONS[item.type] || 'dashboard'
+function LibrarySectionCard({ category, loading, onShare }) {
+  const top = category.top
+  const image = top?.backdrop || top?.poster
+  const topTitle = top?.title || `No ${category.title.toLowerCase()} yet`
 
   return (
-    <article className="flex min-w-0 items-center gap-3 rounded-[1.35rem] border border-white/10 bg-white/[0.07] p-2.5 text-left text-white transition hover:border-white/20 hover:bg-white/[0.1]">
-      <Link to={item.to} className="flex min-w-0 flex-1 items-center gap-3 rounded-[1.1rem] transition hover:opacity-85">
-        <div className="h-16 w-12 shrink-0 overflow-hidden rounded-2xl bg-neutral-900">
-          {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-white/10" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-neutral-400">
-            <AppIcon name={icon} size={13} strokeWidth={2.4} />
-            <span>{item.type}</span>
+    <article className="group relative min-h-[9.5rem] overflow-hidden rounded-[1.35rem] border border-white/10 bg-neutral-950 text-white transition hover:-translate-y-0.5 hover:border-white/25">
+      {image ? (
+        <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-74 transition duration-500 group-hover:scale-105" />
+      ) : (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+      <Link to={category.to} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
+
+      <div className="pointer-events-none relative z-10 flex h-full min-h-[9.5rem] flex-col justify-between p-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="inline-flex items-center gap-2 text-xs font-black text-white drop-shadow">
+            <AppIcon name={category.icon} size={14} strokeWidth={2.4} />
+            {category.title}
           </div>
-          <div className="mt-1 truncate text-sm font-black text-white">{item.title}</div>
+          <div className="pointer-events-auto flex gap-2">
+            {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+            <Link
+              to={category.to}
+              aria-label={`Open ${category.title}`}
+              className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"
+            >
+              {loading ? '…' : category.count}
+            </Link>
+          </div>
         </div>
-      </Link>
-      <button type="button" onClick={() => onShare?.(item)} className="shrink-0 rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-200 transition hover:bg-white hover:text-neutral-950">Share</button>
+
+        <h3 className="line-clamp-2 text-xl font-black leading-tight text-white drop-shadow-lg">{loading ? 'Loading section…' : topTitle}</h3>
+      </div>
     </article>
   )
 }
 
-function LibrarySummaryPanel({ items, loading, onShare }) {
-  const previewItems = items.slice(0, 4)
-
+function LibraryOverviewPanel({ items, categories, loading, onShare }) {
   return (
-    <div className="mt-6 rounded-[1.75rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20 sm:p-4">
-      {loading ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {[0, 1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-[1.35rem] bg-white/[0.06]" />)}
+    <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20">
+      <div className="flex flex-wrap items-end justify-between gap-3 px-1">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500">Library overview</p>
+          <h2 className="mt-1 text-xl font-black text-white">Category overview</h2>
         </div>
-      ) : previewItems.length ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {previewItems.map((entry) => <LibraryMiniTile key={`${entry.type}-${entry.id}`} item={entry} onShare={onShare} />)}
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2 text-right">
+          <p className="text-xl font-black text-white">{loading ? '…' : items.length}</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.18em] text-neutral-500">total items</p>
         </div>
-      ) : (
-        <p className="rounded-2xl border border-dashed border-white/10 p-4 text-sm leading-6 text-neutral-400">No saved picks yet. Use the add buttons on Movies, Series, or Games to start your library.</p>
-      )}
-    </div>
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        {categories.map((category) => <LibrarySectionCard key={category.title} category={category} loading={loading} onShare={onShare} />)}
+      </div>
+    </section>
   )
 }
 
@@ -93,11 +110,11 @@ function LibraryShowcase({ items, loading, onShare }) {
 
   if (loading) {
     return (
-      <div className="relative flex min-h-[320px] items-end overflow-hidden bg-neutral-950 p-5">
+      <div className="relative flex min-h-[250px] items-end overflow-hidden bg-neutral-950 p-5">
         <div className="absolute inset-0 animate-pulse bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(0,0,0,0.45))]" />
         <div className="relative">
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Library reel</p>
-          <h2 className="mt-2 text-3xl font-black text-white">Loading your picks…</h2>
+          <h2 className="mt-2 text-2xl font-black text-white">Loading your library…</h2>
         </div>
       </div>
     )
@@ -105,11 +122,11 @@ function LibraryShowcase({ items, loading, onShare }) {
 
   if (!items.length) {
     return (
-      <div className="relative flex min-h-[320px] items-end overflow-hidden bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5">
+      <div className="relative flex min-h-[250px] items-end overflow-hidden bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Empty workspace</p>
-          <h2 className="mt-2 text-3xl font-black text-white">Add the first pick</h2>
-          <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Once this workspace has movies, series, or games, this corner becomes a slideshow of your library.</p>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Empty library</p>
+          <h2 className="mt-2 text-2xl font-black text-white">Add the first item</h2>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Once you add watched movies, finished series, or played games, this corner becomes a slideshow of your library.</p>
         </div>
       </div>
     )
@@ -119,7 +136,7 @@ function LibraryShowcase({ items, loading, onShare }) {
   const image = item.backdrop || item.poster
 
   return (
-    <div className="relative min-h-[320px] overflow-hidden bg-neutral-950">
+    <div className="relative min-h-[250px] overflow-hidden bg-neutral-950">
       <Link to={item.to} className="group absolute inset-0 flex items-end p-5">
         {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65 transition duration-700 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))]" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
@@ -127,15 +144,10 @@ function LibraryShowcase({ items, loading, onShare }) {
           <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">Library reel</span>
           <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-bold text-neutral-200 backdrop-blur">{index + 1}/{items.length}</span>
         </div>
-        <div className="relative max-w-md">
+        <div className="relative max-w-md pr-24">
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-300">{item.type}</p>
-          <h2 className="mt-2 text-3xl font-black text-white sm:text-4xl">{item.title}</h2>
-          <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-300">{item.overview || `Score ${item.score || 0} · ${item.picks || 0} picks`}</p>
-          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-white">
-            <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">Score {item.score || 0}</span>
-            <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">{item.picks || 0} picks</span>
-            {item.rating ? <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
-          </div>
+          <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">{item.title}</h2>
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-300">{item.overview || `Score ${item.score || 0} · ${item.picks || 0} picks`}</p>
         </div>
       </Link>
       <button type="button" onClick={() => onShare?.(item)} className="absolute bottom-5 right-5 z-10 rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 shadow-2xl shadow-black/30 transition hover:bg-neutral-200">Share</button>
@@ -159,7 +171,7 @@ function CategoryTopCard({ category, loading, onShare }) {
         </span>
         <div className="absolute right-4 top-4 z-10 flex gap-2">
           {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Share</button> : null}
-          <Link to={category.to} className="rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">+ Add</Link>
+          <Link to={category.to} className="rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Open list</Link>
         </div>
         {!top ? <span className="absolute bottom-4 left-4 right-4 z-10 text-sm font-semibold text-neutral-300">No {category.title.toLowerCase()} yet</span> : null}
       </div>
@@ -193,7 +205,7 @@ function CategoryTopCard({ category, loading, onShare }) {
         ) : (
           <div className="mt-6 flex flex-col gap-5">
             <p className="text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} have been submitted here yet. Start this workspace with the first real pick.</p>
-            <Link to={category.to} className="inline-flex w-fit rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Add {category.singular.toLowerCase()}</Link>
+            <Link to={category.to} className="inline-flex w-fit rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Open {category.title.toLowerCase()}</Link>
           </div>
         )}
       </div>
@@ -248,9 +260,9 @@ export default function Home() {
   const gameItems = useMemo(() => normalizeItems(media.games, 'Game', 'GAM', '/games'), [media.games])
   const allItems = useMemo(() => [...movieItems, ...seriesItems, ...gameItems].sort((a, b) => b.sortValue - a.sortValue), [movieItems, seriesItems, gameItems])
   const categories = useMemo(() => [
-    { title: 'Movies', singular: 'Movie', code: 'MOV', icon: TYPE_ICONS.Movie, to: '/movies', top: movieItems[0], count: movieItems.length, rated: movieItems.filter((item) => item.rating).length },
-    { title: 'Series', singular: 'Series', code: 'SER', icon: TYPE_ICONS.Series, to: '/series', top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
-    { title: 'Games', singular: 'Game', code: 'GAM', icon: TYPE_ICONS.Game, to: '/games', top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
+    { title: 'Movies', singular: 'Movie', code: 'MOV', icon: TYPE_ICONS.Movie, to: '/movies', items: movieItems, top: movieItems[0], count: movieItems.length, rated: movieItems.filter((item) => item.rating).length },
+    { title: 'Series', singular: 'Series', code: 'SER', icon: TYPE_ICONS.Series, to: '/series', items: seriesItems, top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
+    { title: 'Games', singular: 'Game', code: 'GAM', icon: TYPE_ICONS.Game, to: '/games', items: gameItems, top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
   ], [movieItems, seriesItems, gameItems])
 
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
@@ -316,12 +328,12 @@ export default function Home() {
   return (
     <PageShell active={context.type === 'group' ? 'cliques' : 'library'}>
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
-        <div className="grid gap-0 md:grid-cols-[1.05fr_0.95fr]">
-          <div className="p-5 sm:p-8">
-            <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-6xl">{context.name}</h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-neutral-400 sm:text-lg">{context.type === 'group' ? 'Shared movie, series, and game picks for this clique.' : 'Your private picks before you send them into a clique.'}</p>
-            {status === 'signed-out' ? <p className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join cliques.</p> : null}
-            <LibrarySummaryPanel items={loading ? [] : allItems} loading={loading} onShare={openShare} />
+        <div className="grid gap-0 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="p-4 sm:p-6">
+            <h1 className="max-w-3xl text-3xl font-black tracking-tight text-white sm:text-5xl">{context.name}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400 sm:text-base">{context.type === 'group' ? 'Shared movie, series, and game picks for this clique.' : 'Your watched movies, finished series, and played games in one place.'}</p>
+            {status === 'signed-out' ? <p className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join cliques.</p> : null}
+            <LibraryOverviewPanel items={loading ? [] : allItems} categories={categories} loading={loading} onShare={openShare} />
           </div>
           <LibraryShowcase items={loading ? [] : allItems} loading={loading} onShare={openShare} />
         </div>
@@ -332,7 +344,7 @@ export default function Home() {
 
       <section className="mt-5 grid gap-3 md:grid-cols-3">
         <StatCard label="Items" value={loading ? '…' : allItems.length} detail="Movies, series, and games" />
-        <StatCard label="Votes" value={loading ? '…' : totalPicks} detail="Submitted votes/picks" />
+        <StatCard label="Picks" value={loading ? '…' : totalPicks} detail="Saved votes across lists" />
         <StatCard label="Rated" value={loading ? '…' : ratedCount} detail="Watched, finished, or played" />
       </section>
 
@@ -340,8 +352,8 @@ export default function Home() {
 
       <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Best by section</p>
-          <h2 className="mt-1 text-3xl font-black text-white">Category leaders</h2>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Section highlights</p>
+          <h2 className="mt-1 text-3xl font-black text-white">Top items by category</h2>
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           {categories.map((category) => <CategoryTopCard key={category.title} category={category} loading={loading} onShare={openShare} />)}
