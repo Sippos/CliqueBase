@@ -26,6 +26,73 @@ function getInitialScope() {
   return getActiveGroupId() || 'personal'
 }
 
+function NextWatchSection({ items, onInfo, onDone }) {
+  return (
+    <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Saved, not watched</p>
+          <h2 className="mt-1 text-2xl font-bold text-white">Next to watch</h2>
+        </div>
+        <span className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-semibold text-neutral-400">{items.length} waiting</span>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-6 text-neutral-400">No movies are waiting right now. When you add a movie without marking it watched, it will live here instead of becoming a swipe card.</p>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {items.map((movie) => {
+            const year = displayYear(movie.released || movie.year) || 'Unknown year'
+            const genres = (movie.genres || []).slice(0, 2).join(' · ')
+            return (
+              <article key={movie.id} className="rounded-3xl border border-white/10 bg-neutral-950/70 p-3 transition hover:border-white/20">
+                <div className="flex gap-3">
+                  {movie.poster ? (
+                    <button type="button" onClick={() => onInfo?.(movie)} className="h-28 w-20 shrink-0 overflow-hidden rounded-2xl text-left">
+                      <img src={movie.poster} alt="" className="h-full w-full object-cover transition hover:scale-105" />
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => onInfo?.(movie)} className="flex h-28 w-20 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-neutral-900 px-2 text-center text-xs font-semibold text-neutral-400 hover:bg-white hover:text-neutral-950">Details</button>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <button type="button" onClick={() => onInfo?.(movie)} className="line-clamp-2 text-left text-lg font-black leading-tight text-white hover:underline">{movie.title}</button>
+                    <p className="mt-1 text-xs text-neutral-500">{year}{genres ? ` · ${genres}` : ''}</p>
+                    <p className="mt-3 line-clamp-2 text-sm leading-6 text-neutral-400">{movie.overview || 'Saved in your library for later.'}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => onInfo?.(movie)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-neutral-300 transition hover:bg-white hover:text-neutral-950">Details</button>
+                      <button type="button" onClick={() => onDone?.(movie)} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200">Mark watched</button>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function AddMoviePanel({ query, setQuery, loading, hasResults, canUseLibrary, onSubmit, onClear }) {
+  return (
+    <section className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Add to library</p>
+          <h2 className="mt-1 text-2xl font-bold text-white">Find another movie</h2>
+        </div>
+        {hasResults ? <button type="button" onClick={onClear} className="text-sm font-semibold text-neutral-400 hover:text-white">Close results</button> : null}
+      </div>
+      <form onSubmit={onSubmit}>
+        <div className="flex gap-2">
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a movie to add..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
+          <button type="submit" disabled={loading || !canUseLibrary} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{loading ? 'Searching...' : 'Search'}</button>
+        </div>
+      </form>
+    </section>
+  )
+}
+
 export default function Movies() {
   const [movies, setMovies] = useState(() => hasSupabase ? [] : demoMovies)
   const [votes, setVotes] = useState({})
@@ -54,6 +121,7 @@ export default function Movies() {
   const queue = useMemo(() => movies.filter((movie) => !votes[movie.id] && !watched.includes(movie.id)), [movies, votes, watched])
   const ranking = useMemo(() => movies.slice().sort((a, b) => (votes[b.id] === 'like') - (votes[a.id] === 'like') || (b.score || 0) - (a.score || 0) || (b.picks || 0) - (a.picks || 0)), [movies, votes])
   const watchedMovies = useMemo(() => movies.filter((movie) => watched.includes(movie.id)), [movies, watched])
+  const ratedCount = useMemo(() => Object.values(ratings).filter((rating) => Number(rating) > 0).length, [ratings])
 
   useEffect(() => {
     refreshContext()
@@ -287,67 +355,130 @@ export default function Movies() {
     setMessage(null)
   }
 
+  const scopeControl = hasSupabase ? (
+    <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+      Library space
+      <select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value)} disabled={!canUseLibrary} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-semibold normal-case tracking-normal text-white outline-none disabled:opacity-50">
+        <option value="personal">Personal library</option>
+        {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+      </select>
+    </label>
+  ) : <button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset local demo</button>
+
   return (
     <PageShell active="movies">
-      <PageHero
-        eyebrow={isPersonalScope ? 'My Library' : 'Clique picks'}
-        title={isPersonalScope ? 'Your watched movies' : 'Pick what to watch'}
-        description={isPersonalScope ? 'Search movies, mark the ones you watched, and keep your personal ratings here. Swipe voting stays inside cliques.' : 'Search movies, save them to this clique, vote through the pile, and keep a shared watch ranking.'}
-        warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your picks under one name.' : null)}
-        actions={hasSupabase ? (
-          <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
-            Library space
-            <select value={selectedScope} onChange={(event) => setSelectedScope(event.target.value)} disabled={!canUseLibrary} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm font-semibold normal-case tracking-normal text-white outline-none disabled:opacity-50">
-              <option value="personal">Personal library</option>
-              {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
-            </select>
-          </label>
-        ) : <button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset local demo</button>}
-      >
-        <form onSubmit={handleSearch} className="mt-4">
-          <div className="flex gap-2">
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a movie..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-            {hasResults ? <button type="button" className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950" onClick={clearSearch}>Back</button> : null}
-            <button type="submit" disabled={loading || !canUseLibrary} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{loading ? 'Searching...' : 'Search'}</button>
+      {isPersonalScope ? (
+        <section className="mb-5 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">My Library</p>
+              <h1 className="mt-1 text-3xl font-black tracking-tight text-white md:text-5xl">Movies library</h1>
+              <p className="mt-3 max-w-2xl text-neutral-400">A clean overview of movies you saved and movies you have actually watched. No swipe deck here.</p>
+              {setupMessage(setupState) || (!activeHandle && !hasSupabase) ? <p className="mt-3 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-3 text-sm text-yellow-200">{setupMessage(setupState) || 'Create a profile with the Profile button in the navbar to keep your picks under one name.'}</p> : null}
+            </div>
+            <div className="shrink-0">{scopeControl}</div>
           </div>
-        </form>
-      </PageHero>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-3xl border border-white/10 bg-neutral-950/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Next</p>
+              <p className="mt-2 text-3xl font-black text-white">{queue.length}</p>
+              <p className="mt-1 text-sm text-neutral-400">saved, not watched</p>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-neutral-950/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Watched</p>
+              <p className="mt-2 text-3xl font-black text-white">{watchedMovies.length}</p>
+              <p className="mt-1 text-sm text-neutral-400">claimed as watched</p>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-neutral-950/70 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Rated</p>
+              <p className="mt-2 text-3xl font-black text-white">{ratedCount}</p>
+              <p className="mt-1 text-sm text-neutral-400">with your score</p>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <PageHero
+          eyebrow="Clique picks"
+          title="Pick what to watch"
+          description="Search movies, save them to this clique, vote through the pile, and keep a shared watch ranking."
+          warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your picks under one name.' : null)}
+          actions={scopeControl}
+        >
+          <form onSubmit={handleSearch} className="mt-4">
+            <div className="flex gap-2">
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a movie..." className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
+              {hasResults ? <button type="button" className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950" onClick={clearSearch}>Back</button> : null}
+              <button type="submit" disabled={loading || !canUseLibrary} className="rounded-2xl bg-white px-4 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:px-5">{loading ? 'Searching...' : 'Search'}</button>
+            </div>
+          </form>
+        </PageHero>
+      )}
 
       <StatusMessage message={message} />
 
-      {hasResults ? (
-        <SearchResultsSection clearLabel={isPersonalScope ? 'Back to watched movies' : 'Back to clique picks'} onClear={clearSearch}>
-          <div className="space-y-2">
-            {results.map((movie) => <ResultRow key={movie.id} item={movie} onInfo={openMovieInfo} onAdd={addMovie} addLabel={isPersonalScope ? 'Add' : 'Add pick'} onDone={markWatched} doneLabel="Watched" />)}
-          </div>
-        </SearchResultsSection>
-      ) : null}
-
-      {!isPersonalScope ? (
+      {isPersonalScope ? (
         <>
+          <NextWatchSection items={queue} onInfo={openMovieInfo} onDone={markWatched} />
+
+          <RatedHistorySection
+            eyebrow="Personal history"
+            title="Watched movies"
+            countText={`${watchedMovies.length} watched`}
+            emptyLabel="No watched movies yet. Add a movie below or mark one from Next to watch."
+            items={watchedMovies}
+            ratings={ratings}
+            editingRating={editingRating}
+            onToggleRating={(movie) => setEditingRating(editingRating === movie.id ? null : movie.id)}
+            onRate={rateWatchedMovie}
+            onInfo={openMovieInfo}
+            detailsLabel="Movie details"
+            renderMeta={(movie) => `${displayYear(movie.released || movie.year) || 'Unknown year'} · ${(movie.genres || []).slice(0, 2).join(' · ') || 'No genres yet'}`}
+            renderPills={(movie) => <>{movie.tmdbRating ? <DetailPill>TMDB ★ {Number(movie.tmdbRating).toFixed(1)}</DetailPill> : null}{movie.runtime ? <DetailPill>{movie.runtime} min</DetailPill> : null}</>}
+          />
+
+          <AddMoviePanel query={query} setQuery={setQuery} loading={loading} hasResults={hasResults} canUseLibrary={canUseLibrary} onSubmit={handleSearch} onClear={clearSearch} />
+
+          {hasResults ? (
+            <SearchResultsSection title="Movie results" clearLabel="Close results" onClear={clearSearch}>
+              <div className="space-y-2">
+                {results.map((movie) => <ResultRow key={movie.id} item={movie} onInfo={openMovieInfo} onAdd={addMovie} addLabel="Add" onDone={markWatched} doneLabel="Watched" />)}
+              </div>
+            </SearchResultsSection>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {hasResults ? (
+            <SearchResultsSection clearLabel="Back to clique picks" onClear={clearSearch}>
+              <div className="space-y-2">
+                {results.map((movie) => <ResultRow key={movie.id} item={movie} onInfo={openMovieInfo} onAdd={addMovie} addLabel="Add pick" onDone={markWatched} doneLabel="Watched" />)}
+              </div>
+            </SearchResultsSection>
+          ) : null}
+
           <section ref={deckRef} className="mb-8">
             <SwipeDeck items={queue} onSwipe={handleSwipe} itemLabel="movies" emptyLabel={canUseLibrary ? 'No movies here yet. Search and add your first pick.' : 'Sign in to start your movie library.'} likeLabel="Watch" dislikeLabel="Pass" infoType="movie" loadDetails={getMovieDetails} />
           </section>
 
           <TopRankingSection title="Next movies" items={ranking} votes={votes} onInfo={openMovieInfo} onDone={markWatched} doneLabel="Watched" />
-        </>
-      ) : null}
 
-      <RatedHistorySection
-        eyebrow={isPersonalScope ? 'Personal history' : 'After watching'}
-        title={isPersonalScope ? 'Watched movies' : 'Watched ranking'}
-        countText={`${watchedMovies.length} watched`}
-        emptyLabel="No watched movies yet. Search a movie and mark it watched to start your library."
-        items={watchedMovies}
-        ratings={ratings}
-        editingRating={editingRating}
-        onToggleRating={(movie) => setEditingRating(editingRating === movie.id ? null : movie.id)}
-        onRate={rateWatchedMovie}
-        onInfo={openMovieInfo}
-        detailsLabel="Movie details"
-        renderMeta={(movie) => `${displayYear(movie.released || movie.year) || 'Unknown year'} · ${(movie.genres || []).slice(0, 2).join(' · ') || 'No genres yet'}`}
-        renderPills={(movie) => <>{movie.tmdbRating ? <DetailPill>TMDB ★ {Number(movie.tmdbRating).toFixed(1)}</DetailPill> : null}{movie.runtime ? <DetailPill>{movie.runtime} min</DetailPill> : null}</>}
-      />
+          <RatedHistorySection
+            eyebrow="After watching"
+            title="Watched ranking"
+            countText={`${watchedMovies.length} watched`}
+            emptyLabel="No watched movies yet."
+            items={watchedMovies}
+            ratings={ratings}
+            editingRating={editingRating}
+            onToggleRating={(movie) => setEditingRating(editingRating === movie.id ? null : movie.id)}
+            onRate={rateWatchedMovie}
+            onInfo={openMovieInfo}
+            detailsLabel="Movie details"
+            renderMeta={(movie) => `${displayYear(movie.released || movie.year) || 'Unknown year'} · ${(movie.genres || []).slice(0, 2).join(' · ') || 'No genres yet'}`}
+            renderPills={(movie) => <>{movie.tmdbRating ? <DetailPill>TMDB ★ {Number(movie.tmdbRating).toFixed(1)}</DetailPill> : null}{movie.runtime ? <DetailPill>{movie.runtime} min</DetailPill> : null}</>}
+          />
+        </>
+      )}
 
       <InfoModal item={infoMovie} loading={loadingInfoMovie && !infoMovie} loadingLabel="Loading movie info..." onClose={() => setInfoMovie(null)} year={displayYear(infoMovie?.released || infoMovie?.year)} backdrop={infoMovie?.backdrop}>
         <div className="mt-4 flex flex-wrap gap-2">
