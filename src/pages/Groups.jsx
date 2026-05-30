@@ -5,7 +5,7 @@ import PageShell from '../components/PageShell.jsx'
 import { StatusMessage } from '../components/MediaBlocks.jsx'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
 import { createGroup as createLocalGroup, getActiveGroup, getActiveGroupId, getGroupInvitePath, getGroupInviteUrl, getGroupOpenPath, getGroups, joinGroup as joinLocalGroup, parseInviteCode, setActiveGroup } from '../lib/groups.js'
-import { createRemoteGroup, getCurrentSession, getGames, getMovies, getProfile, getRemoteGroups, getSeries, hasSupabase, joinRemoteGroup } from '../lib/supabaseClient.js'
+import { createRemoteGroup, getCurrentSession, getGames, getMovies, getProfile, getRemoteGroups, getSeries, hasSupabase, joinRemoteGroup, saveGame as saveGameToLibrary, saveMovie as saveMovieToLibrary, saveSeries as saveSeriesToLibrary } from '../lib/supabaseClient.js'
 
 const mediaShortcuts = [
   { to: '/movies', label: 'Movies', icon: 'movies' },
@@ -47,6 +47,14 @@ function sortCliqueItems(items) {
     || (b.picks || 0) - (a.picks || 0)
     || String(a.title || '').localeCompare(String(b.title || ''))
   ))
+}
+
+function itemLibraryPayload(item) {
+  return {
+    ...item,
+    id: String(item.id),
+    nominated_by: item.nominated_by || 'clique pick',
+  }
 }
 
 function GroupCard({ group, active, onActivate, onCopy }) {
@@ -117,40 +125,108 @@ function CompactInviteForm({ value, setValue, loading, onJoin, readOnly = false 
   )
 }
 
-function CliquePickTile({ item }) {
+function CliquePickTile({ item, flipped, onToggle, onCopyToLibrary, onInfo }) {
+  const summary = item.overview || item.description || `${item.category} picked by this clique.`
+
+  function handleKeyDown(event) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onToggle(item)
+    }
+  }
+
   return (
-    <article className="group min-w-[10.5rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/75 transition hover:border-white/25 hover:bg-neutral-900 sm:min-w-0">
-      <div className="relative h-36 overflow-hidden bg-neutral-900">
-        {item.poster ? (
-          <img src={item.poster} alt="" className="h-full w-full object-cover opacity-90 transition group-hover:scale-105" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-neutral-400">
-            <AppIcon name={item.icon} size={34} strokeWidth={1.7} />
+    <article
+      tabIndex={0}
+      role="button"
+      aria-pressed={flipped}
+      aria-label={`${flipped ? 'Hide actions for' : 'Show actions for'} ${item.title}`}
+      onClick={() => onToggle(item)}
+      onKeyDown={handleKeyDown}
+      className="group min-w-[10.5rem] outline-none sm:min-w-0"
+      style={{ perspective: '900px' }}
+    >
+      <div
+        className="relative min-h-[18rem] rounded-2xl transition-transform duration-500 group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-white/50"
+        style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+      >
+        <div className="absolute inset-0 overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/75 transition group-hover:border-white/25 group-hover:bg-neutral-900" style={{ backfaceVisibility: 'hidden' }}>
+          <div className="relative h-36 overflow-hidden bg-neutral-900">
+            {item.poster ? (
+              <img src={item.poster} alt="" className="h-full w-full object-cover opacity-90 transition group-hover:scale-105" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-neutral-400">
+                <AppIcon name={item.icon} size={34} strokeWidth={1.7} />
+              </div>
+            )}
+            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/70 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white backdrop-blur">
+              <AppIcon name={item.icon} size={12} />
+              {item.category}
+            </span>
+            <span className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-black/70 text-white backdrop-blur">
+              <AppIcon name="info" size={15} />
+            </span>
           </div>
-        )}
-        <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/70 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white backdrop-blur">
-          <AppIcon name={item.icon} size={12} />
-          {item.category}
-        </span>
-      </div>
-      <div className="p-3">
-        <h3 className="line-clamp-2 min-h-[2.25rem] text-sm font-black leading-tight text-white">{item.title}</h3>
-        <p className="mt-1 truncate text-xs text-neutral-500">Added by {item.nominated_by || 'Someone'}</p>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">Score {item.score || 0}</span>
-          <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">{item.picks || 0} picks</span>
-          {item.rating ? <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">Rating {Number(item.rating).toFixed(1)}</span> : null}
-          {item.done ? <span className="rounded-full bg-white px-2 py-1 text-[11px] font-black text-neutral-950">{item.doneLabel}</span> : null}
+          <div className="p-3">
+            <h3 className="line-clamp-2 min-h-[2.25rem] text-sm font-black leading-tight text-white">{item.title}</h3>
+            <p className="mt-1 truncate text-xs text-neutral-500">Added by {item.nominated_by || 'Someone'}</p>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">Score {item.score || 0}</span>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">{item.picks || 0} picks</span>
+              {item.rating ? <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">Rating {Number(item.rating).toFixed(1)}</span> : null}
+              {item.done ? <span className="rounded-full bg-white px-2 py-1 text-[11px] font-black text-neutral-950">{item.doneLabel}</span> : null}
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute inset-0 flex flex-col rounded-2xl border border-white/15 bg-neutral-950 p-3 shadow-2xl shadow-black/30" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+          <div className="flex items-start justify-between gap-2">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-neutral-950">
+              <AppIcon name={item.icon} size={18} />
+            </span>
+            <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">Actions</span>
+          </div>
+          <h3 className="mt-3 line-clamp-2 text-base font-black leading-tight text-white">{item.title}</h3>
+          <p className="mt-2 line-clamp-4 flex-1 text-xs leading-5 text-neutral-400">{summary}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onCopyToLibrary(item) }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-white px-3 py-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200"
+            >
+              <AppIcon name="dashboard" size={14} />
+              Copy
+            </button>
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onInfo(item) }}
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-white transition hover:bg-white hover:text-neutral-950"
+            >
+              <AppIcon name="info" size={14} />
+              Info
+            </button>
+          </div>
+          <p className="mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-600">Tap again to flip back</p>
         </div>
       </div>
     </article>
   )
 }
 
-function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy }) {
+function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy, onCopyItem, onInfoItem }) {
+  const [flippedId, setFlippedId] = useState(null)
   const topItems = sortCliqueItems(items).slice(0, 8)
   const totalScore = items.reduce((sum, item) => sum + Number(item.score || 0), 0)
   const completedCount = items.filter((item) => item.done).length
+
+  useEffect(() => {
+    setFlippedId(null)
+  }, [group?.id])
+
+  function toggleItem(item) {
+    const itemKey = `${item.category}-${item.id}`
+    setFlippedId((current) => current === itemKey ? null : itemKey)
+  }
 
   return (
     <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20 backdrop-blur sm:p-5">
@@ -222,7 +298,19 @@ function CliqueOverview({ group, groupCount, items, itemsLoading, onCopy }) {
 
         {topItems.length ? (
           <div className="grid grid-flow-col auto-cols-[10.5rem] gap-3 overflow-x-auto pb-1 sm:grid-flow-row sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-            {topItems.map((item) => <CliquePickTile key={`${item.category}-${item.id}`} item={item} />)}
+            {topItems.map((item) => {
+              const itemKey = `${item.category}-${item.id}`
+              return (
+                <CliquePickTile
+                  key={itemKey}
+                  item={item}
+                  flipped={flippedId === itemKey}
+                  onToggle={toggleItem}
+                  onCopyToLibrary={onCopyItem}
+                  onInfo={onInfoItem}
+                />
+              )
+            })}
           </div>
         ) : (
           <div className="rounded-3xl border border-dashed border-white/10 bg-neutral-950/50 p-5 text-sm leading-6 text-neutral-400">
@@ -352,6 +440,31 @@ export default function Groups({ inviteMode = false }) {
     setTimeout(() => setMessage(null), 2600)
   }
 
+  async function copyItemToLibrary(item) {
+    if (!hasSupabase || !session?.user) {
+      showMessage('Sign in first to copy picks to your library.', 'error')
+      return
+    }
+
+    const payload = itemLibraryPayload(item)
+    const nominatedBy = payload.nominated_by || handle || 'clique pick'
+
+    try {
+      if (item.category === 'Movie') await saveMovieToLibrary(payload, nominatedBy)
+      else if (item.category === 'Series') await saveSeriesToLibrary(payload, nominatedBy)
+      else if (item.category === 'Game') await saveGameToLibrary(payload, nominatedBy)
+      else throw new Error('This content type cannot be copied yet.')
+      showMessage(`${item.title} copied to My Library.`)
+    } catch (error) {
+      showMessage(error.message || 'Could not copy this pick.', 'error')
+    }
+  }
+
+  function showItemInfo(item) {
+    const info = item.overview || item.description || `${item.title} has no extra info stored yet.`
+    showMessage(info.length > 150 ? `${info.slice(0, 150)}…` : info)
+  }
+
   async function handleCreate(event) {
     event.preventDefault()
     const activeHandle = handle || getSavedHandle() || 'anonymous'
@@ -460,7 +573,7 @@ export default function Groups({ inviteMode = false }) {
         </section>
       ) : null}
 
-      <CliqueOverview group={activeGroup} groupCount={groups.length} items={cliqueItems} itemsLoading={cliqueItemsLoading} onCopy={copyInvite} />
+      <CliqueOverview group={activeGroup} groupCount={groups.length} items={cliqueItems} itemsLoading={cliqueItemsLoading} onCopy={copyInvite} onCopyItem={copyItemToLibrary} onInfoItem={showItemInfo} />
 
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3 px-1">
