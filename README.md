@@ -42,3 +42,5 @@ After the migration, open the Profile button in the navbar to create an account 
 ## Next implementation step
 
 The database and auth/group helpers are ready for the next UI pass: making the Movies page always read/write against the active Supabase group and adding a visible “send movie to another group” form.
+
+<!-- vercel-redeploy: 2026-05-31-0058 -->
