@@ -10,14 +10,14 @@ function requireConfiguredSupabase() {
   return supabase
 }
 
-function isMissingRpc(error) {
+function isMissingRpc(error, names = []) {
   const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase()
-  return message.includes('function') && (message.includes('search_members_by_profile_name') || message.includes('share_media_with_member'))
+  return message.includes('function') && names.some((name) => message.includes(name))
 }
 
-function memberSearchError(error) {
-  if (isMissingRpc(error)) {
-    return new Error('Member search needs the latest Supabase sharing migration. Until then, copy the share link instead.')
+function platformSearchError(error) {
+  if (isMissingRpc(error, ['search_members_by_profile_name', 'share_media_with_member', 'search_my_cliques_by_name', 'share_media_with_clique'])) {
+    return new Error('Platform sharing needs the latest Supabase sharing migration. Until then, use WhatsApp or copy the share link.')
   }
   return error
 }
@@ -31,7 +31,7 @@ export async function searchMembersByProfileName(query, limit = 10) {
     search_input: search,
     limit_input: limit,
   })
-  if (error) throw memberSearchError(error)
+  if (error) throw platformSearchError(error)
 
   const seen = new Set()
   return (data || [])
@@ -52,7 +52,7 @@ export async function searchCliquesByName(query = '', limit = 10) {
     search_input: clean(query),
     limit_input: limit,
   })
-  if (error) throw error
+  if (error) throw platformSearchError(error)
 
   return (data || []).map((clique) => ({
     id: clique.id,
@@ -74,7 +74,7 @@ export async function shareMediaWithMember(type, item, recipientId) {
     item_type_input: normalizedType,
     payload_input: payload,
   })
-  if (error) throw memberSearchError(error)
+  if (error) throw platformSearchError(error)
   return Array.isArray(data) ? data[0] : data
 }
 
@@ -90,6 +90,6 @@ export async function shareMediaWithClique(type, item, cliqueId) {
     item_type_input: normalizedType,
     payload_input: payload,
   })
-  if (error) throw error
+  if (error) throw platformSearchError(error)
   return data
 }
