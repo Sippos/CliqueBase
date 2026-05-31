@@ -8,6 +8,7 @@ import Music from './pages/Music.jsx'
 import Groups from './pages/Groups.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
 import Share from './pages/Share.jsx'
+import MemberLibrary from './pages/MemberLibrary.jsx'
 import { ACTIVE_GROUP_STORAGE_KEY } from './lib/groups.js'
 
 function syncCliqueScopeFromUrl() {
@@ -38,6 +39,8 @@ export default function App() {
       <Route path="/music" element={<Music />} />
 
       <Route path="/share/:type/:id" element={<Share />} />
+      <Route path="/members/:memberId" element={<MemberLibrary />} />
+      <Route path="/users/:memberId" element={<MemberLibrary />} />
       <Route path="/groups" element={<Groups />} />
       <Route path="/cliques" element={<Groups />} />
       <Route path="/g/:groupId" element={<Home scope="group" />} />
