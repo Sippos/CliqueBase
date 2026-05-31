@@ -15,7 +15,7 @@ export function displayYear(value) {
 
 function inferShareType(...values) {
   const text = values.filter(Boolean).join(' ').toLowerCase()
-  if (text.includes('movie')) return 'movie'
+  if (text.includes('movie') || text.includes('watch')) return 'movie'
   if (text.includes('series') || text.includes('binge')) return 'series'
   if (text.includes('game') || text.includes('play')) return 'game'
   return ''
@@ -78,11 +78,14 @@ export function TopRankingSection({ eyebrow = '', title, items, votes = {}, limi
   const [sharingItem, setSharingItem] = useState(null)
   const visible = items.slice(0, limit)
   const inferredShareType = shareType || inferShareType(eyebrow, title, doneLabel)
-  const canShare = Boolean(onShare || inferredShareType)
+  const canShare = Boolean(inferredShareType || onShare)
 
   function handleShare(item) {
+    if (inferredShareType) {
+      setSharingItem(item)
+      return
+    }
     if (onShare) onShare(item)
-    else setSharingItem(item)
   }
 
   return (
@@ -126,11 +129,14 @@ export function TopRankingSection({ eyebrow = '', title, items, votes = {}, limi
 export function RatedHistorySection({ eyebrow, title, countText, emptyLabel, items, ratings = {}, editingRating, onToggleRating, onRate, onInfo, onShare, shareType = '', onShareMessage, detailsLabel = 'Details', imageClass = 'h-28 w-20', renderPills = null, renderMeta = null }) {
   const [sharingItem, setSharingItem] = useState(null)
   const inferredShareType = shareType || inferShareType(eyebrow, title, detailsLabel)
-  const canShare = Boolean(onShare || inferredShareType)
+  const canShare = Boolean(inferredShareType || onShare)
 
   function handleShare(item) {
+    if (inferredShareType) {
+      setSharingItem(item)
+      return
+    }
     if (onShare) onShare(item)
-    else setSharingItem(item)
   }
 
   return (
