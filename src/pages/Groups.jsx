@@ -93,11 +93,7 @@ function TopContentTile({ group, category, onOpenItem, onOpenList }) {
 
   if (!item) {
     return (
-      <button
-        type="button"
-        onClick={() => onOpenList(group, category)}
-        className="rounded-[1.5rem] border border-dashed border-white/10 bg-neutral-950/50 p-4 text-left transition hover:border-white/25 hover:bg-neutral-900"
-      >
+      <button type="button" onClick={() => onOpenList(group, category)} className="rounded-[1.5rem] border border-dashed border-white/10 bg-neutral-950/50 p-4 text-left transition hover:border-white/25 hover:bg-neutral-900">
         <div className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300">
           <AppIcon name={category.icon} size={14} />
           {category.title}
@@ -109,12 +105,7 @@ function TopContentTile({ group, category, onOpenItem, onOpenList }) {
 
   return (
     <article className="group relative overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/75 transition hover:border-white/25 hover:bg-neutral-900">
-      <button
-        type="button"
-        onClick={() => onOpenItem({ ...item, category: category.singular, icon: category.icon })}
-        className="block w-full text-left"
-        aria-label={`Open ${item.title} details`}
-      >
+      <button type="button" onClick={() => onOpenItem({ ...item, category: category.singular, icon: category.icon })} className="block w-full text-left" aria-label={`Open ${item.title} details`}>
         <div className="relative h-32 overflow-hidden bg-neutral-900">
           {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 transition group-hover:scale-105" /> : null}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" />
@@ -133,13 +124,7 @@ function TopContentTile({ group, category, onOpenItem, onOpenList }) {
           </div>
         </div>
       </button>
-
-      <a
-        href={scopeMediaPath(group, category)}
-        onClick={(event) => { event.stopPropagation(); onOpenList(group, category) }}
-        aria-label={`Open ${category.title} list for ${group.name}`}
-        className="absolute right-3 top-3 z-10 rounded-full bg-black/55 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"
-      >
+      <a href={scopeMediaPath(group, category)} onClick={(event) => { event.stopPropagation(); onOpenList(group, category) }} aria-label={`Open ${category.title} list for ${group.name}`} className="absolute right-3 top-3 z-10 rounded-full bg-black/55 px-3 py-1.5 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">
         {category.count}
       </a>
     </article>
@@ -147,10 +132,7 @@ function TopContentTile({ group, category, onOpenItem, onOpenList }) {
 }
 
 function GroupContentOverview({ group, summary, loading, onOpenItem, onOpenList }) {
-  if (loading) {
-    return <div className="mt-5 grid gap-3 lg:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-56 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}</div>
-  }
-
+  if (loading) return <div className="mt-5 grid gap-3 lg:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-56 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}</div>
   const safeSummary = summary || emptyGroupSummary()
   return (
     <div className="mt-5 border-t border-white/10 pt-5">
@@ -159,17 +141,10 @@ function GroupContentOverview({ group, summary, loading, onOpenItem, onOpenList 
           <p className="text-[10px] font-black uppercase tracking-[0.26em] text-neutral-500">Content overview</p>
           <h3 className="mt-1 text-xl font-black text-white">Category leaders in this clique</h3>
         </div>
-        <div className="grid grid-cols-3 gap-2 sm:min-w-[20rem]">
-          <MetricBox value={safeSummary.items} label="Items" />
-          <MetricBox value={safeSummary.score} label="Score" />
-          <MetricBox value={safeSummary.done} label="Done" />
-        </div>
+        <div className="grid grid-cols-3 gap-2 sm:min-w-[20rem]"><MetricBox value={safeSummary.items} label="Items" /><MetricBox value={safeSummary.score} label="Score" /><MetricBox value={safeSummary.done} label="Done" /></div>
       </div>
-
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
-        {safeSummary.categories.map((category) => (
-          <TopContentTile key={category.title} group={group} category={category} onOpenItem={onOpenItem} onOpenList={onOpenList} />
-        ))}
+        {safeSummary.categories.map((category) => <TopContentTile key={category.title} group={group} category={category} onOpenItem={onOpenItem} onOpenList={onOpenList} />)}
       </div>
     </div>
   )
@@ -185,43 +160,22 @@ function GroupCard({ group, summary, summaryLoading, onCopy, onOpen, onOpenItem,
           <p className="mt-2 text-sm text-neutral-400">{group.members?.length || 1} members</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <button type="button" onClick={() => onCopy(group)} aria-label={`Copy invite for ${group.name}`} className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 text-white transition hover:bg-white hover:text-neutral-950">
-            <AppIcon name="link" size={17} />
-          </button>
-          <Link to={getGroupOpenPath(group)} onClick={() => onOpen(group)} aria-label={`Open ${group.name}`} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">
-            <AppIcon name="explore" size={17} />
-            Open
-          </Link>
+          <button type="button" onClick={() => onCopy(group)} aria-label={`Copy invite for ${group.name}`} className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="link" size={17} /></button>
+          <Link to={getGroupOpenPath(group)} onClick={() => onOpen(group)} aria-label={`Open ${group.name}`} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="explore" size={17} />Open</Link>
         </div>
       </div>
-
-      <div className="mt-4 flex flex-wrap gap-2 rounded-2xl bg-neutral-900 p-3 text-sm text-neutral-300">
-        {group.members?.length ? group.members.map((member) => <span key={member} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-neutral-300">{member}</span>) : <span>Members appear here after people join.</span>}
-      </div>
-
+      <div className="mt-4 flex flex-wrap gap-2 rounded-2xl bg-neutral-900 p-3 text-sm text-neutral-300">{group.members?.length ? group.members.map((member) => <span key={member} className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-semibold text-neutral-300">{member}</span>) : <span>Members appear here after people join.</span>}</div>
       <GroupContentOverview group={group} summary={summary} loading={summaryLoading} onOpenItem={onOpenItem} onOpenList={onOpenList} />
     </article>
   )
 }
 
 function CompactCreateForm({ draftGroup, setDraftGroup, loading, onCreate }) {
-  return (
-    <form onSubmit={onCreate} className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/10 bg-neutral-950/70 p-1.5">
-      <span className="ml-3 hidden text-neutral-500 sm:inline-flex"><AppIcon name="users" size={18} /></span>
-      <input value={draftGroup} onChange={(event) => setDraftGroup(event.target.value)} placeholder="New clique name" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500" />
-      <button disabled={loading} aria-label="Create clique" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-lg font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">+</button>
-    </form>
-  )
+  return <form onSubmit={onCreate} className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/10 bg-neutral-950/70 p-1.5"><span className="ml-3 hidden text-neutral-500 sm:inline-flex"><AppIcon name="users" size={18} /></span><input value={draftGroup} onChange={(event) => setDraftGroup(event.target.value)} placeholder="New clique name" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500" /><button disabled={loading} aria-label="Create clique" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-lg font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">+</button></form>
 }
 
 function CompactInviteForm({ value, setValue, loading, onJoin, readOnly = false }) {
-  return (
-    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/10 bg-neutral-950/70 p-1.5">
-      <span className="ml-3 hidden text-neutral-500 sm:inline-flex"><AppIcon name="link" size={18} /></span>
-      <input value={value} onChange={(event) => setValue?.(event.target.value)} readOnly={readOnly} placeholder="Invite link or code" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500" />
-      <button type="button" disabled={loading} onClick={onJoin} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Join</button>
-    </div>
-  )
+  return <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-white/10 bg-neutral-950/70 p-1.5"><span className="ml-3 hidden text-neutral-500 sm:inline-flex"><AppIcon name="link" size={18} /></span><input value={value} onChange={(event) => setValue?.(event.target.value)} readOnly={readOnly} placeholder="Invite link or code" className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-500" /><button type="button" disabled={loading} onClick={onJoin} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Join</button></div>
 }
 
 export default function Groups({ inviteMode = false }) {
@@ -234,6 +188,7 @@ export default function Groups({ inviteMode = false }) {
   const [handle, setHandle] = useState('')
   const [draftGroup, setDraftGroup] = useState('')
   const [manualInvite, setManualInvite] = useState('')
+  const [cliqueSearch, setCliqueSearch] = useState('')
   const [message, setMessage] = useState(null)
   const [selectedItem, setSelectedItem] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -243,16 +198,8 @@ export default function Groups({ inviteMode = false }) {
   useEffect(() => {
     let cancelled = false
     async function loadGroupSummaries() {
-      if (!groups.length) {
-        setGroupSummaries({})
-        setSummariesLoading(false)
-        return
-      }
-      if (!hasSupabase || !session?.user) {
-        setGroupSummaries(Object.fromEntries(groups.map((group) => [group.id, emptyGroupSummary()])))
-        setSummariesLoading(false)
-        return
-      }
+      if (!groups.length) { setGroupSummaries({}); setSummariesLoading(false); return }
+      if (!hasSupabase || !session?.user) { setGroupSummaries(Object.fromEntries(groups.map((group) => [group.id, emptyGroupSummary()]))); setSummariesLoading(false); return }
       setSummariesLoading(true)
       try {
         const entries = await Promise.all(groups.map(async (group) => {
@@ -261,10 +208,7 @@ export default function Groups({ inviteMode = false }) {
         }))
         if (!cancelled) setGroupSummaries(Object.fromEntries(entries))
       } catch (error) {
-        if (!cancelled) {
-          setGroupSummaries(Object.fromEntries(groups.map((group) => [group.id, emptyGroupSummary()])))
-          showMessage(error.message || 'Could not load clique overviews.', 'error')
-        }
+        if (!cancelled) { setGroupSummaries(Object.fromEntries(groups.map((group) => [group.id, emptyGroupSummary()]))); showMessage(error.message || 'Could not load clique overviews.', 'error') }
       } finally {
         if (!cancelled) setSummariesLoading(false)
       }
@@ -283,36 +227,30 @@ export default function Groups({ inviteMode = false }) {
         if (nextSession?.user) {
           const profile = await getProfile().catch(() => null)
           const displayName = getProfileName(nextSession, profile, savedHandle)
-          if (displayName) {
-            saveSharedHandle(displayName)
-            setHandle(displayName)
-          }
+          if (displayName) { saveSharedHandle(displayName); setHandle(displayName) }
           setGroups(await getRemoteGroups().catch(() => []))
           return
         }
         setGroups([])
         return
-      } catch (error) {
-        showMessage(error.message || 'Could not load cliques.', 'error')
-      }
+      } catch (error) { showMessage(error.message || 'Could not load cliques.', 'error') }
     }
     setGroups(getGroups())
   }
+
+  const visibleGroups = useMemo(() => {
+    const query = cliqueSearch.trim().toLowerCase()
+    if (!query) return groups
+    return groups.filter((group) => String(group.name || '').toLowerCase().includes(query))
+  }, [groups, cliqueSearch])
 
   const inviteGroup = useMemo(() => {
     if (!inviteCode) return null
     return groups.find((group) => group.inviteCode === inviteCode || group.id === inviteCode) || null
   }, [inviteCode, groups])
 
-  function showMessage(text, type = 'success') {
-    setMessage({ text, type })
-    setTimeout(() => setMessage(null), 2600)
-  }
-
-  function activateGroup(group) {
-    setActiveGroup(group.id)
-    if (typeof window !== 'undefined') window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, group.id)
-  }
+  function showMessage(text, type = 'success') { setMessage({ text, type }); setTimeout(() => setMessage(null), 2600) }
+  function activateGroup(group) { setActiveGroup(group.id); if (typeof window !== 'undefined') window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, group.id) }
 
   async function handleCreate(event) {
     event.preventDefault()
@@ -320,99 +258,45 @@ export default function Groups({ inviteMode = false }) {
     setLoading(true)
     try {
       const created = session?.user && hasSupabase ? await createRemoteGroup(draftGroup || `${activeHandle}'s clique`, activeHandle) : createLocalGroup(draftGroup || `${activeHandle}'s clique`, activeHandle)
-      activateGroup(created)
-      setDraftGroup('')
-      await refresh()
-      showMessage(`${created.name} is ready to share.`)
-    } catch (error) {
-      showMessage(error.message || 'Could not create clique.', 'error')
-    } finally {
-      setLoading(false)
-    }
+      activateGroup(created); setDraftGroup(''); await refresh(); showMessage(`${created.name} is ready to share.`)
+    } catch (error) { showMessage(error.message || 'Could not create clique.', 'error') } finally { setLoading(false) }
   }
 
   async function joinInvite(codeToJoin = inviteCode || manualInvite) {
     const parsed = parseInviteCode(codeToJoin)
-    if (!parsed) {
-      showMessage('Paste an invite link or code first.', 'error')
-      return
-    }
-    if (hasSupabase && !session?.user) {
-      showMessage('Sign in from Profile first, then use this invite link again.', 'error')
-      return
-    }
+    if (!parsed) { showMessage('Paste an invite link or code first.', 'error'); return }
+    if (hasSupabase && !session?.user) { showMessage('Sign in from Profile first, then use this invite link again.', 'error'); return }
     const activeHandle = handle || getSavedHandle() || 'anonymous'
     setLoading(true)
     try {
       const joined = session?.user && hasSupabase ? await joinRemoteGroup(parsed, activeHandle) : joinLocalGroup(parsed, activeHandle)
       if (!joined) throw new Error('Could not join that invite.')
-      activateGroup(joined)
-      setManualInvite('')
-      await refresh()
-      showMessage(`Joined ${joined.name}.`)
-    } catch (error) {
-      showMessage(error.message || 'Could not join that invite.', 'error')
-    } finally {
-      setLoading(false)
-    }
+      activateGroup(joined); setManualInvite(''); await refresh(); showMessage(`Joined ${joined.name}.`)
+    } catch (error) { showMessage(error.message || 'Could not join that invite.', 'error') } finally { setLoading(false) }
   }
 
-  function openList(group, category) {
-    activateGroup(group)
-    if (category?.to && typeof window !== 'undefined') window.location.href = scopeMediaPath(group, category)
-  }
-
-  async function copyInvite(group) {
-    const copied = await copyToClipboard(getGroupInviteUrl(group))
-    showMessage(copied ? 'Invite link copied.' : `Invite path: ${getGroupInvitePath(group)}`)
-  }
+  function openList(group, category) { activateGroup(group); if (category?.to && typeof window !== 'undefined') window.location.href = scopeMediaPath(group, category) }
+  async function copyInvite(group) { const copied = await copyToClipboard(getGroupInviteUrl(group)); showMessage(copied ? 'Invite link copied.' : `Invite path: ${getGroupInvitePath(group)}`) }
 
   return (
     <PageShell active="groups">
       <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-3 shadow-2xl shadow-black/20 backdrop-blur">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
-          <div className="flex shrink-0 items-center justify-between gap-3 rounded-full border border-white/10 bg-neutral-950/70 px-4 py-3 text-sm font-black text-white lg:w-auto">
-            <span className="inline-flex items-center gap-2"><AppIcon name="users" size={17} />{inviteMode ? 'Join invite' : 'Cliques'}</span>
-            <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-neutral-400">{groups.length}</span>
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row">
-            {inviteMode ? <CompactInviteForm value={inviteCode || ''} readOnly loading={loading} onJoin={() => joinInvite(inviteCode)} /> : <><CompactCreateForm draftGroup={draftGroup} setDraftGroup={setDraftGroup} loading={loading} onCreate={handleCreate} /><CompactInviteForm value={manualInvite} setValue={setManualInvite} loading={loading} onJoin={() => joinInvite(manualInvite)} /></>}
-          </div>
+          <div className="flex shrink-0 items-center justify-between gap-3 rounded-full border border-white/10 bg-neutral-950/70 px-4 py-3 text-sm font-black text-white lg:w-auto"><span className="inline-flex items-center gap-2"><AppIcon name="users" size={17} />{inviteMode ? 'Join invite' : 'Cliques'}</span><span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-neutral-400">{groups.length}</span></div>
+          <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row">{inviteMode ? <CompactInviteForm value={inviteCode || ''} readOnly loading={loading} onJoin={() => joinInvite(inviteCode)} /> : <><CompactCreateForm draftGroup={draftGroup} setDraftGroup={setDraftGroup} loading={loading} onCreate={handleCreate} /><CompactInviteForm value={manualInvite} setValue={setManualInvite} loading={loading} onJoin={() => joinInvite(manualInvite)} /></>}</div>
         </div>
       </section>
-
       <StatusMessage message={message} />
-
-      {inviteMode ? (
-        <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 text-neutral-300">
-          {hasSupabase && !session?.user ? <>This invite is ready. Sign in from <strong className="text-white">Profile</strong>, then come back to this link and press Join.</> : inviteGroup ? <>Invite found for <strong className="text-white">{inviteGroup.name}</strong>. Press Join to add it to your cliques.</> : <>Press Join to accept this invite. The clique will be added to your cliques.</>}
-        </section>
-      ) : null}
-
+      {inviteMode ? <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 text-neutral-300">{hasSupabase && !session?.user ? <>This invite is ready. Sign in from <strong className="text-white">Profile</strong>, then come back to this link and press Join.</> : inviteGroup ? <>Invite found for <strong className="text-white">{inviteGroup.name}</strong>. Press Join to add it to your cliques.</> : <>Press Join to accept this invite. The clique will be added to your cliques.</>}</section> : null}
       <section className="space-y-4">
-        <div className="flex items-end justify-between gap-3 px-1">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Your cliques</p>
-            <h2 className="mt-1 text-3xl font-black text-white">Joined cliques</h2>
-          </div>
-          <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{groups.length} total</span>
+        <div className="flex flex-col gap-3 px-1 lg:flex-row lg:items-end lg:justify-between">
+          <div><p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Your cliques</p><h2 className="mt-1 text-3xl font-black text-white">Joined cliques</h2></div>
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center"><input value={cliqueSearch} onChange={(event) => setCliqueSearch(event.target.value)} placeholder="Search cliques..." className="min-w-0 rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none" /><span className="w-fit rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{visibleGroups.length}/{groups.length}</span></div>
         </div>
-        {groups.length ? groups.map((group) => <GroupCard key={group.id} group={group} summary={groupSummaries[group.id]} summaryLoading={summariesLoading} onCopy={copyInvite} onOpen={activateGroup} onOpenItem={setSelectedItem} onOpenList={openList} />) : <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-neutral-400">Create your first clique or join a friend’s invite link.</div>}
+        {visibleGroups.length ? visibleGroups.map((group) => <GroupCard key={group.id} group={group} summary={groupSummaries[group.id]} summaryLoading={summariesLoading} onCopy={copyInvite} onOpen={activateGroup} onOpenItem={setSelectedItem} onOpenList={openList} />) : <div className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-neutral-400">No cliques match your search.</div>}
       </section>
-
       <InfoModal item={selectedItem} onClose={() => setSelectedItem(null)} year={displayYear(selectedItem?.released || selectedItem?.year)} backdrop={selectedItem?.backdrop || selectedItem?.poster}>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <DetailPill>{selectedItem?.category}</DetailPill>
-          <DetailPill>Score {selectedItem?.score || 0}</DetailPill>
-          <DetailPill>{selectedItem?.picks || 0} picks</DetailPill>
-          {selectedItem?.rating ? <DetailPill>Rating ★ {Number(selectedItem.rating).toFixed(1)}</DetailPill> : null}
-          {selectedItem?.runtime ? <DetailPill>{selectedItem.runtime} min</DetailPill> : null}
-          {selectedItem?.seasons ? <DetailPill>{selectedItem.seasons} seasons</DetailPill> : null}
-          {selectedItem?.episodes ? <DetailPill>{selectedItem.episodes} episodes</DetailPill> : null}
-          {selectedItem?.platform ? <DetailPill>{selectedItem.platform}</DetailPill> : null}
-          {selectedItem?.genres?.map((genre) => <DetailPill key={genre}>{genre}</DetailPill>)}
-          {selectedItem?.platforms?.map((platform) => <DetailPill key={platform}>{platform}</DetailPill>)}
-        </div>
+        <div className="mt-4 flex flex-wrap gap-2"><DetailPill>{selectedItem?.category}</DetailPill><DetailPill>Score {selectedItem?.score || 0}</DetailPill><DetailPill>{selectedItem?.picks || 0} picks</DetailPill>{selectedItem?.rating ? <DetailPill>Rating ★ {Number(selectedItem.rating).toFixed(1)}</DetailPill> : null}{selectedItem?.runtime ? <DetailPill>{selectedItem.runtime} min</DetailPill> : null}{selectedItem?.seasons ? <DetailPill>{selectedItem.seasons} seasons</DetailPill> : null}{selectedItem?.episodes ? <DetailPill>{selectedItem.episodes} episodes</DetailPill> : null}{selectedItem?.platform ? <DetailPill>{selectedItem.platform}</DetailPill> : null}{selectedItem?.genres?.map((genre) => <DetailPill key={genre}>{genre}</DetailPill>)}{selectedItem?.platforms?.map((platform) => <DetailPill key={platform}>{platform}</DetailPill>)}</div>
         <p className="mt-5 text-sm leading-7 text-neutral-300">{selectedItem?.overview || selectedItem?.description || 'No description available yet.'}</p>
       </InfoModal>
     </PageShell>
