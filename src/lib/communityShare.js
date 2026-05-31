@@ -16,8 +16,8 @@ function isMissingRpc(error, names = []) {
 }
 
 function platformSearchError(error) {
-  if (isMissingRpc(error, ['search_members_by_profile_name', 'share_media_with_member', 'search_my_cliques_by_name', 'share_media_with_clique'])) {
-    return new Error('Platform sharing needs the latest Supabase sharing migration. Until then, use WhatsApp or copy the share link.')
+  if (isMissingRpc(error, ['search_members_by_profile_name', 'share_media_with_member', 'search_my_cliques_by_name', 'share_media_with_clique', 'get_member_public_library'])) {
+    return new Error('Platform social features need the latest Supabase sharing migration. Until then, use WhatsApp or copy the share link.')
   }
   return error
 }
@@ -60,6 +60,40 @@ export async function searchCliquesByName(query = '', limit = 10) {
     memberCount: Number(clique.member_count || 0),
     isPublic: Boolean(clique.is_public),
   }))
+}
+
+export async function getMemberPublicLibrary(memberId) {
+  const client = requireConfiguredSupabase()
+  if (!memberId) throw new Error('Choose a member first.')
+
+  const { data, error } = await client.rpc('get_member_public_library', {
+    member_id_input: memberId,
+  })
+  if (error) throw platformSearchError(error)
+
+  const payload = data || {}
+  const profile = payload.profile || {}
+  const items = Array.isArray(payload.items) ? payload.items : []
+  return {
+    profile: {
+      id: profile.id || memberId,
+      displayName: clean(profile.displayName || profile.display_name) || 'CliqueBase member',
+    },
+    items: items.map((item) => ({
+      id: item.id,
+      type: item.type || 'Pick',
+      title: item.title || 'Untitled pick',
+      poster: item.poster || null,
+      backdrop: item.backdrop || null,
+      overview: item.overview || '',
+      score: Number(item.score || 0),
+      picks: Number(item.picks || 0),
+      rating: item.rating ?? null,
+      released: item.released || null,
+      year: item.year || '',
+    })),
+    totals: payload.totals || {},
+  }
 }
 
 export async function shareMediaWithMember(type, item, recipientId) {
