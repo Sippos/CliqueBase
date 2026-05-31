@@ -10,6 +10,18 @@ function requireConfiguredSupabase() {
   return supabase
 }
 
+function isMissingRpc(error) {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase()
+  return message.includes('function') && (message.includes('search_members_by_profile_name') || message.includes('share_media_with_member'))
+}
+
+function memberSearchError(error) {
+  if (isMissingRpc(error)) {
+    return new Error('Member search needs the latest Supabase sharing migration. Until then, copy the share link instead.')
+  }
+  return error
+}
+
 export async function searchMembersByProfileName(query, limit = 10) {
   const search = clean(query)
   if (search.length < 2) return []
@@ -19,12 +31,19 @@ export async function searchMembersByProfileName(query, limit = 10) {
     search_input: search,
     limit_input: limit,
   })
-  if (error) throw error
+  if (error) throw memberSearchError(error)
 
-  return (data || []).map((member) => ({
-    id: member.id,
-    displayName: clean(member.display_name) || 'CliqueBase member',
-  }))
+  const seen = new Set()
+  return (data || [])
+    .map((member) => ({
+      id: member.id,
+      displayName: clean(member.display_name) || 'CliqueBase member',
+    }))
+    .filter((member) => {
+      if (!member.id || seen.has(member.id)) return false
+      seen.add(member.id)
+      return true
+    })
 }
 
 export async function searchCliquesByName(query = '', limit = 10) {
@@ -55,7 +74,7 @@ export async function shareMediaWithMember(type, item, recipientId) {
     item_type_input: normalizedType,
     payload_input: payload,
   })
-  if (error) throw error
+  if (error) throw memberSearchError(error)
   return Array.isArray(data) ? data[0] : data
 }
 
