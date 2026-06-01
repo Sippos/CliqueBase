@@ -75,15 +75,15 @@ function MiniCategoryTile({ category, groupId }) {
   const top = category.items[0]
   const image = artFor(top)
   return (
-    <Link to={scopedHref(category, groupId)} className="group relative min-h-[5.75rem] overflow-hidden rounded-[1.15rem] border border-white/10 bg-neutral-950 transition hover:-translate-y-0.5 hover:border-white/25">
+    <Link to={scopedHref(category, groupId)} className="group relative min-h-[7rem] overflow-hidden rounded-[1.25rem] border border-white/10 bg-neutral-950 transition hover:-translate-y-0.5 hover:border-white/25">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-78 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.07),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
-      <div className="relative flex min-h-[5.75rem] flex-col justify-between p-3">
+      <div className="relative flex min-h-[7rem] flex-col justify-between p-3">
         <div className="flex items-start justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={10} />{category.title}</span>
           <span className="rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-black text-white backdrop-blur">{category.count}</span>
         </div>
-        <h3 className="line-clamp-1 text-sm font-black text-white drop-shadow">{top?.title || `No ${category.title.toLowerCase()}`}</h3>
+        <h3 className="line-clamp-1 text-base font-black text-white drop-shadow">{top?.title || `No ${category.title.toLowerCase()}`}</h3>
       </div>
     </Link>
   )
@@ -92,7 +92,7 @@ function MiniCategoryTile({ category, groupId }) {
 function HeroSlide({ category, item, groupId, index, total }) {
   const image = artFor(item)
   return (
-    <div className="relative min-h-[21rem] bg-neutral-950">
+    <div className="relative min-h-[23rem] bg-neutral-950">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
       <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">{category.title} · {index + 1}/{total}</div>
@@ -106,7 +106,7 @@ function HeroSlide({ category, item, groupId, index, total }) {
   )
 }
 
-function CategoryOverviewCard({ category, groupId, flipped, copying, onFlip, onShare, onCopy }) {
+function CategoryOverviewCard({ category, groupId, flipped, copying, onFlip, onInfo, onPile, onShare, onCopy }) {
   const top = category.items[0]
   const image = artFor(top)
   const title = top?.title || `No ${category.title.toLowerCase()} yet`
@@ -115,17 +115,16 @@ function CategoryOverviewCard({ category, groupId, flipped, copying, onFlip, onS
 
   return (
     <article className="group relative min-h-[24rem] outline-none" style={{ perspective: '1000px' }}>
+      <button type="button" onClick={() => onFlip(category.key)} className="absolute inset-0 z-10 rounded-[1.75rem] text-left" aria-label={`Flip ${category.title} card`} />
       <div className="relative min-h-[24rem] rounded-[1.75rem] transition-transform duration-500 group-hover:-translate-y-0.5" style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
         <div className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950 text-white shadow-2xl shadow-black/20 transition group-hover:border-white/25" style={{ backfaceVisibility: 'hidden' }}>
           {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
-
           <div className="absolute left-4 top-4 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><span className="inline-flex items-center gap-2"><AppIcon name={category.icon} size={12} />{category.title}</span></div>
-          <div className="absolute right-4 top-4 flex gap-2">
-            <Link to={scopedHref(category, groupId)} aria-label={`Open ${category.title} pile`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="list" size={14} />{category.count}</Link>
-            <button type="button" onClick={() => onFlip(category.key)} aria-label={`${flipped ? 'Hide actions' : 'Show info and actions'} for ${category.title}`} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={17} /></button>
+          <div className="absolute right-4 top-4 z-20 flex gap-2">
+            <button type="button" onClick={(event) => { event.stopPropagation(); onPile(category) }} aria-label={`Open ${category.title} pile`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="list" size={14} />{category.count}</button>
+            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onInfo(top) }} aria-label={`Info for ${top.title}`} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={17} /></button> : null}
           </div>
-
           <div className="absolute inset-x-0 bottom-0 p-5">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
             <h3 className="mt-1 line-clamp-2 text-3xl font-black leading-tight text-white drop-shadow-lg">{title}</h3>
@@ -135,18 +134,44 @@ function CategoryOverviewCard({ category, groupId, flipped, copying, onFlip, onS
         <div className="absolute inset-0 flex flex-col rounded-[1.75rem] border border-white/10 bg-neutral-950 p-5 text-white shadow-2xl shadow-black/30" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
           <div className="flex items-start justify-between gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name={category.icon} size={20} /></span>
-            <button type="button" onClick={() => onFlip('')} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-neutral-300 transition hover:bg-white hover:text-neutral-950">×</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); onFlip('') }} className="z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-neutral-300 transition hover:bg-white hover:text-neutral-950">×</button>
           </div>
-          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-neutral-500">{category.title} details</p>
+          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-neutral-500">{category.title} actions</p>
           <h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight">{title}</h3>
-          <p className="mt-3 line-clamp-6 flex-1 text-sm leading-7 text-neutral-400">{description}</p>
-          <div className="mt-5 grid gap-2">
-            {top ? <button type="button" onClick={() => onShare(top)} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Share</button> : <Link to={scopedHref(category, groupId)} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Add first item</Link>}
-            {top ? <button type="button" onClick={() => onCopy(top)} disabled={copyDisabled} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-45">{copying ? 'Copying…' : top.type === 'Video' ? 'Video copy unavailable' : 'Copy to My Library'}</button> : null}
+          <p className="mt-3 line-clamp-5 flex-1 text-sm leading-7 text-neutral-400">{description}</p>
+          <div className="relative z-20 mt-5 grid gap-2">
+            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onShare(top) }} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Share</button> : <Link to={scopedHref(category, groupId)} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Add first item</Link>}
+            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onCopy(top) }} disabled={copyDisabled} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-45">{copying ? 'Copying…' : top.type === 'Video' ? 'Video copy unavailable' : 'Copy to My Library'}</button> : null}
           </div>
         </div>
       </div>
     </article>
+  )
+}
+
+function InlinePile({ category, onClose, onInfo }) {
+  if (!category) return null
+  const items = category.items || []
+  return (
+    <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5" id="clique-inline-pile">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />Pile</p>
+          <h2 className="mt-1 text-3xl font-black text-white">{category.title} in this clique</h2>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Close pile</button>
+      </div>
+      {items.length ? <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{items.map((item) => {
+        const image = artFor(item)
+        return (
+          <button key={`${item.type}-${item.id}`} type="button" onClick={() => onInfo(item)} className="group relative min-h-[16rem] overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950 text-left transition hover:border-white/25">
+            {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+            <div className="absolute inset-x-0 bottom-0 p-4"><p className="text-xs uppercase tracking-[0.22em] text-neutral-300">{item.type}</p><h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{item.title}</h3></div>
+          </button>
+        )
+      })}</div> : <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} in this clique yet.</p>}
+    </section>
   )
 }
 
@@ -171,6 +196,7 @@ export default function CliqueDetail() {
   const [addOpen, setAddOpen] = useState(false)
   const [heroIndex, setHeroIndex] = useState(0)
   const [flippedCategory, setFlippedCategory] = useState('')
+  const [activePileKey, setActivePileKey] = useState('')
   const [sharingItem, setSharingItem] = useState(null)
   const [copyingKey, setCopyingKey] = useState('')
 
@@ -230,7 +256,13 @@ export default function CliqueDetail() {
   const topCategory = categories.slice().sort((a, b) => b.count - a.count || b.score - a.score)[0]
   const heroCategory = categories[heroIndex % categories.length] || categories[0] || CATEGORY_META[0]
   const heroItem = heroCategory?.items?.[0] || null
+  const activePile = categories.find((category) => category.key === activePileKey) || null
   const groupName = group?.name || 'Clique'
+
+  function openPile(category) {
+    setActivePileKey(category.key)
+    window.setTimeout(() => document.getElementById('clique-inline-pile')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
 
   async function copyToLibrary(item) {
     if (!item || !hasSupabase || !session?.user) {
@@ -271,7 +303,7 @@ export default function CliqueDetail() {
               <button type="button" onClick={() => setAddOpen(true)} className="inline-flex h-10 w-fit shrink-0 items-center gap-2 rounded-full bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="explore" size={15} />Add</button>
             </div>
             {!session?.user && hasSupabase ? <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-neutral-300">Sign in from Profile to add and vote inside cliques.</p> : null}
-            <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {categories.map((category) => <MiniCategoryTile key={category.key} category={category} groupId={groupId} />)}
             </div>
           </div>
@@ -290,8 +322,10 @@ export default function CliqueDetail() {
           </div>
           <button type="button" onClick={() => setAddOpen(true)} className="inline-flex h-10 w-fit items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="explore" size={15} />Add</button>
         </div>
-        {loading ? <div className="mt-5 grid gap-4 md:grid-cols-2">{[0, 1, 2, 3].map((item) => <div key={item} className="h-96 animate-pulse rounded-[1.75rem] bg-white/[0.06]" />)}</div> : <div className="mt-5 grid gap-4 md:grid-cols-2">{categories.map((category) => <CategoryOverviewCard key={category.key} category={category} groupId={groupId} flipped={flippedCategory === category.key} copying={copyingKey === itemActionKey(category.items[0], 'copy-')} onFlip={(key) => setFlippedCategory((current) => key && current !== key ? key : '')} onShare={setSharingItem} onCopy={copyToLibrary} />)}</div>}
+        {loading ? <div className="mt-5 grid gap-4 md:grid-cols-2">{[0, 1, 2, 3].map((item) => <div key={item} className="h-96 animate-pulse rounded-[1.75rem] bg-white/[0.06]" />)}</div> : <div className="mt-5 grid gap-4 md:grid-cols-2">{categories.map((category) => <CategoryOverviewCard key={category.key} category={category} groupId={groupId} flipped={flippedCategory === category.key} copying={copyingKey === itemActionKey(category.items[0], 'copy-')} onFlip={(key) => setFlippedCategory((current) => key && current !== key ? key : '')} onInfo={setSelectedItem} onPile={openPile} onShare={setSharingItem} onCopy={copyToLibrary} />)}</div>}
       </section>
+
+      <InlinePile category={activePile} onClose={() => setActivePileKey('')} onInfo={setSelectedItem} />
 
       <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">Recent content</p><h2 className="mt-1 text-2xl font-black text-white">Latest visible items</h2></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{allItems.length} total</span></div>
