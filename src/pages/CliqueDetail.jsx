@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
+import MemberShareModal from '../components/MemberShareModal.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { DetailPill, InfoModal, StatusMessage, displayYear } from '../components/MediaBlocks.jsx'
 import { getActiveGroup, setActiveGroup } from '../lib/groups.js'
-import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
-import { getVideos } from '../lib/videoLibrary.js'
+import { getSavedHandle } from '../lib/handle.js'
+import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
+import { getVideos, saveVideo } from '../lib/videoLibrary.js'
 
 const CATEGORY_META = [
   { key: 'movies', title: 'Movies', singular: 'Movie', icon: 'movies', href: '/movies', doneKey: 'watched', addLabel: 'Search movies', description: 'Find a movie and add it to this clique.' },
@@ -20,6 +22,10 @@ function scopedHref(category, groupId) {
 
 function artFor(item) {
   return item?.backdrop || item?.poster || null
+}
+
+function itemActionKey(item, prefix = '') {
+  return item ? `${prefix}${item.type}-${item.id}` : ''
 }
 
 function normalizeItems(rows = [], category) {
@@ -83,28 +89,60 @@ function MiniCategoryTile({ category, groupId }) {
   )
 }
 
-function CategoryOverviewCard({ category, groupId, onInfo }) {
+function HeroSlide({ category, item, groupId, index, total }) {
+  const image = artFor(item)
+  return (
+    <div className="relative min-h-[21rem] bg-neutral-950">
+      {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+      <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">{category.title} · {index + 1}/{total}</div>
+      <Link to={scopedHref(category, groupId)} className="absolute right-5 top-5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-neutral-950 transition hover:bg-neutral-200">Open</Link>
+      <div className="absolute inset-x-0 bottom-0 p-6">
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
+        <h2 className="mt-2 text-3xl font-black text-white">{item?.title || `No ${category.title.toLowerCase()} yet`}</h2>
+        <p className="mt-2 line-clamp-2 max-w-lg text-sm leading-6 text-neutral-300">{item?.overview || item?.url || category.description}</p>
+      </div>
+    </div>
+  )
+}
+
+function CategoryOverviewCard({ category, groupId, flipped, copying, onFlip, onShare, onCopy }) {
   const top = category.items[0]
   const image = artFor(top)
-  return (
-    <article className="group relative min-h-[18.5rem] overflow-hidden rounded-[1.65rem] border border-white/10 bg-neutral-950 text-white transition hover:-translate-y-0.5 hover:border-white/25">
-      <Link to={scopedHref(category, groupId)} className="absolute inset-0" aria-label={`Open ${category.title}`}>
-        {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
-      </Link>
+  const title = top?.title || `No ${category.title.toLowerCase()} yet`
+  const description = top?.overview || top?.url || category.description
+  const copyDisabled = !top || copying || top.type === 'Video'
 
-      <div className="pointer-events-none relative z-10 flex min-h-[18.5rem] flex-col justify-between p-4">
-        <div className="flex items-start justify-between gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.title}</span>
-          <span className="rounded-full border border-white/10 bg-black/55 px-3 py-1.5 text-xs font-black text-white backdrop-blur">{category.count}</span>
+  return (
+    <article className="group relative min-h-[24rem] outline-none" style={{ perspective: '1000px' }}>
+      <div className="relative min-h-[24rem] rounded-[1.75rem] transition-transform duration-500 group-hover:-translate-y-0.5" style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
+        <div className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950 text-white shadow-2xl shadow-black/20 transition group-hover:border-white/25" style={{ backfaceVisibility: 'hidden' }}>
+          {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+
+          <div className="absolute left-4 top-4 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><span className="inline-flex items-center gap-2"><AppIcon name={category.icon} size={12} />{category.title}</span></div>
+          <div className="absolute right-4 top-4 flex gap-2">
+            <Link to={scopedHref(category, groupId)} aria-label={`Open ${category.title} pile`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="list" size={14} />{category.count}</Link>
+            <button type="button" onClick={() => onFlip(category.key)} aria-label={`${flipped ? 'Hide actions' : 'Show info and actions'} for ${category.title}`} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={17} /></button>
+          </div>
+
+          <div className="absolute inset-x-0 bottom-0 p-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
+            <h3 className="mt-1 line-clamp-2 text-3xl font-black leading-tight text-white drop-shadow-lg">{title}</h3>
+          </div>
         </div>
 
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
-          <h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg">{top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
-          <div className="pointer-events-auto mt-4 flex gap-2">
-            {top ? <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onInfo(top) }} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-white hover:text-neutral-950" aria-label={`Info for ${top.title}`}><AppIcon name="info" size={17} /></button> : null}
-            <Link to={scopedHref(category, groupId)} className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-3 text-xs font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="list" size={14} />Pile</Link>
+        <div className="absolute inset-0 flex flex-col rounded-[1.75rem] border border-white/10 bg-neutral-950 p-5 text-white shadow-2xl shadow-black/30" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+          <div className="flex items-start justify-between gap-3">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name={category.icon} size={20} /></span>
+            <button type="button" onClick={() => onFlip('')} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-neutral-300 transition hover:bg-white hover:text-neutral-950">×</button>
+          </div>
+          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-neutral-500">{category.title} details</p>
+          <h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight">{title}</h3>
+          <p className="mt-3 line-clamp-6 flex-1 text-sm leading-7 text-neutral-400">{description}</p>
+          <div className="mt-5 grid gap-2">
+            {top ? <button type="button" onClick={() => onShare(top)} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Share</button> : <Link to={scopedHref(category, groupId)} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Add first item</Link>}
+            {top ? <button type="button" onClick={() => onCopy(top)} disabled={copyDisabled} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-45">{copying ? 'Copying…' : top.type === 'Video' ? 'Video copy unavailable' : 'Copy to My Library'}</button> : null}
           </div>
         </div>
       </div>
@@ -131,6 +169,10 @@ export default function CliqueDetail() {
   const [message, setMessage] = useState(null)
   const [selectedItem, setSelectedItem] = useState(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [heroIndex, setHeroIndex] = useState(0)
+  const [flippedCategory, setFlippedCategory] = useState('')
+  const [sharingItem, setSharingItem] = useState(null)
+  const [copyingKey, setCopyingKey] = useState('')
 
   useEffect(() => {
     if (groupId) setActiveGroup(groupId)
@@ -177,13 +219,43 @@ export default function CliqueDetail() {
     })
   }, [media])
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setHeroIndex((current) => (current + 1) % CATEGORY_META.length), 4200)
+    return () => window.clearInterval(timer)
+  }, [])
+
   const allItems = useMemo(() => categories.flatMap((category) => category.items).sort((a, b) => b.sortValue - a.sortValue), [categories])
   const totalItems = allItems.length
   const activeCategories = categories.filter((category) => category.count > 0).length
   const topCategory = categories.slice().sort((a, b) => b.count - a.count || b.score - a.score)[0]
-  const heroItem = allItems[0]
-  const heroImage = artFor(heroItem)
+  const heroCategory = categories[heroIndex % categories.length] || categories[0] || CATEGORY_META[0]
+  const heroItem = heroCategory?.items?.[0] || null
   const groupName = group?.name || 'Clique'
+
+  async function copyToLibrary(item) {
+    if (!item || !hasSupabase || !session?.user) {
+      setMessage({ type: 'error', text: 'Sign in from Profile before copying to My Library.' })
+      return
+    }
+    if (item.type === 'Video') {
+      setMessage({ type: 'error', text: 'Video copying is not available yet.' })
+      return
+    }
+    const key = itemActionKey(item, 'copy-')
+    setCopyingKey(key)
+    try {
+      const nominatedBy = getSavedHandle() || 'anonymous'
+      if (item.type === 'Movie') await saveMovie(item, nominatedBy, null)
+      else if (item.type === 'Series') await saveSeries(item, nominatedBy, null)
+      else if (item.type === 'Game') await saveGame(item, nominatedBy, null)
+      else if (item.type === 'Video') await saveVideo(item, nominatedBy, null, item.classic)
+      setMessage({ type: 'success', text: `Copied "${item.title}" to My Library.` })
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Could not copy this item.' })
+    } finally {
+      setCopyingKey('')
+    }
+  }
 
   return (
     <PageShell active="cliques">
@@ -203,15 +275,7 @@ export default function CliqueDetail() {
               {categories.map((category) => <MiniCategoryTile key={category.key} category={category} groupId={groupId} />)}
             </div>
           </div>
-          <div className="relative min-h-[21rem] bg-neutral-950">
-            {heroImage ? <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
-            <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">Top pick</div>
-            <div className="absolute inset-x-0 bottom-0 p-6">
-              <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-300">{heroItem?.type || 'Empty clique'}</p>
-              <h2 className="mt-2 text-3xl font-black text-white">{heroItem?.title || 'Add the first clique item'}</h2>
-            </div>
-          </div>
+          <HeroSlide category={heroCategory} item={heroItem} groupId={groupId} index={heroIndex % categories.length} total={categories.length || 4} />
         </div>
       </section>
 
@@ -226,7 +290,7 @@ export default function CliqueDetail() {
           </div>
           <button type="button" onClick={() => setAddOpen(true)} className="inline-flex h-10 w-fit items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="explore" size={15} />Add</button>
         </div>
-        {loading ? <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <div key={item} className="h-72 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}</div> : <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{categories.map((category) => <CategoryOverviewCard key={category.key} category={category} groupId={groupId} onInfo={setSelectedItem} />)}</div>}
+        {loading ? <div className="mt-5 grid gap-4 md:grid-cols-2">{[0, 1, 2, 3].map((item) => <div key={item} className="h-96 animate-pulse rounded-[1.75rem] bg-white/[0.06]" />)}</div> : <div className="mt-5 grid gap-4 md:grid-cols-2">{categories.map((category) => <CategoryOverviewCard key={category.key} category={category} groupId={groupId} flipped={flippedCategory === category.key} copying={copyingKey === itemActionKey(category.items[0], 'copy-')} onFlip={(key) => setFlippedCategory((current) => key && current !== key ? key : '')} onShare={setSharingItem} onCopy={copyToLibrary} />)}</div>}
       </section>
 
       <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
@@ -246,6 +310,7 @@ export default function CliqueDetail() {
         {selectedItem?.url ? <a href={selectedItem.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Open link</a> : null}
       </InfoModal>
 
+      {sharingItem ? <MemberShareModal item={sharingItem} type={sharingItem?.type?.toLowerCase()} onClose={() => setSharingItem(null)} onMessage={(text) => setMessage({ type: 'success', text })} /> : null}
       {addOpen ? <AddContentModal groupId={groupId} groupName={groupName} onClose={() => setAddOpen(false)} /> : null}
     </PageShell>
   )
