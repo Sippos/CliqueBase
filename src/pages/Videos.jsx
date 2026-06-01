@@ -1,54 +1,15 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import SwipeDeck from '../components/SwipeDeck.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { DetailPill, InfoModal, PageHero, StatusMessage, displayYear } from '../components/MediaBlocks.jsx'
 import { getSavedHandle } from '../lib/handle.js'
+import { getActiveGroupId } from '../lib/groups.js'
+import { getVideos, makeVideoFromLink, markVideoClassic, saveVideo, voteVideo } from '../lib/videoLibrary.js'
 
-function getYoutubeId(url) {
-  const value = String(url || '').trim()
-  if (!value) return null
-
-  const patterns = [
-    /youtu\.be\/([^?&#/]+)/,
-    /youtube\.com\/watch\?v=([^?&#/]+)/,
-    /youtube\.com\/shorts\/([^?&#/]+)/,
-    /youtube\.com\/embed\/([^?&#/]+)/,
-  ]
-
-  for (const pattern of patterns) {
-    const match = value.match(pattern)
-    if (match?.[1]) return match[1]
-  }
-
-  return null
-}
-
-function makeTitleFromUrl(url) {
-  try {
-    const parsed = new URL(url)
-    return parsed.hostname.replace(/^www\./, '')
-  } catch {
-    return 'Saved video'
-  }
-}
-
-function makeVideo(url, title, activeHandle) {
-  const cleanUrl = url.trim()
-  const youtubeId = getYoutubeId(cleanUrl)
-  const fallbackTitle = title.trim() || makeTitleFromUrl(cleanUrl)
-
-  return {
-    id: `video-${Date.now()}`,
-    title: fallbackTitle,
-    year: 'Saved link',
-    url: cleanUrl,
-    poster: youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null,
-    overview: cleanUrl,
-    platform: youtubeId ? 'YouTube' : 'Link',
-    nominated_by: activeHandle || 'You',
-    picks: 0,
-    score: 0,
-  }
+function scopedGroupFromLocation(search) {
+  const params = new URLSearchParams(search)
+  return params.get('clique') || params.get('group') || params.get('scope') || getActiveGroupId() || null
 }
 
 function VideoCard({ video, onInfo, onClassic }) {
@@ -72,7 +33,7 @@ function VideoCard({ video, onInfo, onClassic }) {
         </div>
         <button type="button" onClick={() => onInfo(video)} className="mt-2 block w-full text-left text-lg font-semibold leading-tight text-white hover:underline">{video.title}</button>
         <div className="mt-3 flex flex-wrap gap-2">
-          {video.saved ? <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-950">Classic</span> : <button type="button" onClick={() => onClassic(video)} className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-neutral-300 hover:bg-white hover:text-neutral-950">Mark classic</button>}
+          {video.classic ? <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-neutral-950">Classic</span> : <button type="button" onClick={() => onClassic(video)} className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-neutral-300 hover:bg-white hover:text-neutral-950">Mark classic</button>}
           {video.url ? <a href={video.url} target="_blank" rel="noreferrer" className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-neutral-300 hover:bg-white hover:text-neutral-950">Open link</a> : null}
         </div>
       </div>
@@ -81,71 +42,118 @@ function VideoCard({ video, onInfo, onClassic }) {
 }
 
 export default function Videos() {
+  const location = useLocation()
+  const groupId = scopedGroupFromLocation(location.search)
   const [videos, setVideos] = useState([])
   const [votes, setVotes] = useState({})
-  const [classics, setClassics] = useState([])
   const [infoVideo, setInfoVideo] = useState(null)
   const [draft, setDraft] = useState({ url: '', title: '' })
   const [message, setMessage] = useState(null)
+  const [loading, setLoading] = useState(false)
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
+  const isClique = Boolean(groupId)
 
-  const classicVideos = useMemo(() => videos.filter((item) => classics.includes(item.id)), [videos, classics])
-  const feedVideos = useMemo(() => videos.slice().sort((a, b) => (classics.includes(b.id)) - (classics.includes(a.id)) || (b.score || 0) - (a.score || 0)), [videos, classics])
-  const votePile = useMemo(() => videos.filter((item) => !classics.includes(item.id) && !votes[item.id]).slice(0, 20), [videos, classics, votes])
+  const classicVideos = useMemo(() => videos.filter((item) => item.classic), [videos])
+  const feedVideos = useMemo(() => videos.slice().sort((a, b) => Number(b.classic) - Number(a.classic) || (b.score || 0) - (a.score || 0)), [videos])
+  const votePile = useMemo(() => videos.filter((item) => !item.classic && !votes[item.id]).slice(0, 20), [videos, votes])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadVideos() {
+      setLoading(true)
+      setMessage(null)
+      try {
+        const nextVideos = await getVideos(groupId)
+        if (!cancelled) setVideos(nextVideos)
+      } catch (error) {
+        if (!cancelled) setMessage({ type: 'error', text: error.message || 'Could not load videos.' })
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    loadVideos()
+    return () => { cancelled = true }
+  }, [groupId])
 
   function showMessage(text, type = 'success') {
     setMessage({ type, text })
     setTimeout(() => setMessage(null), 2200)
   }
 
-  function addVideo(event, markClassic = false) {
+  async function addVideo(event, markClassic = false) {
     event.preventDefault()
     if (!draft.url.trim()) return
 
-    const video = makeVideo(draft.url, draft.title, activeHandle)
-    setVideos((current) => [video, ...current])
-    if (markClassic) setClassics((current) => [video.id, ...current])
-    setDraft({ url: '', title: '' })
-    showMessage(markClassic ? `"${video.title}" saved as classic.` : `"${video.title}" uploaded to the feed.`)
+    setLoading(true)
+    try {
+      const draftVideo = makeVideoFromLink(draft.url, draft.title, activeHandle)
+      const saved = await saveVideo(draftVideo, activeHandle || 'anonymous', groupId, markClassic)
+      setVideos((current) => [saved, ...current.filter((item) => item.id !== saved.id)])
+      setDraft({ url: '', title: '' })
+      showMessage(markClassic ? `"${saved.title}" saved as classic.` : `"${saved.title}" uploaded to ${isClique ? 'this clique' : 'your video feed'}.`)
+    } catch (error) {
+      showMessage(error.message || 'Could not upload that video link.', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function markClassic(video) {
-    setClassics((current) => current.includes(video.id) ? current : [video.id, ...current])
-    setVotes((current) => ({ ...current, [video.id]: 'like' }))
-    showMessage(`"${video.title}" saved as classic.`)
+  async function markClassic(video) {
+    setLoading(true)
+    try {
+      const saved = await markVideoClassic(video, groupId)
+      setVideos((current) => current.map((item) => item.id === saved.id ? saved : item))
+      setVotes((current) => ({ ...current, [video.id]: 'like' }))
+      showMessage(`"${saved.title}" saved as classic.`)
+    } catch (error) {
+      showMessage(error.message || 'Could not mark this video as classic.', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  function handleSwipe(vote, video) {
+  async function handleSwipe(vote, video) {
     setVotes((current) => ({ ...current, [video.id]: vote }))
-    if (vote === 'like') markClassic(video)
-    else showMessage(`You passed on "${video.title}".`)
+    try {
+      await voteVideo(video, vote, groupId)
+      if (vote === 'like') await markClassic(video)
+      else showMessage(`You passed on "${video.title}".`)
+    } catch (error) {
+      showMessage(error.message || 'Could not save your vote.', 'error')
+    }
   }
 
-  function clearPage() {
-    setVideos([])
+  async function refreshPage() {
     setVotes({})
-    setClassics([])
     setInfoVideo(null)
     setDraft({ url: '', title: '' })
     setMessage(null)
+    setLoading(true)
+    try {
+      setVideos(await getVideos(groupId))
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message || 'Could not refresh videos.' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
     <PageShell active="videos">
       <PageHero
-        eyebrow="Shared link dump"
-        title="Start a fresh video feed"
-        description="Paste YouTube or other video links, keep a group feed, swipe the non-classics, and pin the best links forever."
+        eyebrow={isClique ? 'Clique video tab' : 'Video library'}
+        title={isClique ? 'Upload videos to this clique' : 'Start a fresh video feed'}
+        description={isClique ? 'Paste YouTube, TikTok, Instagram, or any video link. Everyone in the clique can see it here, vote on it, and pin classics.' : 'Paste YouTube or other video links, keep a feed, swipe the non-classics, and pin the best links forever.'}
         warning={!activeHandle ? 'Create a profile with the Profile button in the navbar before uploading so your name appears on links.' : null}
-        actions={<button type="button" onClick={clearPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Clear feed</button>}
+        actions={<button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Refresh videos</button>}
       >
         <form onSubmit={(event) => addVideo(event, false)} className="mt-5 space-y-3">
           <input className="w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" placeholder="Paste YouTube / TikTok / Instagram / video link" value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} />
           <input className="w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" placeholder="Funny title (optional)" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <button type="submit" className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200">Upload to feed</button>
-            <button type="button" onClick={(event) => addVideo(event, true)} className="rounded-2xl border border-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white hover:text-neutral-950">Upload as classic</button>
+            <button type="submit" disabled={loading} className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">{loading ? 'Saving...' : isClique ? 'Upload to clique' : 'Upload to feed'}</button>
+            <button type="button" disabled={loading} onClick={(event) => addVideo(event, true)} className="rounded-2xl border border-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Upload as classic</button>
           </div>
         </form>
       </PageHero>
@@ -156,11 +164,13 @@ export default function Videos() {
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Latest uploads</p>
-            <h2 className="mt-1 text-3xl font-semibold text-white">Video feed</h2>
+            <h2 className="mt-1 text-3xl font-semibold text-white">{isClique ? 'Clique video feed' : 'Video feed'}</h2>
           </div>
           <div className="text-sm text-neutral-500">{videos.length} uploaded link{videos.length === 1 ? '' : 's'}</div>
         </div>
-        {feedVideos.length === 0 ? <p className="rounded-2xl border border-dashed border-white/15 p-5 text-neutral-400">No links uploaded yet. Paste the first one above.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{feedVideos.map((video) => <VideoCard key={video.id} video={{ ...video, saved: classics.includes(video.id) }} onInfo={setInfoVideo} onClassic={markClassic} />)}</div>}
+        {loading && feedVideos.length === 0 ? <p className="rounded-2xl border border-white/10 p-5 text-neutral-400">Loading videos...</p> : null}
+        {!loading && feedVideos.length === 0 ? <p className="rounded-2xl border border-dashed border-white/15 p-5 text-neutral-400">No videos yet. Use the upload box above to add the first video link to this {isClique ? 'clique' : 'feed'}.</p> : null}
+        {feedVideos.length ? <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{feedVideos.map((video) => <VideoCard key={video.id} video={video} onInfo={setInfoVideo} onClassic={markClassic} />)}</div> : null}
       </section>
 
       <section ref={deckRef} className="mb-10">
@@ -173,15 +183,15 @@ export default function Videos() {
             <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Hall of fame</p>
             <h2 className="mt-1 text-3xl font-semibold text-white">Classic funny videos</h2>
           </div>
-          <div className="max-w-xs text-sm text-neutral-500 sm:text-right">Pinned links the group wants to remember forever</div>
+          <div className="max-w-xs text-sm text-neutral-500 sm:text-right">Pinned links the {isClique ? 'clique' : 'group'} wants to remember forever</div>
         </div>
-        {classicVideos.length === 0 ? <p className="rounded-2xl border border-dashed border-white/15 p-5 text-neutral-400">No classics yet.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{classicVideos.map((video) => <VideoCard key={video.id} video={{ ...video, saved: true }} onInfo={setInfoVideo} onClassic={markClassic} />)}</div>}
+        {classicVideos.length === 0 ? <p className="rounded-2xl border border-dashed border-white/15 p-5 text-neutral-400">No classics yet.</p> : <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{classicVideos.map((video) => <VideoCard key={video.id} video={video} onInfo={setInfoVideo} onClassic={markClassic} />)}</div>}
       </section>
 
       <InfoModal item={infoVideo} onClose={() => setInfoVideo(null)} year={displayYear(infoVideo?.year)}>
         <div className="mt-4 flex flex-wrap gap-2">
           {infoVideo?.platform ? <DetailPill>{infoVideo.platform}</DetailPill> : null}
-          {classics.includes(infoVideo?.id) ? <DetailPill>Classic</DetailPill> : null}
+          {infoVideo?.classic ? <DetailPill>Classic</DetailPill> : null}
           {infoVideo?.nominated_by ? <DetailPill>Added by {infoVideo.nominated_by}</DetailPill> : null}
         </div>
         {infoVideo?.poster ? <img src={infoVideo.poster} alt="" className="mt-5 max-h-80 w-full rounded-3xl object-cover" /> : null}
