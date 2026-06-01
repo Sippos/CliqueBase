@@ -18,6 +18,10 @@ function scopedHref(category, groupId) {
   return `${category.href}?clique=${encodeURIComponent(groupId)}`
 }
 
+function artFor(item) {
+  return item?.backdrop || item?.poster || null
+}
+
 function normalizeItems(rows = [], category) {
   return rows.map((item) => ({
     ...item,
@@ -31,15 +35,14 @@ function normalizeItems(rows = [], category) {
   })).sort((a, b) => b.sortValue - a.sortValue || String(a.title || '').localeCompare(String(b.title || '')))
 }
 
-function StatTile({ icon, label, value, detail }) {
+function MetricPill({ label, value, icon }) {
   return (
-    <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">{label}</p>
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-white/10 text-neutral-300"><AppIcon name={icon} size={16} /></span>
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-neutral-950/70 px-3 py-2">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-neutral-950"><AppIcon name={icon} size={15} /></span>
+      <div className="min-w-0">
+        <p className="text-lg font-black leading-none text-white">{value}</p>
+        <p className="mt-1 truncate text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">{label}</p>
       </div>
-      <h2 className="mt-3 text-3xl font-black text-white">{value}</h2>
-      <p className="mt-1 text-sm leading-5 text-neutral-400">{detail}</p>
     </div>
   )
 }
@@ -48,23 +51,23 @@ function AddContentModal({ groupId, groupName, onClose }) {
   if (!groupId) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-neutral-950 p-5 text-white shadow-2xl shadow-black/40">
+      <div className="w-full max-w-2xl rounded-[2rem] border border-white/10 bg-neutral-950 p-5 text-white shadow-2xl shadow-black/40">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.26em] text-neutral-500">Add content</p>
-            <h2 className="mt-1 text-3xl font-black">Choose what to add</h2>
-            <p className="mt-2 text-sm leading-6 text-neutral-400">Everything opens in clique mode for <span className="font-bold text-white">{groupName}</span>.</p>
+            <h2 className="mt-1 text-2xl font-black">What should go into {groupName}?</h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-400">Each option opens the right search or upload screen inside this clique.</p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close add content" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 text-2xl text-neutral-400 transition hover:bg-white hover:text-neutral-950">×</button>
+          <button type="button" onClick={onClose} aria-label="Close add content" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-2xl text-neutral-400 transition hover:bg-white hover:text-neutral-950">×</button>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {CATEGORY_META.map((category) => (
-            <Link key={category.key} to={scopedHref(category, groupId)} onClick={onClose} className="group rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4 transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.07]">
+            <Link key={category.key} to={scopedHref(category, groupId)} onClick={onClose} className="group rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-4 transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/[0.07]">
               <div className="flex items-start justify-between gap-3">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name={category.icon} size={21} /></span>
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name={category.icon} size={19} /></span>
                 <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-neutral-300 transition group-hover:bg-white group-hover:text-neutral-950">Open</span>
               </div>
-              <h3 className="mt-4 text-xl font-black text-white">{category.addLabel}</h3>
+              <h3 className="mt-4 text-lg font-black text-white">{category.addLabel}</h3>
               <p className="mt-2 text-sm leading-6 text-neutral-400">{category.description}</p>
             </Link>
           ))}
@@ -74,33 +77,53 @@ function AddContentModal({ groupId, groupName, onClose }) {
   )
 }
 
+function HeroCategoryTile({ category, groupId }) {
+  const top = category.items[0]
+  const image = artFor(top)
+  return (
+    <Link to={scopedHref(category, groupId)} className="group relative min-h-[6.5rem] overflow-hidden rounded-[1.25rem] border border-white/10 bg-neutral-950 transition hover:-translate-y-0.5 hover:border-white/25">
+      {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/5" />
+      <div className="relative flex min-h-[6.5rem] flex-col justify-between p-3">
+        <div className="flex items-start justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={11} />{category.title}</span>
+          <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-black text-white backdrop-blur">{category.count}</span>
+        </div>
+        <h3 className="line-clamp-1 text-base font-black text-white drop-shadow">{top?.title || `No ${category.title.toLowerCase()}`}</h3>
+      </div>
+    </Link>
+  )
+}
+
 function CategoryOverviewCard({ category, groupId, onInfo }) {
   const top = category.items[0]
-  const image = top?.backdrop || top?.poster
+  const second = category.items[1]
+  const image = artFor(top)
   return (
-    <article className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/70 text-white transition hover:border-white/25">
-      <Link to={scopedHref(category, groupId)} className="block">
-        <div className="relative h-36 bg-neutral-900">
-          {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-70 transition duration-500 hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+    <article className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/80 text-white transition hover:border-white/25">
+      <Link to={scopedHref(category, groupId)} className="group block">
+        <div className="relative h-44 bg-neutral-900">
+          {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-transparent" />
           <span className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.title}</span>
-          <span className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/55 px-3 py-1.5 text-xs font-black text-white backdrop-blur">{category.items.length}</span>
+          <span className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-xs font-black text-white backdrop-blur">{category.count}</span>
+          <div className="absolute inset-x-0 bottom-0 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
+            <h3 className="mt-1 line-clamp-1 text-xl font-black text-white drop-shadow">{top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
+          </div>
         </div>
       </Link>
       <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">Top {category.singular.toLowerCase()}</p>
-            <h3 className="mt-1 line-clamp-1 text-xl font-black text-white">{top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
+        <p className="line-clamp-2 min-h-[2.75rem] text-sm leading-6 text-neutral-400">{top?.overview || top?.url || category.description}</p>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2 text-[11px] font-bold text-neutral-300">
+            <span className="rounded-full border border-white/10 px-2.5 py-1">Score {category.score}</span>
+            <span className="rounded-full border border-white/10 px-2.5 py-1">{category.picks} picks</span>
+            <span className="rounded-full border border-white/10 px-2.5 py-1">{category.done} done</span>
           </div>
           {top ? <button type="button" onClick={() => onInfo(top)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-neutral-300 transition hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={16} /></button> : null}
         </div>
-        <p className="mt-2 line-clamp-2 min-h-[2.75rem] text-sm leading-6 text-neutral-400">{top?.overview || top?.url || category.description}</p>
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs font-bold text-neutral-300">
-          <div className="rounded-2xl border border-white/10 px-2 py-2"><div className="text-white">{category.items.length}</div><div className="mt-0.5 text-[9px] uppercase tracking-[0.16em] text-neutral-500">Items</div></div>
-          <div className="rounded-2xl border border-white/10 px-2 py-2"><div className="text-white">{category.score}</div><div className="mt-0.5 text-[9px] uppercase tracking-[0.16em] text-neutral-500">Score</div></div>
-          <div className="rounded-2xl border border-white/10 px-2 py-2"><div className="text-white">{category.done}</div><div className="mt-0.5 text-[9px] uppercase tracking-[0.16em] text-neutral-500">Done</div></div>
-        </div>
+        {second ? <p className="mt-3 truncate text-xs text-neutral-500">Next: {second.title}</p> : null}
       </div>
     </article>
   )
@@ -110,7 +133,7 @@ function ContentRow({ item, onInfo }) {
   const image = item.poster || item.backdrop
   return (
     <button type="button" onClick={() => onInfo(item)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-950/70 p-2 text-left transition hover:border-white/25 hover:bg-white/[0.06]">
-      <div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-neutral-900">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-neutral-500"><AppIcon name={item.icon || 'explore'} size={17} /></div>}</div>
+      <div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-neutral-900">{image ? <img src={image} alt="" className="h-full w-full object-cover opacity-90" /> : <div className="flex h-full w-full items-center justify-center text-neutral-500"><AppIcon name={item.icon || 'explore'} size={17} /></div>}</div>
       <div className="min-w-0 flex-1"><p className="truncate font-black text-white">{item.title}</p><p className="mt-0.5 truncate text-xs text-neutral-500">{item.type} · Score {item.score || 0} · {item.picks || 0} picks</p></div>
     </button>
   )
@@ -176,40 +199,43 @@ export default function CliqueDetail() {
   const totalPicks = allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0)
   const activeCategories = categories.filter((category) => category.count > 0).length
   const completedItems = allItems.filter((item) => item.done || item.rating).length
+  const topCategory = categories.slice().sort((a, b) => b.count - a.count || b.score - a.score)[0]
   const heroItem = allItems[0]
-  const heroImage = heroItem?.backdrop || heroItem?.poster
+  const heroImage = artFor(heroItem)
   const groupName = group?.name || 'Clique'
 
   return (
     <PageShell active="cliques">
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
-        <div className="grid gap-0 xl:grid-cols-[1fr_0.9fr]">
-          <div className="p-5 sm:p-7">
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">Clique workspace</p>
-            <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="grid gap-0 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <h1 className="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl">{groupName}</h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">Shared movies, series, games, and videos for this clique.</p>
+                <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">Clique workspace</p>
+                <h1 className="mt-2 max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl">{groupName}</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">A shared content dashboard for movies, series, games, and videos.</p>
               </div>
-              <button type="button" onClick={() => setAddOpen(true)} className="inline-flex w-fit items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="plus" size={17} />Add content</button>
+              <button type="button" onClick={() => setAddOpen(true)} className="inline-flex h-11 w-fit shrink-0 items-center gap-2 rounded-full bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="explore" size={15} />Add</button>
             </div>
             {!session?.user && hasSupabase ? <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-neutral-300">Sign in from Profile to add and vote inside cliques.</p> : null}
-            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {categories.map((category) => (
-                <Link key={category.key} to={scopedHref(category, groupId)} className="rounded-[1.35rem] border border-white/10 bg-neutral-950/75 p-4 transition hover:border-white/25 hover:bg-white/[0.06]">
-                  <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300"><AppIcon name={category.icon} size={14} />{category.title}</span><span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-neutral-950">{category.count}</span></div>
-                  <p className="mt-3 line-clamp-1 text-lg font-black text-white">{category.items[0]?.title || `No ${category.title.toLowerCase()} yet`}</p>
-                </Link>
-              ))}
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {categories.map((category) => <HeroCategoryTile key={category.key} category={category} groupId={groupId} />)}
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <MetricPill icon="dashboard" label="Items" value={loading ? '…' : totalItems} />
+              <MetricPill icon="explore" label="Active types" value={loading ? '…' : `${activeCategories}/4`} />
+              <MetricPill icon="users" label="Picks" value={loading ? '…' : totalPicks} />
+              <MetricPill icon="list" label="Done" value={loading ? '…' : completedItems} />
             </div>
           </div>
           <div className="relative min-h-[22rem] bg-neutral-950">
-            {heroImage ? <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+            {heroImage ? <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+            <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">Top pick</div>
             <div className="absolute inset-x-0 bottom-0 p-6">
-              <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-400">Top pick</p>
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-300">{heroItem?.type || 'Empty clique'}</p>
               <h2 className="mt-2 text-3xl font-black text-white">{heroItem?.title || 'Add the first clique item'}</h2>
-              <p className="mt-2 line-clamp-2 max-w-lg text-sm leading-6 text-neutral-300">{heroItem?.overview || 'Use Add content to add a movie, series, game, or video directly into this clique.'}</p>
+              <p className="mt-2 line-clamp-2 max-w-lg text-sm leading-6 text-neutral-300">{heroItem?.overview || 'Use Add to search for a movie, series, game, or upload a video link directly into this clique.'}</p>
             </div>
           </div>
         </div>
@@ -217,28 +243,21 @@ export default function CliqueDetail() {
 
       <StatusMessage message={message} />
 
-      <section className="mt-5 grid gap-3 md:grid-cols-4">
-        <StatTile icon="explore" label="Items" value={loading ? '…' : totalItems} detail="Across all content types" />
-        <StatTile icon="dashboard" label="Categories" value={loading ? '…' : `${activeCategories}/4`} detail="Movies, series, games, videos" />
-        <StatTile icon="users" label="Picks" value={loading ? '…' : totalPicks} detail="Saved votes across lists" />
-        <StatTile icon="star" label="Done" value={loading ? '…' : completedItems} detail="Rated, completed, or classic" />
-      </section>
-
       <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">Category overview</p>
-            <h2 className="mt-1 text-3xl font-black text-white">Top items by category</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Open a category to search, add, vote, or upload content in this clique.</p>
+            <h2 className="mt-1 text-3xl font-black text-white">Contents at a glance</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Open a category to search, add, vote, or upload inside this clique. Strongest category: {topCategory?.title || 'none yet'}.</p>
           </div>
-          <button type="button" onClick={() => setAddOpen(true)} className="inline-flex w-fit items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="plus" size={16} />Add content</button>
+          <button type="button" onClick={() => setAddOpen(true)} className="inline-flex h-10 w-fit items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="explore" size={15} />Add</button>
         </div>
-        {loading ? <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <div key={item} className="h-80 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}</div> : <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{categories.map((category) => <CategoryOverviewCard key={category.key} category={category} groupId={groupId} onInfo={setSelectedItem} />)}</div>}
+        {loading ? <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <div key={item} className="h-72 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}</div> : <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">{categories.map((category) => <CategoryOverviewCard key={category.key} category={category} groupId={groupId} onInfo={setSelectedItem} />)}</div>}
       </section>
 
       <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">Recent content</p><h2 className="mt-1 text-2xl font-black text-white">Latest visible items</h2></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{allItems.length} total</span></div>
-        {allItems.length ? <div className="mt-4 grid gap-2 md:grid-cols-2">{allItems.slice(0, 8).map((item) => <ContentRow key={`${item.type}-${item.id}`} item={item} onInfo={setSelectedItem} />)}</div> : <p className="mt-4 rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-6 text-neutral-400">Nothing has been added yet. Use Add content to start this clique library.</p>}
+        {allItems.length ? <div className="mt-4 grid gap-2 md:grid-cols-2">{allItems.slice(0, 8).map((item) => <ContentRow key={`${item.type}-${item.id}`} item={item} onInfo={setSelectedItem} />)}</div> : <p className="mt-4 rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-6 text-neutral-400">Nothing has been added yet. Use Add to start this clique library.</p>}
       </section>
 
       <InfoModal item={selectedItem} onClose={() => setSelectedItem(null)} year={displayYear(selectedItem?.released || selectedItem?.year)} backdrop={selectedItem?.backdrop || selectedItem?.poster}>
