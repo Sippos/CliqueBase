@@ -7,6 +7,7 @@ import Games from './pages/Games.jsx'
 import Videos from './pages/Videos.jsx'
 import Music from './pages/Music.jsx'
 import Groups from './pages/Groups.jsx'
+import CliqueDetail from './pages/CliqueDetail.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
 import Share from './pages/Share.jsx'
 import MemberLibrary from './pages/MemberLibrary.jsx'
@@ -128,8 +129,8 @@ export default function App() {
       <Route path="/users/:memberId" element={<MemberLibrary />} />
       <Route path="/groups" element={<Groups />} />
       <Route path="/cliques" element={<Groups />} />
-      <Route path="/g/:groupId" element={<Home scope="group" />} />
-      <Route path="/cliques/:groupId" element={<Home scope="group" />} />
+      <Route path="/g/:groupId" element={<CliqueDetail />} />
+      <Route path="/cliques/:groupId" element={<CliqueDetail />} />
       <Route path="/invite/:code" element={<Groups inviteMode />} />
     </Routes>
   )
