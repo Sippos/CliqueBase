@@ -35,6 +35,8 @@ function getYoutubeId(url) {
 }
 
 function makeTitleFromUrl(url) {
+  const youtubeId = getYoutubeId(url)
+  if (youtubeId) return `YouTube video ${youtubeId}`
   try {
     const parsed = new URL(url)
     return parsed.hostname.replace(/^www\./, '')
@@ -43,7 +45,7 @@ function makeTitleFromUrl(url) {
   }
 }
 
-export function makeVideoFromLink(url, title = '', activeHandle = '') {
+function makeBaseVideoFromLink(url, title = '', activeHandle = '') {
   const cleanUrl = clean(url)
   const youtubeId = getYoutubeId(cleanUrl)
   const fallbackTitle = clean(title) || makeTitleFromUrl(cleanUrl)
@@ -60,6 +62,52 @@ export function makeVideoFromLink(url, title = '', activeHandle = '') {
     picks: 0,
     score: 0,
     classic: false,
+  }
+}
+
+async function fetchPublicVideoMetadata(url) {
+  const cleanUrl = clean(url)
+  if (!cleanUrl || typeof fetch === 'undefined') return null
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timeout = controller ? window.setTimeout(() => controller.abort(), 4500) : null
+
+  try {
+    const response = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(cleanUrl)}`, {
+      signal: controller?.signal,
+    })
+    if (!response.ok) return null
+    const data = await response.json()
+    const title = clean(data?.title)
+    if (!title) return null
+    return {
+      title,
+      poster: clean(data?.thumbnail_url) || null,
+      backdrop: clean(data?.thumbnail_url) || null,
+      platform: clean(data?.provider_name) || null,
+      author: clean(data?.author_name) || null,
+    }
+  } catch {
+    return null
+  } finally {
+    if (timeout) window.clearTimeout(timeout)
+  }
+}
+
+export async function makeVideoFromLink(url, title = '', activeHandle = '') {
+  const base = makeBaseVideoFromLink(url, title, activeHandle)
+  if (clean(title)) return base
+
+  const metadata = await fetchPublicVideoMetadata(url)
+  if (!metadata?.title) return base
+
+  return {
+    ...base,
+    title: metadata.title,
+    poster: metadata.poster || base.poster,
+    backdrop: metadata.backdrop || base.backdrop,
+    platform: metadata.platform || base.platform,
+    overview: metadata.author ? `${metadata.author} · ${base.url}` : base.url,
   }
 }
 
@@ -89,11 +137,14 @@ async function getScopeUserId(groupId) {
   return user.id
 }
 
+function applyVideoScope(query, groupId, ownerId) {
+  return groupId ? query.eq('group_id', groupId) : query.is('group_id', null).eq('owner_id', ownerId)
+}
+
 export async function getVideos(groupId = null) {
   const client = requireSupabase()
   const ownerId = await getScopeUserId(groupId)
-  let query = client.from('videos').select('*')
-  query = groupId ? query.eq('group_id', groupId) : query.is('group_id', null).eq('owner_id', ownerId)
+  let query = applyVideoScope(client.from('videos').select('*'), groupId, ownerId)
   const { data, error } = await query.order('classic', { ascending: false }).order('score', { ascending: false }).order('updated_at', { ascending: false })
   if (error) {
     if (isMissingVideosTable(error)) return []
@@ -129,8 +180,39 @@ export async function saveVideo(video, nominatedBy = 'anonymous', groupId = null
   return normalizeVideo(data)
 }
 
+export async function updateVideo(video, updates = {}, groupId = null) {
+  const client = requireSupabase()
+  const ownerId = await getScopeUserId(groupId)
+  const payload = {
+    updated_at: new Date().toISOString(),
+  }
+
+  if ('title' in updates) payload.title = clean(updates.title) || video.title || 'Saved video'
+  if ('classic' in updates) payload.classic = Boolean(updates.classic)
+
+  let query = applyVideoScope(client.from('videos').update(payload).eq('video_id', String(video.id)), groupId, ownerId)
+  const { data, error } = await query.select().single()
+  if (error) {
+    if (isMissingVideosTable(error)) throw videoMigrationError()
+    throw error
+  }
+  return normalizeVideo(data)
+}
+
+export async function deleteVideo(video, groupId = null) {
+  const client = requireSupabase()
+  const ownerId = await getScopeUserId(groupId)
+  let query = applyVideoScope(client.from('videos').delete().eq('video_id', String(video.id)), groupId, ownerId)
+  const { error } = await query
+  if (error) {
+    if (isMissingVideosTable(error)) throw videoMigrationError()
+    throw error
+  }
+  return true
+}
+
 export async function markVideoClassic(video, groupId = null) {
-  return saveVideo({ ...video, classic: true }, video.nominated_by || 'anonymous', groupId, true)
+  return updateVideo(video, { classic: true }, groupId)
 }
 
 export async function voteVideo(video, vote, groupId = null) {
