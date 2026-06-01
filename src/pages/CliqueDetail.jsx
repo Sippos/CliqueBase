@@ -72,11 +72,11 @@ function AddContentModal({ groupId, groupName, onClose }) {
   )
 }
 
-function MiniCategoryTile({ category, groupId }) {
+function MiniCategoryTile({ category, onOpenList }) {
   const top = category.items[0]
   const image = artFor(top)
   return (
-    <Link to={scopedHref(category, groupId)} className="group relative min-h-[10rem] overflow-hidden rounded-[1.35rem] border border-white/10 bg-neutral-950 transition hover:-translate-y-0.5 hover:border-white/25">
+    <button type="button" onClick={() => onOpenList(category)} className="group relative min-h-[10rem] overflow-hidden rounded-[1.35rem] border border-white/10 bg-neutral-950 text-left transition hover:-translate-y-0.5 hover:border-white/25">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.07),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/5" />
       <div className="relative flex min-h-[10rem] flex-col justify-between p-3.5">
@@ -86,18 +86,18 @@ function MiniCategoryTile({ category, groupId }) {
         </div>
         <h3 className="line-clamp-2 text-lg font-black leading-tight text-white drop-shadow">{top?.title || `No ${category.title.toLowerCase()}`}</h3>
       </div>
-    </Link>
+    </button>
   )
 }
 
-function HeroSlide({ category, item, groupId, index, total }) {
+function HeroSlide({ category, item, index, total, onOpenList }) {
   const image = artFor(item)
   return (
     <div className="relative min-h-[28rem] bg-neutral-950">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
       <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">{category.title} · {index + 1}/{total}</div>
-      <Link to={scopedHref(category, groupId)} className="absolute right-5 top-5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-neutral-950 transition hover:bg-neutral-200">Open</Link>
+      <button type="button" onClick={() => onOpenList(category)} className="absolute right-5 top-5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-neutral-950 transition hover:bg-neutral-200">Open list</button>
       <div className="absolute inset-x-0 bottom-0 p-6">
         <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
         <h2 className="mt-2 text-4xl font-black leading-tight text-white">{item?.title || `No ${category.title.toLowerCase()} yet`}</h2>
@@ -107,7 +107,7 @@ function HeroSlide({ category, item, groupId, index, total }) {
   )
 }
 
-function CategoryOverviewCard({ category, groupId, active, copying, onToggle, onInfo, onPile, onShare, onCopy }) {
+function CategoryOverviewCard({ category, groupId, active, copying, onToggle, onInfo, onPile, onOpenList, onShare, onCopy }) {
   const top = category.items[0]
   const image = artFor(top)
   const title = top?.title || `No ${category.title.toLowerCase()} yet`
@@ -125,7 +125,7 @@ function CategoryOverviewCard({ category, groupId, active, copying, onToggle, on
         <div className="flex items-start justify-between gap-3">
           <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.title}</span>
           <div className="pointer-events-auto flex gap-2">
-            <button type="button" onClick={(event) => { event.stopPropagation(); onPile(category) }} aria-label={`Open ${category.title} pile`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="list" size={14} />{category.count}</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); onPile(category) }} aria-label={`Open ${category.title} swipe pile`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="list" size={14} />{category.count}</button>
             {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onInfo(top) }} aria-label={`Info for ${top.title}`} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={17} /></button> : null}
           </div>
         </div>
@@ -135,9 +135,10 @@ function CategoryOverviewCard({ category, groupId, active, copying, onToggle, on
             <p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-400">Actions</p>
             <h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight text-white">{title}</h3>
             <p className="mt-3 line-clamp-3 text-sm leading-6 text-neutral-300">{description}</p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onShare(top) }} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Share</button> : <Link to={scopedHref(category, groupId)} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Add first</Link>}
-              {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onCopy(top) }} disabled={copyDisabled} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-45">{copying ? 'Copying…' : top.type === 'Video' ? 'Video copy unavailable' : 'Copy to My Library'}</button> : null}
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <button type="button" onClick={(event) => { event.stopPropagation(); onOpenList(category) }} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">List</button>
+              {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onShare(top) }} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Share</button> : <Link to={scopedHref(category, groupId)} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Add</Link>}
+              {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onCopy(top) }} disabled={copyDisabled} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-45">{copying ? 'Copying…' : top.type === 'Video' ? 'No copy' : 'Copy'}</button> : null}
             </div>
           </div>
         ) : (
@@ -151,7 +152,46 @@ function CategoryOverviewCard({ category, groupId, active, copying, onToggle, on
   )
 }
 
-function InlinePile({ category, groupId, swiped, onSwipe, onClose, onInfo }) {
+function CategoryListModal({ category, groupId, onClose, onInfo, onPile }) {
+  if (!category) return null
+  const items = category.items || []
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="max-h-[88vh] w-full max-w-4xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 text-white shadow-2xl shadow-black/50">
+        <div className="flex flex-col gap-4 border-b border-white/10 p-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />Full list</p>
+            <h2 className="mt-1 text-3xl font-black">{category.title} in this clique</h2>
+            <p className="mt-2 text-sm text-neutral-400">{items.length} item{items.length === 1 ? '' : 's'} shown as rows.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => { onClose(); onPile(category) }} className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Swipe pile</button>
+            <Link to={scopedHref(category, groupId)} onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Open add/search</Link>
+            <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Close</button>
+          </div>
+        </div>
+        <div className="max-h-[62vh] overflow-y-auto p-5">
+          {items.length ? <div className="grid gap-2">{items.map((item) => {
+            const image = artFor(item)
+            return (
+              <button key={`${item.type}-${item.id}`} type="button" onClick={() => onInfo(item)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-2 text-left transition hover:border-white/25 hover:bg-white/[0.07]">
+                <div className="h-20 w-24 shrink-0 overflow-hidden rounded-xl bg-neutral-900">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-neutral-500"><AppIcon name={category.icon} size={20} /></div>}</div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-lg font-black text-white">{item.title}</h3>
+                  <p className="mt-1 line-clamp-2 text-sm leading-5 text-neutral-400">{item.overview || item.url || category.description}</p>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold text-neutral-400"><span>Score {item.score || 0}</span><span>·</span><span>{item.picks || 0} picks</span>{item.rating ? <><span>·</span><span>★ {Number(item.rating).toFixed(1)}</span></> : null}</div>
+                </div>
+                <span className="hidden rounded-full border border-white/10 px-3 py-1 text-xs font-black text-neutral-300 sm:inline">Info</span>
+              </button>
+            )
+          })}</div> : <p className="rounded-3xl border border-dashed border-white/10 p-6 text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} in this clique yet.</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function InlinePile({ category, groupId, swiped, onSwipe, onClose, onInfo, onOpenList }) {
   if (!category) return null
   const items = category.items || []
   const deckItems = items.filter((item) => !swiped[itemActionKey(item, `${category.key}-`)]).slice(0, 12)
@@ -161,23 +201,15 @@ function InlinePile({ category, groupId, swiped, onSwipe, onClose, onInfo }) {
         <div>
           <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />Swipe pile</p>
           <h2 className="mt-1 text-3xl font-black text-white">{category.title} in this clique</h2>
-          <p className="mt-2 text-sm text-neutral-400">Swipe through the category, or open the full list for search and voting.</p>
+          <p className="mt-2 text-sm text-neutral-400">Swipe through the category, or open all items in a clean row list.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to={scopedHref(category, groupId)} className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">View full list</Link>
+          <button type="button" onClick={() => onOpenList(category)} className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">View full list</button>
           <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Close pile</button>
         </div>
       </div>
       <div className="mt-6">
-        <SwipeDeck
-          items={deckItems}
-          onSwipe={(vote, item) => onSwipe(category, item, vote)}
-          itemLabel={category.title.toLowerCase()}
-          emptyLabel={`No ${category.title.toLowerCase()} left in this pile`}
-          likeLabel="Keep"
-          dislikeLabel="Pass"
-          infoType={category.singular.toLowerCase()}
-        />
+        <SwipeDeck items={deckItems} onSwipe={(vote, item) => onSwipe(category, item, vote)} itemLabel={category.title.toLowerCase()} emptyLabel={`No ${category.title.toLowerCase()} left in this pile`} likeLabel="Keep" dislikeLabel="Pass" infoType={category.singular.toLowerCase()} />
       </div>
       {items.length ? <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{items.slice(0, 6).map((item) => (
         <button key={`${item.type}-${item.id}`} type="button" onClick={() => onInfo(item)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-950/70 p-2 text-left transition hover:border-white/25 hover:bg-white/[0.06]">
@@ -211,6 +243,7 @@ export default function CliqueDetail() {
   const [heroIndex, setHeroIndex] = useState(0)
   const [activeCategoryKey, setActiveCategoryKey] = useState('')
   const [activePileKey, setActivePileKey] = useState('')
+  const [listCategoryKey, setListCategoryKey] = useState('')
   const [pileSwipes, setPileSwipes] = useState({})
   const [sharingItem, setSharingItem] = useState(null)
   const [copyingKey, setCopyingKey] = useState('')
@@ -272,12 +305,17 @@ export default function CliqueDetail() {
   const heroCategory = categories[heroIndex % categories.length] || categories[0] || CATEGORY_META[0]
   const heroItem = heroCategory?.items?.[0] || null
   const activePile = categories.find((category) => category.key === activePileKey) || null
+  const listCategory = categories.find((category) => category.key === listCategoryKey) || null
   const groupName = group?.name || 'Clique'
 
   function openPile(category) {
     setActivePileKey(category.key)
     setPileSwipes({})
     window.setTimeout(() => document.getElementById('clique-inline-pile')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
+  function openList(category) {
+    setListCategoryKey(category.key)
   }
 
   function handlePileSwipe(category, item) {
@@ -324,10 +362,10 @@ export default function CliqueDetail() {
             </div>
             {!session?.user && hasSupabase ? <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-neutral-300">Sign in from Profile to add and vote inside cliques.</p> : null}
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {categories.map((category) => <MiniCategoryTile key={category.key} category={category} groupId={groupId} />)}
+              {categories.map((category) => <MiniCategoryTile key={category.key} category={category} onOpenList={openList} />)}
             </div>
           </div>
-          <HeroSlide category={heroCategory} item={heroItem} groupId={groupId} index={heroIndex % categories.length} total={categories.length || 4} />
+          <HeroSlide category={heroCategory} item={heroItem} index={heroIndex % categories.length} total={categories.length || 4} onOpenList={openList} />
         </div>
       </section>
 
@@ -342,10 +380,10 @@ export default function CliqueDetail() {
           </div>
           <button type="button" onClick={() => setAddOpen(true)} className="inline-flex h-10 w-fit items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="explore" size={15} />Add</button>
         </div>
-        {loading ? <div className="mt-5 grid gap-4 md:grid-cols-2">{[0, 1, 2, 3].map((item) => <div key={item} className="h-96 animate-pulse rounded-[1.75rem] bg-white/[0.06]" />)}</div> : <div className="mt-5 grid gap-4 md:grid-cols-2">{categories.map((category) => <CategoryOverviewCard key={category.key} category={category} groupId={groupId} active={activeCategoryKey === category.key} copying={copyingKey === itemActionKey(category.items[0], 'copy-')} onToggle={(key) => setActiveCategoryKey((current) => current === key ? '' : key)} onInfo={setSelectedItem} onPile={openPile} onShare={setSharingItem} onCopy={copyToLibrary} />)}</div>}
+        {loading ? <div className="mt-5 grid gap-4 md:grid-cols-2">{[0, 1, 2, 3].map((item) => <div key={item} className="h-96 animate-pulse rounded-[1.75rem] bg-white/[0.06]" />)}</div> : <div className="mt-5 grid gap-4 md:grid-cols-2">{categories.map((category) => <CategoryOverviewCard key={category.key} category={category} groupId={groupId} active={activeCategoryKey === category.key} copying={copyingKey === itemActionKey(category.items[0], 'copy-')} onToggle={(key) => setActiveCategoryKey((current) => current === key ? '' : key)} onInfo={setSelectedItem} onPile={openPile} onOpenList={openList} onShare={setSharingItem} onCopy={copyToLibrary} />)}</div>}
       </section>
 
-      <InlinePile category={activePile} groupId={groupId} swiped={pileSwipes} onSwipe={handlePileSwipe} onClose={() => setActivePileKey('')} onInfo={setSelectedItem} />
+      <InlinePile category={activePile} groupId={groupId} swiped={pileSwipes} onSwipe={handlePileSwipe} onClose={() => setActivePileKey('')} onInfo={setSelectedItem} onOpenList={openList} />
 
       <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">Recent content</p><h2 className="mt-1 text-2xl font-black text-white">Latest visible items</h2></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{allItems.length} total</span></div>
@@ -364,6 +402,7 @@ export default function CliqueDetail() {
         {selectedItem?.url ? <a href={selectedItem.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Open link</a> : null}
       </InfoModal>
 
+      <CategoryListModal category={listCategory} groupId={groupId} onClose={() => setListCategoryKey('')} onInfo={setSelectedItem} onPile={openPile} />
       {sharingItem ? <MemberShareModal item={sharingItem} type={sharingItem?.type?.toLowerCase()} onClose={() => setSharingItem(null)} onMessage={(text) => setMessage({ type: 'success', text })} /> : null}
       {addOpen ? <AddContentModal groupId={groupId} groupName={groupName} onClose={() => setAddOpen(false)} /> : null}
     </PageShell>
