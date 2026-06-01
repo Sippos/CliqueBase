@@ -58,18 +58,14 @@ function memberInitial(member) {
 function MemberAvatars({ members = [] }) {
   const list = members.length ? members : ['?']
   return (
-    <div className="flex min-w-0 items-center gap-2">
-      <div className="flex -space-x-2">
-        {list.slice(0, 5).map((member, index) => (
-          <span key={`${member}-${index}`} title={member} className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-neutral-950 bg-white text-[11px] font-black text-neutral-950 shadow-lg shadow-black/25">
-            {memberInitial(member)}
-          </span>
-        ))}
-        {list.length > 5 ? <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-neutral-950 bg-neutral-800 px-2 text-[10px] font-black text-white">+{list.length - 5}</span> : null}
-      </div>
-      <div className="hidden min-w-0 flex-wrap gap-1.5 sm:flex">
-        {list.slice(0, 3).map((member, index) => <span key={`${member}-name-${index}`} className="max-w-28 truncate rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-bold text-neutral-300">{member}</span>)}
-      </div>
+    <div className="flex min-w-0 flex-wrap items-end gap-2">
+      {list.slice(0, 4).map((member, index) => (
+        <span key={`${member}-${index}`} title={member} className="flex max-w-[4.75rem] flex-col items-center gap-1 rounded-2xl border border-white/10 bg-white/[0.035] px-2 py-1.5 text-center shadow-lg shadow-black/10">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white text-[10px] font-black text-neutral-950 shadow-md shadow-black/20">{memberInitial(member)}</span>
+          <span className="max-w-full truncate text-[10px] font-bold leading-none text-neutral-300">{member}</span>
+        </span>
+      ))}
+      {list.length > 4 ? <span className="flex h-[3.65rem] min-w-[3.25rem] flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] px-2 text-[10px] font-black text-neutral-300">+{list.length - 4}</span> : null}
     </div>
   )
 }
@@ -132,7 +128,7 @@ function GroupCard({ group, summary, summaryLoading, onCopy, onOpen, onOpenItem,
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">{group.isPublic ? 'Public clique' : 'Private clique'}</p>
           <h2 className="mt-1 truncate text-2xl font-black leading-tight">{group.name}</h2>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-400"><MemberAvatars members={group.members || []} /><span className="rounded-full border border-white/10 px-2.5 py-1 font-bold">{memberCount} {memberCount === 1 ? 'member' : 'members'}</span></div>
+          <div className="mt-3 flex flex-wrap items-end gap-3 text-xs text-neutral-400"><MemberAvatars members={group.members || []} /><span className="mb-1 rounded-full border border-white/10 px-2.5 py-1 font-bold">{memberCount} {memberCount === 1 ? 'member' : 'members'}</span></div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <button type="button" onClick={() => onCopy(group)} aria-label={`Copy invite for ${group.name}`} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="link" size={16} /></button>
@@ -177,7 +173,7 @@ export default function Groups({ inviteMode = false }) {
       try {
         const entries = await Promise.all(groups.map(async (group) => { const [movies, series, games, videos] = await Promise.all([getMovies(group.id), getSeries(group.id), getGames(group.id), getVideos(group.id)]); return [group.id, buildGroupSummary(movies, series, games, videos)] }))
         if (!cancelled) setGroupSummaries(Object.fromEntries(entries))
-      } catch (error) { if (!cancelled) { setGroupSummaries(Object.fromEntries(groups.map((group) => [group.id, emptyGroupSummary()]))); showMessage(error.message || 'Could not load clique overviews.', 'error') } }
+      } catch (error) { if (!cancelled) { setGroupSummaries(Object.fromEntries(groups.map((group) => [group.id, emptyGroupSummary()] ))); showMessage(error.message || 'Could not load clique overviews.', 'error') } }
       finally { if (!cancelled) setSummariesLoading(false) }
     }
     loadGroupSummaries(); return () => { cancelled = true }
