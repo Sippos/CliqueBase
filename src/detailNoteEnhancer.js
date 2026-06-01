@@ -2,6 +2,7 @@ import { getSavedHandle } from './lib/handle.js'
 
 const NOTE_STORAGE_PREFIX = 'cliquebase_suggested_pick_note:'
 const NOTE_SECTION_ID = 'cliquebase-suggested-pick-note'
+const CLIQUE_CARD_POLISH_ATTR = 'data-clique-card-polished'
 
 function normalize(value) {
   return String(value || '').trim()
@@ -106,8 +107,53 @@ function enhanceDetailModal() {
   if (target) target.insertAdjacentElement('afterend', section)
 }
 
+function polishCliqueFlipCards() {
+  const openLinks = Array.from(document.querySelectorAll('a')).filter((link) => normalize(link.textContent).includes('Open clique voting list'))
+
+  openLinks.forEach((openLink) => {
+    const backFace = openLink.closest('[style*="rotateY(180deg)"]')
+    if (!backFace || backFace.getAttribute(CLIQUE_CARD_POLISH_ATTR) === 'true') return
+    backFace.setAttribute(CLIQUE_CARD_POLISH_ATTR, 'true')
+
+    const flipButton = Array.from(backFace.querySelectorAll('button')).find((button) => normalize(button.textContent).toLowerCase() === 'flip back')
+    if (flipButton) {
+      flipButton.textContent = 'Actions'
+      flipButton.className = 'rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-400'
+    }
+
+    const actions = openLink.parentElement
+    if (actions) actions.className = 'mt-5 grid grid-cols-2 gap-2'
+
+    openLink.textContent = 'Ladder ↗'
+    openLink.className = 'inline-flex items-center justify-center rounded-2xl bg-white px-3 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200'
+
+    const shareButton = Array.from(backFace.querySelectorAll('button')).find((button) => normalize(button.textContent).toLowerCase().startsWith('share'))
+    if (shareButton) {
+      shareButton.textContent = 'Share'
+      shareButton.className = 'inline-flex items-center justify-center rounded-2xl border border-white/10 px-3 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950'
+    }
+
+    const copyButton = Array.from(backFace.querySelectorAll('button')).find((button) => normalize(button.textContent).toLowerCase().includes('copy'))
+    if (copyButton) {
+      copyButton.textContent = copyButton.disabled ? 'Copying…' : 'Copy'
+      copyButton.className = 'col-span-2 inline-flex items-center justify-center rounded-2xl border border-white/10 px-3 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60'
+    }
+
+    const hint = document.createElement('p')
+    hint.className = 'col-span-2 mt-1 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-600'
+    hint.textContent = 'Tap again to flip back'
+    actions?.appendChild(hint)
+  })
+}
+
+function enhancePage() {
+  enhanceDetailModal()
+  polishCliqueFlipCards()
+}
+
 if (typeof window !== 'undefined') {
-  const observer = new MutationObserver(() => enhanceDetailModal())
+  const observer = new MutationObserver(() => enhancePage())
   observer.observe(document.body, { childList: true, subtree: true })
-  window.addEventListener('load', enhanceDetailModal)
+  window.addEventListener('load', enhancePage)
+  enhancePage()
 }
