@@ -19,6 +19,9 @@ export default function SwipeDeck({
   dislikeLabel = 'Pass',
   infoType = 'item',
   loadDetails = null,
+  eyebrow = 'Swipe deck',
+  title = null,
+  description = null,
 }) {
   const [drag, setDrag] = useState(null)
   const [infoItem, setInfoItem] = useState(null)
@@ -30,6 +33,8 @@ export default function SwipeDeck({
   const dragX = drag?.dx || 0
   const yesOpacity = Math.min(Math.max(dragX / 110, 0), 1)
   const passOpacity = Math.min(Math.max(-dragX / 110, 0), 1)
+  const deckTitle = title || `Your ${itemLabel} pile`
+  const deckDescription = description || `Drag the top card left to ${dislikeLabel.toLowerCase()} or right to ${likeLabel.toLowerCase()}.`
 
   useEffect(() => {
     if (!topItem?.id || cardDetails[topItem.id] || !loadDetails) return
@@ -98,9 +103,9 @@ export default function SwipeDeck({
     <>
       <div className="mx-auto w-full max-w-xl">
         <div className="mb-5 text-center">
-          <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">Swipe deck</p>
-          <h2 className="mt-2 text-3xl font-semibold text-white">Your {itemLabel} pile</h2>
-          <p className="mt-2 text-sm text-neutral-400">Drag the top card left to {dislikeLabel.toLowerCase()} or right to {likeLabel.toLowerCase()}.</p>
+          {eyebrow ? <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">{eyebrow}</p> : null}
+          <h2 className="mt-2 text-3xl font-semibold text-white">{deckTitle}</h2>
+          {deckDescription ? <p className="mt-2 text-sm text-neutral-400">{deckDescription}</p> : null}
         </div>
 
         <div className="relative h-[620px]">
