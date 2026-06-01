@@ -54,9 +54,10 @@ function normalizeActiveKey(active) {
   return activeMap[active] || active || 'library'
 }
 
-function isPrimaryActive(linkKey, activeKey) {
+function isPrimaryActive(linkKey, activeKey, scopedCliqueId = '') {
+  if (linkKey === 'groups' && scopedCliqueId && mediaKeys.includes(activeKey)) return true
   if (linkKey === activeKey) return true
-  if (linkKey === 'library' && mediaKeys.includes(activeKey)) return true
+  if (linkKey === 'library' && !scopedCliqueId && mediaKeys.includes(activeKey)) return true
   return false
 }
 
@@ -146,8 +147,10 @@ export default function PageNav({ active = 'library' }) {
   const [loading, setLoading] = useState(false)
 
   const activeKey = normalizeActiveKey(active)
-  const activePrimary = primaryLinks.find((link) => isPrimaryActive(link.key, activeKey)) || primaryLinks[1]
-  const queryMedia = new URLSearchParams(location.search).get('media')
+  const queryParams = new URLSearchParams(location.search)
+  const queryMedia = queryParams.get('media')
+  const scopedCliqueId = queryParams.get('clique') || activeGroup?.id || getActiveGroupId()
+  const activePrimary = primaryLinks.find((link) => isPrimaryActive(link.key, activeKey, scopedCliqueId)) || primaryLinks[1]
   const activeMedia = mediaLinks.find((link) => link.key === activeKey) || mediaLinks.find((link) => link.key === queryMedia)
   const activeMediaKey = activeMedia?.key || null
   const profileName = cleanName(handle)
@@ -196,9 +199,13 @@ export default function PageNav({ active = 'library' }) {
 
   function mediaHref(key) {
     if (key === 'all') return sectionRoot()
+    const mediaLink = mediaLinks.find((link) => link.key === key)
     if (activePrimary.key === 'explore') return `/explore?media=${key}`
-    if (activePrimary.key === 'groups') return `/groups?media=${key}`
-    return mediaLinks.find((link) => link.key === key)?.to || '/dashboard'
+    if (activePrimary.key === 'groups') {
+      if (scopedCliqueId && mediaLink?.to) return `${mediaLink.to}?clique=${encodeURIComponent(scopedCliqueId)}`
+      return `/groups?media=${key}`
+    }
+    return mediaLink?.to || '/dashboard'
   }
 
   function handlePrimaryClick(link) {
@@ -523,7 +530,7 @@ export default function PageNav({ active = 'library' }) {
           <div className="flex min-w-0 flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
             <nav aria-label="Primary navigation" className="flex min-w-0 rounded-full border border-white/10 bg-white/[0.035] p-1">
               {primaryLinks.map((link) => {
-                const selected = isPrimaryActive(link.key, activeKey)
+                const selected = isPrimaryActive(link.key, activeKey, scopedCliqueId)
                 return <Link key={link.key} to={link.to} onClick={() => handlePrimaryClick(link)} aria-current={selected ? 'page' : undefined} title={link.description} className={`inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-black transition sm:flex-none ${selected ? 'bg-white text-neutral-950 shadow-lg shadow-white/5' : 'text-neutral-300 hover:bg-white/10 hover:text-white'}`}><AppIcon name={link.icon} size={17} /><span className="truncate">{link.label}</span></Link>
               })}
             </nav>
