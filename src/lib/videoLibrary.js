@@ -9,6 +9,15 @@ function requireSupabase() {
   return supabase
 }
 
+function isMissingVideosTable(error) {
+  const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase()
+  return text.includes('public.videos') || text.includes("table 'videos'") || text.includes('schema cache') || error?.code === '42P01' || error?.code === 'PGRST205'
+}
+
+function videoMigrationError() {
+  return new Error('Videos are almost ready. Apply the latest Supabase videos migration, then uploads will work here.')
+}
+
 function getYoutubeId(url) {
   const value = clean(url)
   if (!value) return null
@@ -86,7 +95,10 @@ export async function getVideos(groupId = null) {
   let query = client.from('videos').select('*')
   query = groupId ? query.eq('group_id', groupId) : query.is('group_id', null).eq('owner_id', ownerId)
   const { data, error } = await query.order('classic', { ascending: false }).order('score', { ascending: false }).order('updated_at', { ascending: false })
-  if (error) throw error
+  if (error) {
+    if (isMissingVideosTable(error)) return []
+    throw error
+  }
   return (data || []).map(normalizeVideo)
 }
 
@@ -110,7 +122,10 @@ export async function saveVideo(video, nominatedBy = 'anonymous', groupId = null
   else payload.owner_id = ownerId
 
   const { data, error } = await client.from('videos').upsert(payload, { onConflict: groupId ? 'group_id,video_id' : 'owner_id,video_id' }).select().single()
-  if (error) throw error
+  if (error) {
+    if (isMissingVideosTable(error)) throw videoMigrationError()
+    throw error
+  }
   return normalizeVideo(data)
 }
 
@@ -125,6 +140,9 @@ export async function voteVideo(video, vote, groupId = null) {
     ? { video_id_input: String(video.id), vote_delta_input: delta, group_id_input: groupId }
     : { video_id_input: String(video.id), vote_delta_input: delta }
   const { data, error } = await client.rpc('vote_video', payload)
-  if (error) throw error
+  if (error) {
+    if (isMissingVideosTable(error)) throw videoMigrationError()
+    throw error
+  }
   return data
 }
