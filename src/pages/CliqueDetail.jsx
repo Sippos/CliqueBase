@@ -115,26 +115,25 @@ function CategoryOverviewCard({ category, groupId, flipped, copying, onFlip, onI
 
   return (
     <article className="group relative min-h-[24rem] outline-none" style={{ perspective: '1000px' }}>
-      <button type="button" onClick={() => onFlip(category.key)} className="absolute inset-0 z-10 rounded-[1.75rem] text-left" aria-label={`Flip ${category.title} card`} />
       <div className="relative min-h-[24rem] rounded-[1.75rem] transition-transform duration-500 group-hover:-translate-y-0.5" style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
-        <div className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950 text-white shadow-2xl shadow-black/20 transition group-hover:border-white/25" style={{ backfaceVisibility: 'hidden' }}>
+        <button type="button" onClick={() => onFlip(category.key)} className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950 text-left text-white shadow-2xl shadow-black/20 transition group-hover:border-white/25" style={{ backfaceVisibility: 'hidden' }} aria-label={`Flip ${category.title} card`}>
           {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
           <div className="absolute left-4 top-4 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><span className="inline-flex items-center gap-2"><AppIcon name={category.icon} size={12} />{category.title}</span></div>
-          <div className="absolute right-4 top-4 z-20 flex gap-2">
-            <button type="button" onClick={(event) => { event.stopPropagation(); onPile(category) }} aria-label={`Open ${category.title} pile`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="list" size={14} />{category.count}</button>
-            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onInfo(top) }} aria-label={`Info for ${top.title}`} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={17} /></button> : null}
-          </div>
           <div className="absolute inset-x-0 bottom-0 p-5">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
             <h3 className="mt-1 line-clamp-2 text-3xl font-black leading-tight text-white drop-shadow-lg">{title}</h3>
           </div>
+        </button>
+        <div className="absolute right-4 top-4 z-20 flex gap-2">
+          <button type="button" onClick={(event) => { event.stopPropagation(); onPile(category) }} aria-label={`Open ${category.title} pile`} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="list" size={14} />{category.count}</button>
+          {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onInfo(top) }} aria-label={`Info for ${top.title}`} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={17} /></button> : null}
         </div>
 
         <div className="absolute inset-0 flex flex-col rounded-[1.75rem] border border-white/10 bg-neutral-950 p-5 text-white shadow-2xl shadow-black/30" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
           <div className="flex items-start justify-between gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name={category.icon} size={20} /></span>
-            <button type="button" onClick={(event) => { event.stopPropagation(); onFlip('') }} className="z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-neutral-300 transition hover:bg-white hover:text-neutral-950">×</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); onFlip('') }} className="relative z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-neutral-300 transition hover:bg-white hover:text-neutral-950">×</button>
           </div>
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-neutral-500">{category.title} actions</p>
           <h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight">{title}</h3>
