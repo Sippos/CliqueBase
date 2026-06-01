@@ -66,11 +66,35 @@ function syncPendingInviteFromUrl() {
   window.location.replace(nextPath)
 }
 
+function isPersonalLibraryPath(pathname) {
+  return [
+    '/dashboard',
+    '/library',
+    '/library/movies',
+    '/library/series',
+    '/library/games',
+    '/movies',
+    '/series',
+    '/games',
+    '/videos',
+    '/music',
+  ].includes(pathname)
+}
+
 function syncCliqueScopeFromUrl() {
   if (typeof window === 'undefined') return
+  const pathname = getAppPathname()
   const params = new URLSearchParams(window.location.search)
   const cliqueId = params.get('clique') || params.get('group') || params.get('scope')
-  if (cliqueId) window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, cliqueId)
+
+  if (cliqueId) {
+    window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, cliqueId)
+    return
+  }
+
+  if (isPersonalLibraryPath(pathname)) {
+    window.localStorage.removeItem(ACTIVE_GROUP_STORAGE_KEY)
+  }
 }
 
 async function acceptPendingInvite(session = null) {
