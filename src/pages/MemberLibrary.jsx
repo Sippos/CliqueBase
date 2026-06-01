@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { DetailPill, InfoModal, StatusMessage, displayYear } from '../components/MediaBlocks.jsx'
-import { getMemberPublicLibrary } from '../lib/communityShare.js'
+import { getMemberPublicLibrary, searchMembersByProfileName } from '../lib/communityShare.js'
 
 const categoryMeta = {
   Movie: { title: 'Movies', icon: 'movies' },
@@ -11,11 +11,20 @@ const categoryMeta = {
   Game: { title: 'Games', icon: 'games' },
 }
 
-function itemPath(item) {
-  if (item.type === 'Movie') return '/movies'
-  if (item.type === 'Series') return '/series'
-  if (item.type === 'Game') return '/games'
-  return '/dashboard'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function isUuid(value) { return UUID_RE.test(String(value || '').trim()) }
+
+async function resolveMemberId(rawValue) {
+  const value = decodeURIComponent(String(rawValue || '').trim())
+  if (!value) throw new Error('Choose a member first.')
+  if (isUuid(value)) return value
+  if (value.length < 2) throw new Error('This member name is too short to search.')
+  const matches = await searchMembersByProfileName(value, 8)
+  const exact = matches.find((member) => String(member.displayName || '').toLowerCase() === value.toLowerCase())
+  const resolved = exact || matches[0]
+  if (!resolved?.id) throw new Error(`Could not find a member named "${value}".`)
+  return resolved.id
 }
 
 function PublicLibraryCard({ item, onInfo }) {
@@ -69,7 +78,8 @@ export default function MemberLibrary() {
       setLoading(true)
       setMessage(null)
       try {
-        const data = await getMemberPublicLibrary(memberId)
+        const resolvedMemberId = await resolveMemberId(memberId)
+        const data = await getMemberPublicLibrary(resolvedMemberId)
         if (!cancelled) setLibrary(data)
       } catch (error) {
         if (!cancelled) setMessage({ type: 'error', text: error.message || 'Could not load this member library.' })
@@ -87,7 +97,7 @@ export default function MemberLibrary() {
     Game: library.items.filter((item) => item.type === 'Game'),
   }), [library.items])
 
-  const name = library.profile?.displayName || 'Member'
+  const name = library.profile?.displayName || decodeURIComponent(memberId || '') || 'Member'
 
   return (
     <PageShell active="explore">
