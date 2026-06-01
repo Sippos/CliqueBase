@@ -89,39 +89,18 @@ function scopeMediaPath(group, category) {
   return `${category.to}${query}`
 }
 
-function AddContentBar({ group, categories, onOpenList }) {
-  return (
-    <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-neutral-950/70 p-3">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Add content</p>
-          <h4 className="mt-1 text-lg font-black text-white">Drop something into this clique</h4>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <Link key={category.title} to={scopeMediaPath(group, category)} onClick={() => onOpenList(group, category)} className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black transition ${category.title === 'Videos' ? 'bg-white text-neutral-950 hover:bg-neutral-200' : 'border border-white/10 text-white hover:bg-white hover:text-neutral-950'}`}>
-              <AppIcon name={category.icon} size={15} />
-              {category.title === 'Videos' ? 'Add videos' : category.title}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function TopContentTile({ group, category, onOpenItem, onOpenList }) {
   const item = category.top
   const image = item?.backdrop || item?.poster
 
   if (!item) {
     return (
-      <button type="button" onClick={() => onOpenList(group, category)} className={`rounded-[1.5rem] border border-dashed p-4 text-left transition hover:border-white/25 hover:bg-neutral-900 ${category.title === 'Videos' ? 'border-white/25 bg-white/[0.06]' : 'border-white/10 bg-neutral-950/50'}`}>
+      <button type="button" onClick={() => onOpenList(group, category)} className="rounded-[1.5rem] border border-dashed border-white/10 bg-neutral-950/50 p-4 text-left transition hover:border-white/25 hover:bg-neutral-900">
         <div className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300">
           <AppIcon name={category.icon} size={14} />
           {category.title}
         </div>
-        <p className="mt-4 text-sm text-neutral-500">No {category.title.toLowerCase()} yet. {category.title === 'Videos' ? 'Open the video tab to upload the first link.' : 'Open the list to add one.'}</p>
+        <p className="mt-4 text-sm text-neutral-500">No {category.title.toLowerCase()} yet.</p>
       </button>
     )
   }
@@ -167,7 +146,6 @@ function GroupContentOverview({ group, summary, loading, onOpenItem, onOpenList 
         </div>
         <div className="grid grid-cols-3 gap-2 sm:min-w-[20rem]"><MetricBox value={safeSummary.items} label="Items" /><MetricBox value={safeSummary.score} label="Score" /><MetricBox value={safeSummary.done} label="Done" /></div>
       </div>
-      <AddContentBar group={group} categories={safeSummary.categories} onOpenList={onOpenList} />
       <div className="mt-4 grid gap-3 lg:grid-cols-4">
         {safeSummary.categories.map((category) => <TopContentTile key={category.title} group={group} category={category} onOpenItem={onOpenItem} onOpenList={onOpenList} />)}
       </div>
@@ -185,7 +163,6 @@ function GroupCard({ group, summary, summaryLoading, onCopy, onOpen, onOpenItem,
           <p className="mt-2 text-sm text-neutral-400">{group.members?.length || 1} members</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Link to={`/videos?clique=${encodeURIComponent(group.id)}`} onClick={() => onOpen(group)} className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="videos" size={17} />Add videos</Link>
           <button type="button" onClick={() => onCopy(group)} aria-label={`Copy invite for ${group.name}`} className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="link" size={17} /></button>
           <Link to={getGroupOpenPath(group)} onClick={() => onOpen(group)} aria-label={`Open ${group.name}`} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="explore" size={17} />Open</Link>
         </div>
