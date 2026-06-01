@@ -34,6 +34,11 @@ function normalizeItems(rows, type, code, to) {
   })).sort((a, b) => b.sortValue - a.sortValue)
 }
 
+function scopedMediaPath(path, groupId) {
+  if (!groupId) return path
+  return `${path}?clique=${encodeURIComponent(groupId)}`
+}
+
 function itemActionKey(item, prefix = '') {
   if (!item) return ''
   return `${prefix}${item.type}-${item.id}`
@@ -52,7 +57,7 @@ function LibrarySectionCard({ category, loading, onShare }) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
-      <Link to={category.to} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
+      <Link to={category.to} onClick={() => category.groupId && setActiveGroup(category.groupId)} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
 
       <div className="pointer-events-none relative z-10 flex h-full min-h-[9.5rem] flex-col justify-between p-3.5">
         <div className="flex items-start justify-between gap-3">
@@ -62,7 +67,7 @@ function LibrarySectionCard({ category, loading, onShare }) {
           </div>
           <div className="pointer-events-auto flex gap-2">
             {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Share</button> : null}
-            <Link to={category.to} aria-label={`Open ${category.title}`} className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">
+            <Link to={category.to} onClick={() => category.groupId && setActiveGroup(category.groupId)} aria-label={`Open ${category.title}`} className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">
               {loading ? '…' : category.count}
             </Link>
           </div>
@@ -157,16 +162,35 @@ function LibraryShowcase({ items, loading, onShare }) {
   )
 }
 
-function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onShare, onCopy }) {
+function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onInfo, onShare, onCopy }) {
   const top = category.top
   const image = top?.poster || top?.backdrop
   const displayTitle = top?.title || category.title
   const summary = top?.overview || `Open the full ${category.title.toLowerCase()} list for this clique.`
 
+  function handleToggle() {
+    if (!top && !loading) return
+    onToggle?.(category)
+  }
+
   return (
-    <article className="group relative outline-none" style={{ perspective: '1000px' }}>
+    <article
+      tabIndex={0}
+      role="button"
+      aria-pressed={flipped}
+      aria-label={`${flipped ? 'Hide actions for' : 'Show actions for'} ${category.title}`}
+      onClick={handleToggle}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          handleToggle()
+        }
+      }}
+      className="group relative cursor-pointer outline-none"
+      style={{ perspective: '1000px' }}
+    >
       <div
-        className="relative min-h-[24rem] rounded-[2rem] transition-transform duration-500 group-hover:-translate-y-0.5"
+        className="relative min-h-[24rem] rounded-[2rem] transition-transform duration-500 group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-white/50"
         style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
       >
         <div className="absolute inset-0 overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 transition group-hover:border-white/20" style={{ backfaceVisibility: 'hidden' }}>
@@ -179,15 +203,22 @@ function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onShar
           </div>
 
           <div className="absolute right-4 top-4 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={(event) => { event.stopPropagation(); onToggle?.(category) }}
-              aria-label={`Show actions for ${category.title}`}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white shadow-lg shadow-black/30 backdrop-blur transition hover:bg-white hover:text-neutral-950"
+            {top ? (
+              <button
+                type="button"
+                onClick={(event) => { event.stopPropagation(); onInfo?.(top) }}
+                aria-label={`Show details for ${displayTitle}`}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white shadow-lg shadow-black/30 backdrop-blur transition hover:bg-white hover:text-neutral-950"
+              >
+                <AppIcon name="info" size={18} strokeWidth={2.2} />
+              </button>
+            ) : null}
+            <Link
+              to={category.to}
+              onClick={(event) => { event.stopPropagation(); category.groupId && setActiveGroup(category.groupId) }}
+              aria-label={`Open all ${category.title}`}
+              className="flex h-12 min-w-12 items-center justify-center rounded-full border border-white/15 bg-black/65 px-3 text-lg font-black text-white shadow-lg shadow-black/30 backdrop-blur transition hover:bg-white hover:text-neutral-950"
             >
-              <AppIcon name="info" size={18} strokeWidth={2.2} />
-            </button>
-            <Link to={category.to} aria-label={`Open all ${category.title}`} className="flex h-12 min-w-12 items-center justify-center rounded-full border border-white/15 bg-black/65 px-3 text-lg font-black text-white shadow-lg shadow-black/30 backdrop-blur transition hover:bg-white hover:text-neutral-950">
               {loading ? '…' : category.count}
             </Link>
           </div>
@@ -208,7 +239,7 @@ function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onShar
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-neutral-950">
               <AppIcon name={category.icon} size={20} />
             </span>
-            <button type="button" onClick={() => onToggle?.(category)} className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-neutral-400 transition hover:bg-white hover:text-neutral-950">Flip back</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); onToggle?.(category) }} className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-neutral-400 transition hover:bg-white hover:text-neutral-950">Flip back</button>
           </div>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-neutral-500">{category.title} actions</p>
@@ -216,13 +247,42 @@ function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onShar
           <p className="mt-3 line-clamp-5 flex-1 text-sm leading-6 text-neutral-400">{summary}</p>
 
           <div className="mt-5 grid gap-2">
-            <Link to={category.to} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Open full list · {category.count}</Link>
-            {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share {category.singular.toLowerCase()}</button> : null}
-            {top ? <button type="button" onClick={() => onCopy?.(top)} disabled={saving} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">{saving ? 'Copying…' : 'Copy to My Library'}</button> : null}
+            <Link to={category.to} onClick={(event) => { event.stopPropagation(); category.groupId && setActiveGroup(category.groupId) }} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Open clique voting list · {category.count}</Link>
+            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onShare?.(top) }} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share {category.singular.toLowerCase()}</button> : null}
+            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onCopy?.(top) }} disabled={saving} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">{saving ? 'Copying…' : 'Copy to My Library'}</button> : null}
           </div>
         </div>
       </div>
     </article>
+  )
+}
+
+function ItemInfoModal({ item, onClose }) {
+  if (!item) return null
+  const image = item.backdrop || item.poster
+  const icon = TYPE_ICONS[item.type] || 'explore'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-5 text-white shadow-2xl shadow-black/40">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={icon} size={14} />{item.type}</p>
+            <h2 className="mt-2 text-2xl font-black leading-tight">{item.title}</h2>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-2xl text-neutral-400 transition hover:bg-white hover:text-neutral-950">×</button>
+        </div>
+        {image ? <img src={image} alt="" className="mt-5 h-56 w-full rounded-3xl object-cover" /> : null}
+        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
+          <span className="rounded-full border border-white/10 px-3 py-1.5">Score {item.score || 0}</span>
+          <span className="rounded-full border border-white/10 px-3 py-1.5">{item.picks || 0} picks</span>
+          {item.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
+          {item.runtime ? <span className="rounded-full border border-white/10 px-3 py-1.5">{item.runtime} min</span> : null}
+          {item.seasons ? <span className="rounded-full border border-white/10 px-3 py-1.5">{item.seasons} seasons</span> : null}
+        </div>
+        <p className="mt-5 text-sm leading-7 text-neutral-300">{item.overview || item.description || 'No description available yet.'}</p>
+      </div>
+    </div>
   )
 }
 
@@ -259,6 +319,7 @@ export default function Home() {
   const [message, setMessage] = useState('')
   const [shareNotice, setShareNotice] = useState('')
   const [sharingItem, setSharingItem] = useState(null)
+  const [infoItem, setInfoItem] = useState(null)
   const [flippedCategory, setFlippedCategory] = useState('')
   const [copyingKey, setCopyingKey] = useState('')
 
@@ -270,15 +331,18 @@ export default function Home() {
     return () => window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
   }, [routeGroupId])
 
-  const movieItems = useMemo(() => normalizeItems(media.movies, 'Movie', 'MOV', '/movies'), [media.movies])
-  const seriesItems = useMemo(() => normalizeItems(media.series, 'Series', 'SER', '/series'), [media.series])
-  const gameItems = useMemo(() => normalizeItems(media.games, 'Game', 'GAM', '/games'), [media.games])
+  const moviePath = scopedMediaPath('/movies', context.groupId)
+  const seriesPath = scopedMediaPath('/series', context.groupId)
+  const gamesPath = scopedMediaPath('/games', context.groupId)
+  const movieItems = useMemo(() => normalizeItems(media.movies, 'Movie', 'MOV', moviePath), [media.movies, moviePath])
+  const seriesItems = useMemo(() => normalizeItems(media.series, 'Series', 'SER', seriesPath), [media.series, seriesPath])
+  const gameItems = useMemo(() => normalizeItems(media.games, 'Game', 'GAM', gamesPath), [media.games, gamesPath])
   const allItems = useMemo(() => [...movieItems, ...seriesItems, ...gameItems].sort((a, b) => b.sortValue - a.sortValue), [movieItems, seriesItems, gameItems])
   const categories = useMemo(() => [
-    { title: 'Movies', singular: 'Movie', code: 'MOV', icon: TYPE_ICONS.Movie, to: '/movies', items: movieItems, top: movieItems[0], count: movieItems.length, rated: movieItems.filter((item) => item.rating).length },
-    { title: 'Series', singular: 'Series', code: 'SER', icon: TYPE_ICONS.Series, to: '/series', items: seriesItems, top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
-    { title: 'Games', singular: 'Game', code: 'GAM', icon: TYPE_ICONS.Game, to: '/games', items: gameItems, top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
-  ], [movieItems, seriesItems, gameItems])
+    { title: 'Movies', singular: 'Movie', code: 'MOV', icon: TYPE_ICONS.Movie, to: moviePath, groupId: context.groupId, items: movieItems, top: movieItems[0], count: movieItems.length, rated: movieItems.filter((item) => item.rating).length },
+    { title: 'Series', singular: 'Series', code: 'SER', icon: TYPE_ICONS.Series, to: seriesPath, groupId: context.groupId, items: seriesItems, top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
+    { title: 'Games', singular: 'Game', code: 'GAM', icon: TYPE_ICONS.Game, to: gamesPath, groupId: context.groupId, items: gameItems, top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
+  ], [context.groupId, moviePath, seriesPath, gamesPath, movieItems, seriesItems, gameItems])
 
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
   const totalPicks = useMemo(() => allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0), [allItems])
@@ -395,7 +459,7 @@ export default function Home() {
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Section highlights</p>
           <h2 className="mt-1 text-3xl font-black text-white">Top items by category</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Tap the info button to flip a card for sharing and copying to My Library. The number opens the full list.</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Tap a card to flip it for sharing and copying. Press the info button for details. The number opens the clique voting list.</p>
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           {categories.map((category) => (
@@ -406,6 +470,7 @@ export default function Home() {
               flipped={flippedCategory === category.title}
               saving={copyingKey === itemActionKey(category.top, 'copy-')}
               onToggle={toggleCategory}
+              onInfo={setInfoItem}
               onShare={openShare}
               onCopy={copyToLibrary}
             />
@@ -413,6 +478,7 @@ export default function Home() {
         </div>
       </section>
 
+      <ItemInfoModal item={infoItem} onClose={() => setInfoItem(null)} />
       <MemberShareModal item={sharingItem} type={sharingItem?.type?.toLowerCase()} onClose={() => setSharingItem(null)} onMessage={handleShareMessage} />
     </PageShell>
   )
