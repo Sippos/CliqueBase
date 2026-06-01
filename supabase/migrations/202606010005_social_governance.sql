@@ -152,9 +152,11 @@ create policy "Notifications are readable by recipient" on public.notifications
 for select to authenticated
 using (recipient_id = (select auth.uid()));
 
+-- The app writes notifications through private.create_notification(). This direct insert policy
+-- only permits a user to create a local/self notification and prevents cross-user spoofing.
 create policy "Notifications are insertable by recipient" on public.notifications
 for insert to authenticated
-with check (recipient_id = (select auth.uid()));
+with check (recipient_id = (select auth.uid()) and (actor_id is null or actor_id = (select auth.uid())));
 
 create policy "Notifications are updatable by recipient" on public.notifications
 for update to authenticated
@@ -220,6 +222,8 @@ alter table public.friend_requests enable row level security;
 
 drop policy if exists "Friend requests are readable by participants" on public.friend_requests;
 drop policy if exists "Friend requests are insertable by requester" on public.friend_requests;
+drop policy if exists "Friend requests are cancellable by requester" on public.friend_requests;
+drop policy if exists "Friend requests are answerable by addressee" on public.friend_requests;
 drop policy if exists "Friend requests are updatable by participants" on public.friend_requests;
 
 create policy "Friend requests are readable by participants" on public.friend_requests
@@ -228,12 +232,17 @@ using (requester_id = (select auth.uid()) or addressee_id = (select auth.uid()))
 
 create policy "Friend requests are insertable by requester" on public.friend_requests
 for insert to authenticated
-with check (requester_id = (select auth.uid()));
+with check (requester_id = (select auth.uid()) and status = 'pending');
 
-create policy "Friend requests are updatable by participants" on public.friend_requests
+create policy "Friend requests are cancellable by requester" on public.friend_requests
 for update to authenticated
-using (requester_id = (select auth.uid()) or addressee_id = (select auth.uid()))
-with check (requester_id = (select auth.uid()) or addressee_id = (select auth.uid()));
+using (requester_id = (select auth.uid()) and status = 'pending')
+with check (requester_id = (select auth.uid()) and status = 'cancelled');
+
+create policy "Friend requests are answerable by addressee" on public.friend_requests
+for update to authenticated
+using (addressee_id = (select auth.uid()) and status = 'pending')
+with check (addressee_id = (select auth.uid()) and status in ('accepted', 'declined'));
 
 create or replace function public.get_group_permissions(group_id_input uuid)
 returns table(
@@ -430,19 +439,19 @@ set search_path = public, private
 as $$
 declare
   current_user_id uuid := auth.uid();
-  current_role text;
+  member_role text;
 begin
   if current_user_id is null then
     raise exception 'You must be signed in to leave a clique.';
   end if;
 
-  current_role := private.get_group_role(group_id_input, current_user_id);
+  member_role := private.get_group_role(group_id_input, current_user_id);
 
-  if current_role is null then
+  if member_role is null then
     return;
   end if;
 
-  if current_role = 'owner' then
+  if member_role = 'owner' then
     raise exception 'Transfer ownership or delete the clique before leaving.';
   end if;
 
@@ -556,8 +565,7 @@ security definer
 set search_path = public, private
 as $$
   with current_permissions as (
-    select *
-    from public.get_group_permissions(group_id_input)
+    select * from public.get_group_permissions(group_id_input)
   ),
   member_rows as (
     select
