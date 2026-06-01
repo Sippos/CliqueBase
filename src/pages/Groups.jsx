@@ -6,6 +6,7 @@ import { DetailPill, InfoModal, StatusMessage, displayYear } from '../components
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
 import { ACTIVE_GROUP_STORAGE_KEY, createGroup as createLocalGroup, getGroupInvitePath, getGroupInviteUrl, getGroupOpenPath, getGroups, joinGroup as joinLocalGroup, parseInviteCode, setActiveGroup } from '../lib/groups.js'
 import { createRemoteGroup, getCurrentSession, getGames, getMovies, getProfile, getRemoteGroups, getSeries, hasSupabase, joinRemoteGroup } from '../lib/supabaseClient.js'
+import { getVideos } from '../lib/videoLibrary.js'
 
 function copyToClipboard(value) {
   if (!value) return Promise.resolve(false)
@@ -31,7 +32,7 @@ function normalizeContentItem(item, category, icon, doneKey) {
     ...item,
     category,
     icon,
-    done: Boolean(item?.[doneKey]),
+    done: doneKey === 'classic' ? Boolean(item?.classic) : Boolean(item?.[doneKey]),
     rating: item?.rating ?? null,
     score: Number(item?.score || 0),
     picks: Number(item?.picks || 0),
@@ -55,11 +56,12 @@ function categorySummary(items, title, singular, icon, doneKey, to) {
   }
 }
 
-function buildGroupSummary(movies = [], series = [], games = []) {
+function buildGroupSummary(movies = [], series = [], games = [], videos = []) {
   const categories = [
     categorySummary(movies, 'Movies', 'Movie', 'movies', 'watched', '/movies'),
     categorySummary(series, 'Series', 'Series', 'series', 'finished', '/series'),
     categorySummary(games, 'Games', 'Game', 'games', 'played', '/games'),
+    categorySummary(videos, 'Videos', 'Video', 'videos', 'classic', '/videos'),
   ]
   return {
     categories,
@@ -70,7 +72,7 @@ function buildGroupSummary(movies = [], series = [], games = []) {
 }
 
 function emptyGroupSummary() {
-  return buildGroupSummary([], [], [])
+  return buildGroupSummary([], [], [], [])
 }
 
 function MetricBox({ value, label }) {
@@ -87,18 +89,39 @@ function scopeMediaPath(group, category) {
   return `${category.to}${query}`
 }
 
+function AddContentBar({ group, categories, onOpenList }) {
+  return (
+    <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-neutral-950/70 p-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Add content</p>
+          <h4 className="mt-1 text-lg font-black text-white">Drop something into this clique</h4>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <Link key={category.title} to={scopeMediaPath(group, category)} onClick={() => onOpenList(group, category)} className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xs font-black transition ${category.title === 'Videos' ? 'bg-white text-neutral-950 hover:bg-neutral-200' : 'border border-white/10 text-white hover:bg-white hover:text-neutral-950'}`}>
+              <AppIcon name={category.icon} size={15} />
+              {category.title === 'Videos' ? 'Add videos' : category.title}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function TopContentTile({ group, category, onOpenItem, onOpenList }) {
   const item = category.top
   const image = item?.backdrop || item?.poster
 
   if (!item) {
     return (
-      <button type="button" onClick={() => onOpenList(group, category)} className="rounded-[1.5rem] border border-dashed border-white/10 bg-neutral-950/50 p-4 text-left transition hover:border-white/25 hover:bg-neutral-900">
+      <button type="button" onClick={() => onOpenList(group, category)} className={`rounded-[1.5rem] border border-dashed p-4 text-left transition hover:border-white/25 hover:bg-neutral-900 ${category.title === 'Videos' ? 'border-white/25 bg-white/[0.06]' : 'border-white/10 bg-neutral-950/50'}`}>
         <div className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300">
           <AppIcon name={category.icon} size={14} />
           {category.title}
         </div>
-        <p className="mt-4 text-sm text-neutral-500">No {category.title.toLowerCase()} yet. Open the list to add one.</p>
+        <p className="mt-4 text-sm text-neutral-500">No {category.title.toLowerCase()} yet. {category.title === 'Videos' ? 'Open the video tab to upload the first link.' : 'Open the list to add one.'}</p>
       </button>
     )
   }
@@ -121,6 +144,7 @@ function TopContentTile({ group, category, onOpenItem, onOpenList }) {
             <span className="rounded-full border border-white/10 px-2.5 py-1">Score {item.score || 0}</span>
             <span className="rounded-full border border-white/10 px-2.5 py-1">{item.picks || 0} picks</span>
             {item.rating ? <span className="rounded-full border border-white/10 px-2.5 py-1">★ {Number(item.rating).toFixed(1)}</span> : null}
+            {item.done && category.title === 'Videos' ? <span className="rounded-full border border-white/10 px-2.5 py-1">Classic</span> : null}
           </div>
         </div>
       </button>
@@ -132,7 +156,7 @@ function TopContentTile({ group, category, onOpenItem, onOpenList }) {
 }
 
 function GroupContentOverview({ group, summary, loading, onOpenItem, onOpenList }) {
-  if (loading) return <div className="mt-5 grid gap-3 lg:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-56 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}</div>
+  if (loading) return <div className="mt-5 grid gap-3 lg:grid-cols-4">{[0, 1, 2, 3].map((item) => <div key={item} className="h-56 animate-pulse rounded-[1.5rem] bg-white/[0.06]" />)}</div>
   const safeSummary = summary || emptyGroupSummary()
   return (
     <div className="mt-5 border-t border-white/10 pt-5">
@@ -143,7 +167,8 @@ function GroupContentOverview({ group, summary, loading, onOpenItem, onOpenList 
         </div>
         <div className="grid grid-cols-3 gap-2 sm:min-w-[20rem]"><MetricBox value={safeSummary.items} label="Items" /><MetricBox value={safeSummary.score} label="Score" /><MetricBox value={safeSummary.done} label="Done" /></div>
       </div>
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+      <AddContentBar group={group} categories={safeSummary.categories} onOpenList={onOpenList} />
+      <div className="mt-4 grid gap-3 lg:grid-cols-4">
         {safeSummary.categories.map((category) => <TopContentTile key={category.title} group={group} category={category} onOpenItem={onOpenItem} onOpenList={onOpenList} />)}
       </div>
     </div>
@@ -160,6 +185,7 @@ function GroupCard({ group, summary, summaryLoading, onCopy, onOpen, onOpenItem,
           <p className="mt-2 text-sm text-neutral-400">{group.members?.length || 1} members</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <Link to={`/videos?clique=${encodeURIComponent(group.id)}`} onClick={() => onOpen(group)} className="inline-flex h-11 items-center gap-2 rounded-2xl border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="videos" size={17} />Add videos</Link>
           <button type="button" onClick={() => onCopy(group)} aria-label={`Copy invite for ${group.name}`} className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="link" size={17} /></button>
           <Link to={getGroupOpenPath(group)} onClick={() => onOpen(group)} aria-label={`Open ${group.name}`} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="explore" size={17} />Open</Link>
         </div>
@@ -203,8 +229,8 @@ export default function Groups({ inviteMode = false }) {
       setSummariesLoading(true)
       try {
         const entries = await Promise.all(groups.map(async (group) => {
-          const [movies, series, games] = await Promise.all([getMovies(group.id), getSeries(group.id), getGames(group.id)])
-          return [group.id, buildGroupSummary(movies, series, games)]
+          const [movies, series, games, videos] = await Promise.all([getMovies(group.id), getSeries(group.id), getGames(group.id), getVideos(group.id)])
+          return [group.id, buildGroupSummary(movies, series, games, videos)]
         }))
         if (!cancelled) setGroupSummaries(Object.fromEntries(entries))
       } catch (error) {
@@ -298,6 +324,7 @@ export default function Groups({ inviteMode = false }) {
       <InfoModal item={selectedItem} onClose={() => setSelectedItem(null)} year={displayYear(selectedItem?.released || selectedItem?.year)} backdrop={selectedItem?.backdrop || selectedItem?.poster}>
         <div className="mt-4 flex flex-wrap gap-2"><DetailPill>{selectedItem?.category}</DetailPill><DetailPill>Score {selectedItem?.score || 0}</DetailPill><DetailPill>{selectedItem?.picks || 0} picks</DetailPill>{selectedItem?.rating ? <DetailPill>Rating ★ {Number(selectedItem.rating).toFixed(1)}</DetailPill> : null}{selectedItem?.runtime ? <DetailPill>{selectedItem.runtime} min</DetailPill> : null}{selectedItem?.seasons ? <DetailPill>{selectedItem.seasons} seasons</DetailPill> : null}{selectedItem?.episodes ? <DetailPill>{selectedItem.episodes} episodes</DetailPill> : null}{selectedItem?.platform ? <DetailPill>{selectedItem.platform}</DetailPill> : null}{selectedItem?.genres?.map((genre) => <DetailPill key={genre}>{genre}</DetailPill>)}{selectedItem?.platforms?.map((platform) => <DetailPill key={platform}>{platform}</DetailPill>)}</div>
         <p className="mt-5 text-sm leading-7 text-neutral-300">{selectedItem?.overview || selectedItem?.description || 'No description available yet.'}</p>
+        {selectedItem?.url ? <a href={selectedItem.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Open video</a> : null}
       </InfoModal>
     </PageShell>
   )
