@@ -1,5 +1,6 @@
 /* Bigger brand mark + hover cycle for media icons. Imported after index.css so it can override the base navbar polish. */
 :root {
+  --cb-brand-logo: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAFM0lEQVR42u2dfWiVVRzHP2ursHItw2oMXSHTGFOGrCFFWITYqFGLiqiwt0lUkEUUCQa9URFh+EeFBL1SiYnmoFVELQjSSmysCZHlXLSm1ZpOEd/arz/O77KzZ3fvbfdu9/uFh/s859x7nnvP5z7n93LOc2+emSFlTqeoCwRAACQBEABJAARAEgABkARAACQBEABJAARAEgABkARAACQBEABJAARAEgABkARgWqlgCr3XcmABMB8oBk4dxReoE3g6Gz9UXhavDS0CbgZuAy4H8sb7WXUFjFyrgcccwv+hXRqCRqZLgXVAVaL8X+AnYA/wl2+HgN4R2rJPBGB4LQfeAc6Lyn4FNgFfAM3e8dNK2WIDqoGNQGlU9jywHmifzl5QtgD41K+AlK4Hto7QUB9QHDA+1Y+h8+uAVmA38NGUvgTMLNNbo/Vpc5r6FWZWlyj72frrkaiu0sxW+SPZvmX6DSwys/1RR85L1G+L6tZ7WZmZHUoAeM/rlprZyah8WbYDyPQQVBp5Pfvc60lpHrAkOq7xst1AS6Kdt/yxFsiPyq+UDRhaZ0f7+xJ13WnSCSk39G4H8Q/wFPC5l7clXtMhAEPrZLR/ZqIu1bkAR4DXgB73fB4EZjvA2uib/i7wle/vAD4QgOGTZEd8v8yTbMn31+5R8AygAtgC3O8g8oHFwJfuGS0Cjjm8bmChvKDht68jo/lmVL7RBmqPDa6DCYNuZtad7d5QNsQB70f7dwJPusG9Kc1zLxqincJEGiMVqD2gSHhoFboXU5cwyBcM87rjbkNOT3g+pEnkNbrn1Ah8IwB9KvcO6nEje12a53wHfOuRb3u2dACYCZwFjDXXdtL3IUtSbTVAzT5VdYsG2B2o5k1mFmJH6/2sbzBzGrNbNY4268ysxfSBG57zWy5ImGzW7xDWsysaILP9WwCwvcywn1u8EIfFiZSa4CHouMqN/o5HQf0RvszJ+F86zxGSOlipaMnXy2DfAEEYJJUFu3vFYDJ1arINd3FyGbdJlQFOdLxJcC9wBN+fJSwUGu/roDJ0e1R5+Md36psaH+dNoFtvwLcA/ztx6XAS8AsAejT0gls+zDwBmHe4LCX1QCP5zqAeEJmDmGFxESqFVgZHV/LwDmInALwSyIweh24bxSvLxrDOTd4AhDCSuuKXAbQDDQkyl4FtjEwk5lOB0Z4nlpgc3T8hz/mE7KoOW0D7iKs/Yy1BPidkIa+dYztVhNS3F0O+bJB0h4ZjYaz6f6AtYTJ9sEmVzp8DG8lLF/pAk4QbtQoBC4kzC9UJKLdlG4gzCdXAj9EV1ANsD1jnzrD6dhaM1sbpaLLzOztNHO741Grp71T52yK6poynY7OdCRcADzsLugawjr+O7xuBXAVIWNZDJwLnDFMe0f9yugEdvq4/5nXFQIvA1dEz9+U6cs+00PQAu+g1LL0LYS1PU0JA1vsHksJcD5wDmH5yQzC1OQxwlRlG+EmjnhJ+2zgGs8DVUblHxJugSLXbcCjwIuJsh8Ja312EtLHzaNss9y3amBZouNToOsTLnBOG+F64BnSr4T4E/jNh5UuN8YH6ZuQ7/U0xlz6T8zPGSQifo5w80dWKJu8oGJPmq0cxIsZj9o8yNvAwPWjApBGiwk3bVztMcFYEnU7gI8Jd99sJ0uVN0X+Q6bI/fz5boRLCYt5T3g+qdOHpg5Pb3QwRZSnP/HJrPRbEQIgAJIACIAkAAIgCYAASAIgAJIACIAkAAIgCYAASAIgAJIACIAkAAIgCYAASAIwvfQfHgn/YjenyUMAAAAASUVORK5CYII=");
   --cb-logo-icon-movies: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%225%22%20width%3D%2218%22%20height%3D%2216%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M3%209h18%22%2F%3E%3Cpath%20d%3D%22M7%205l2%204%22%2F%3E%3Cpath%20d%3D%22M13%205l2%204%22%2F%3E%3C%2Fsvg%3E");
   --cb-logo-icon-series: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%226%22%20width%3D%2218%22%20height%3D%2212%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M8%2021h8%22%2F%3E%3Cpath%20d%3D%22M12%2018v3%22%2F%3E%3C%2Fsvg%3E");
   --cb-logo-icon-games: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-width%3D%222.2%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%2014h.01%22%2F%3E%3Cpath%20d%3D%22M6%2017h.01%22%2F%3E%3Cpath%20d%3D%22M10%2017h.01%22%2F%3E%3Cpath%20d%3D%22M8%2019h.01%22%2F%3E%3Cpath%20d%3D%22M15%2016h.01%22%2F%3E%3Cpath%20d%3D%22M18%2018h.01%22%2F%3E%3Cpath%20d%3D%22M17%2013l-1.5%203h3L17%2013Z%22%2F%3E%3Cpath%20d%3D%22M6.5%2010h11a4.5%204.5%200%200%201%204.35%205.64l-1.05%204A2.6%202.6%200%200%201%2016.3%2020L14%2017H10l-2.3%203a2.6%202.6%200%200%201-4.5-.36l-1.05-4A4.5%204.5%200%200%201%206.5%2010Z%22%2F%3E%3C%2Fsvg%3E");
@@ -16,11 +17,18 @@ header.sticky a[aria-label^="CliqueBase"] > div {
   gap: 1rem;
 }
 
+header.sticky a[aria-label^="CliqueBase"] > div > svg {
+  display: none !important;
+}
+
 header.sticky a[aria-label^="CliqueBase"] > div::before {
+  content: "";
+  display: block !important;
   width: 4.35rem !important;
   height: 4.35rem !important;
   flex: 0 0 4.35rem !important;
   margin: -0.72rem -0.34rem -0.72rem -0.44rem !important;
+  background: var(--cb-brand-logo) center / contain no-repeat;
   transform-origin: center;
   transition: filter 220ms ease, opacity 180ms ease, transform 220ms ease;
 }
@@ -92,6 +100,20 @@ header.sticky a[aria-label^="CliqueBase"]:focus-visible > div::after {
 }
 
 @media (max-width: 640px) {
+  header.sticky a[aria-label^="CliqueBase"] > div::before {
+    width: 3rem !important;
+    height: 3rem !important;
+    flex-basis: 3rem !important;
+    margin: -0.42rem -0.2rem -0.42rem -0.25rem !important;
+    background-size: contain !important;
+  }
+
+  header.sticky a[aria-label^="CliqueBase"] > div::after {
+    left: 1.1rem;
+    width: 0.95rem;
+    height: 0.95rem;
+  }
+
   header.sticky a[aria-label^="CliqueBase"] > div > span {
     font-size: 1.7rem !important;
   }
