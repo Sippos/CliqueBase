@@ -67,9 +67,32 @@ function syncPendingInviteFromUrl() {
 
 function syncCliqueScopeFromUrl() {
   if (typeof window === 'undefined') return
+
+  const pathname = getAppPathname()
   const params = new URLSearchParams(window.location.search)
-  const cliqueId = params.get('clique') || params.get('group') || params.get('scope')
+  const routeCliqueId = pathname.match(/^\/(?:cliques|g)\/([^/?#]+)/)?.[1]
+  const cliqueId = params.get('clique') || params.get('group') || params.get('scope') || routeCliqueId
+
   if (cliqueId) window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, cliqueId)
+}
+
+function syncMediaScopeFromActiveClique() {
+  if (typeof window === 'undefined') return
+
+  const pathname = getAppPathname()
+  if (!['/movies', '/series', '/games'].includes(pathname)) return
+
+  const params = new URLSearchParams(window.location.search)
+  const alreadyScoped = params.has('clique') || params.has('group') || params.has('scope')
+  if (alreadyScoped) return
+
+  const activeCliqueId = window.localStorage.getItem(ACTIVE_GROUP_STORAGE_KEY)
+  if (!activeCliqueId) return
+
+  params.set('clique', activeCliqueId)
+  const base = getAppBasePath()
+  const nextPath = `${base}${pathname.replace(/^\//, '')}?${params.toString()}${window.location.hash || ''}`
+  window.location.replace(nextPath)
 }
 
 async function acceptPendingInvite(session = null) {
@@ -97,6 +120,7 @@ async function acceptPendingInvite(session = null) {
 export default function App() {
   syncPendingInviteFromUrl()
   syncCliqueScopeFromUrl()
+  syncMediaScopeFromActiveClique()
 
   useEffect(() => {
     acceptPendingInvite().catch((error) => console.warn('Pending invite join failed:', error))
