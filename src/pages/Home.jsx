@@ -4,7 +4,8 @@ import AppIcon from '../components/AppIcon.jsx'
 import MemberShareModal from '../components/MemberShareModal.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, parseInviteCode, setActiveGroup } from '../lib/groups.js'
-import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
+import { getSavedHandle } from '../lib/handle.js'
+import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
 
 const TYPE_ICONS = {
   Movie: 'movies',
@@ -31,6 +32,11 @@ function normalizeItems(rows, type, code, to) {
     rating: item.rating || null,
     sortValue: Number(item.score || 0) * 10 + Number(item.picks || 0) + Number(item.rating || 0),
   })).sort((a, b) => b.sortValue - a.sortValue)
+}
+
+function itemActionKey(item, prefix = '') {
+  if (!item) return ''
+  return `${prefix}${item.type}-${item.id}`
 }
 
 function LibrarySectionCard({ category, loading, onShare }) {
@@ -151,59 +157,70 @@ function LibraryShowcase({ items, loading, onShare }) {
   )
 }
 
-function CategoryTopCard({ category, loading, onShare }) {
+function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onShare, onCopy }) {
   const top = category.top
-  const image = top?.backdrop || top?.poster
+  const image = top?.poster || top?.backdrop
+  const displayTitle = top?.title || category.title
+  const summary = top?.overview || `Open the full ${category.title.toLowerCase()} list for this clique.`
 
   return (
-    <article className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03]">
-      <div className="relative min-h-52 overflow-hidden bg-neutral-900">
-        {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-        <Link to={category.to} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
-        <span className="absolute left-4 top-4 z-10 inline-flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-black tracking-[0.16em] text-neutral-950">
-          <AppIcon name={category.icon} size={13} strokeWidth={2.4} />
-          {category.title}
-        </span>
-        <div className="absolute right-4 top-4 z-10 flex gap-2">
-          {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Share</button> : null}
-          <Link to={category.to} className="rounded-2xl border border-white/15 bg-black/55 px-3 py-2 text-xs font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Open list</Link>
-        </div>
-        {!top ? <span className="absolute bottom-4 left-4 right-4 z-10 text-sm font-semibold text-neutral-300">No {category.title.toLowerCase()} yet</span> : null}
-      </div>
+    <article className="group relative outline-none" style={{ perspective: '1000px' }}>
+      <div
+        className="relative min-h-[24rem] rounded-[2rem] transition-transform duration-500 group-hover:-translate-y-0.5"
+        style={{ transformStyle: 'preserve-3d', transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)' }}
+      >
+        <div className="absolute inset-0 overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 transition group-hover:border-white/20" style={{ backfaceVisibility: 'hidden' }}>
+          {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-88 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
 
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Top {category.singular}</p>
-            <h3 className="mt-1 text-3xl font-black text-white">{category.title}</h3>
+          <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/65 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-black/30 backdrop-blur">
+            <AppIcon name={category.icon} size={14} strokeWidth={2.4} />
+            {category.singular}
           </div>
-          <div className="rounded-2xl border border-white/10 px-3 py-2 text-right text-xs text-neutral-400">
-            <strong className="block text-lg text-white">{category.count}</strong>
-            items
-          </div>
-        </div>
 
-        {loading ? (
-          <p className="mt-6 rounded-2xl border border-white/10 p-4 text-sm text-neutral-400">Loading {category.title.toLowerCase()}...</p>
-        ) : top ? (
-          <>
-            <Link to={category.to} className="mt-6 block text-2xl font-black leading-tight text-white hover:underline">{top.title}</Link>
-            <p className="mt-2 line-clamp-3 text-sm leading-6 text-neutral-400">{top.overview || `Leading ${category.singular.toLowerCase()} by score and picks in this workspace.`}</p>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
-              <span className="rounded-full border border-white/10 px-3 py-1.5">Score {top.score || 0}</span>
-              <span className="rounded-full border border-white/10 px-3 py-1.5">{top.picks || 0} picks</span>
-              {top.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(top.rating).toFixed(1)}</span> : null}
-              <span className="rounded-full border border-white/10 px-3 py-1.5">{category.rated} rated</span>
+          <div className="absolute right-4 top-4 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(event) => { event.stopPropagation(); onToggle?.(category) }}
+              aria-label={`Show actions for ${category.title}`}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/65 text-white shadow-lg shadow-black/30 backdrop-blur transition hover:bg-white hover:text-neutral-950"
+            >
+              <AppIcon name="info" size={18} strokeWidth={2.2} />
+            </button>
+            <Link to={category.to} aria-label={`Open all ${category.title}`} className="flex h-12 min-w-12 items-center justify-center rounded-full border border-white/15 bg-black/65 px-3 text-lg font-black text-white shadow-lg shadow-black/30 backdrop-blur transition hover:bg-white hover:text-neutral-950">
+              {loading ? '…' : category.count}
+            </Link>
+          </div>
+
+          <div className="absolute inset-x-0 bottom-0 p-5">
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
+            <h3 className="mt-2 line-clamp-2 text-3xl font-black leading-tight text-white drop-shadow-lg">{loading ? 'Loading…' : displayTitle}</h3>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-white">
+              <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">Score {top?.score || 0}</span>
+              <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">{top?.picks || 0} picks</span>
+              <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">{category.rated} rated</span>
             </div>
-            <button type="button" onClick={() => onShare?.(top)} className="mt-4 rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share {category.singular.toLowerCase()}</button>
-          </>
-        ) : (
-          <div className="mt-6 flex flex-col gap-5">
-            <p className="text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} have been submitted here yet. Start this workspace with the first real pick.</p>
-            <Link to={category.to} className="inline-flex w-fit rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Open {category.title.toLowerCase()}</Link>
           </div>
-        )}
+        </div>
+
+        <div className="absolute inset-0 flex flex-col rounded-[2rem] border border-white/15 bg-neutral-950 p-5 shadow-2xl shadow-black/40" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+          <div className="flex items-start justify-between gap-3">
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-neutral-950">
+              <AppIcon name={category.icon} size={20} />
+            </span>
+            <button type="button" onClick={() => onToggle?.(category)} className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-neutral-400 transition hover:bg-white hover:text-neutral-950">Flip back</button>
+          </div>
+
+          <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-neutral-500">{category.title} actions</p>
+          <h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight text-white">{displayTitle}</h3>
+          <p className="mt-3 line-clamp-5 flex-1 text-sm leading-6 text-neutral-400">{summary}</p>
+
+          <div className="mt-5 grid gap-2">
+            <Link to={category.to} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Open full list · {category.count}</Link>
+            {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share {category.singular.toLowerCase()}</button> : null}
+            {top ? <button type="button" onClick={() => onCopy?.(top)} disabled={saving} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">{saving ? 'Copying…' : 'Copy to My Library'}</button> : null}
+          </div>
+        </div>
       </div>
     </article>
   )
@@ -242,6 +259,8 @@ export default function Home() {
   const [message, setMessage] = useState('')
   const [shareNotice, setShareNotice] = useState('')
   const [sharingItem, setSharingItem] = useState(null)
+  const [flippedCategory, setFlippedCategory] = useState('')
+  const [copyingKey, setCopyingKey] = useState('')
 
   useEffect(() => {
     if (routeGroupId) setActiveGroup(routeGroupId)
@@ -321,6 +340,32 @@ export default function Home() {
     setTimeout(() => setShareNotice(''), 2600)
   }
 
+  function toggleCategory(category) {
+    setFlippedCategory((current) => current === category.title ? '' : category.title)
+  }
+
+  async function copyToLibrary(item) {
+    if (!item || !hasSupabase || status !== 'ready') {
+      handleShareMessage('Sign in from Profile before copying to My Library.')
+      return
+    }
+
+    const key = itemActionKey(item, 'copy-')
+    setCopyingKey(key)
+    try {
+      const nominatedBy = getSavedHandle() || 'anonymous'
+      if (item.type === 'Movie') await saveMovie(item, nominatedBy, null)
+      else if (item.type === 'Series') await saveSeries(item, nominatedBy, null)
+      else if (item.type === 'Game') await saveGame(item, nominatedBy, null)
+      else throw new Error('Unsupported item type.')
+      handleShareMessage(`Copied "${item.title}" to My Library.`)
+    } catch (error) {
+      handleShareMessage(error.message || 'Could not copy this item to My Library.')
+    } finally {
+      setCopyingKey('')
+    }
+  }
+
   return (
     <PageShell active={context.type === 'group' ? 'cliques' : 'library'}>
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
@@ -350,9 +395,21 @@ export default function Home() {
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Section highlights</p>
           <h2 className="mt-1 text-3xl font-black text-white">Top items by category</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Tap the info button to flip a card for sharing and copying to My Library. The number opens the full list.</p>
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
-          {categories.map((category) => <CategoryTopCard key={category.title} category={category} loading={loading} onShare={openShare} />)}
+          {categories.map((category) => (
+            <CategoryFlipCard
+              key={category.title}
+              category={category}
+              loading={loading}
+              flipped={flippedCategory === category.title}
+              saving={copyingKey === itemActionKey(category.top, 'copy-')}
+              onToggle={toggleCategory}
+              onShare={openShare}
+              onCopy={copyToLibrary}
+            />
+          ))}
         </div>
       </section>
 
