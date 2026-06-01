@@ -35,18 +35,6 @@ function normalizeItems(rows = [], category) {
   })).sort((a, b) => b.sortValue - a.sortValue || String(a.title || '').localeCompare(String(b.title || '')))
 }
 
-function MetricPill({ label, value, icon }) {
-  return (
-    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-neutral-950/70 px-3 py-2">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-neutral-950"><AppIcon name={icon} size={15} /></span>
-      <div className="min-w-0">
-        <p className="text-lg font-black leading-none text-white">{value}</p>
-        <p className="mt-1 truncate text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">{label}</p>
-      </div>
-    </div>
-  )
-}
-
 function AddContentModal({ groupId, groupName, onClose }) {
   if (!groupId) return null
   return (
@@ -77,19 +65,19 @@ function AddContentModal({ groupId, groupName, onClose }) {
   )
 }
 
-function HeroCategoryTile({ category, groupId }) {
+function MiniCategoryTile({ category, groupId }) {
   const top = category.items[0]
   const image = artFor(top)
   return (
-    <Link to={scopedHref(category, groupId)} className="group relative min-h-[6.5rem] overflow-hidden rounded-[1.25rem] border border-white/10 bg-neutral-950 transition hover:-translate-y-0.5 hover:border-white/25">
-      {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/5" />
-      <div className="relative flex min-h-[6.5rem] flex-col justify-between p-3">
+    <Link to={scopedHref(category, groupId)} className="group relative min-h-[5.75rem] overflow-hidden rounded-[1.15rem] border border-white/10 bg-neutral-950 transition hover:-translate-y-0.5 hover:border-white/25">
+      {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-78 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.07),rgba(0,0,0,0.45))]" />}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+      <div className="relative flex min-h-[5.75rem] flex-col justify-between p-3">
         <div className="flex items-start justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={11} />{category.title}</span>
-          <span className="rounded-full bg-black/60 px-2.5 py-1 text-xs font-black text-white backdrop-blur">{category.count}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={10} />{category.title}</span>
+          <span className="rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-black text-white backdrop-blur">{category.count}</span>
         </div>
-        <h3 className="line-clamp-1 text-base font-black text-white drop-shadow">{top?.title || `No ${category.title.toLowerCase()}`}</h3>
+        <h3 className="line-clamp-1 text-sm font-black text-white drop-shadow">{top?.title || `No ${category.title.toLowerCase()}`}</h3>
       </div>
     </Link>
   )
@@ -97,33 +85,28 @@ function HeroCategoryTile({ category, groupId }) {
 
 function CategoryOverviewCard({ category, groupId, onInfo }) {
   const top = category.items[0]
-  const second = category.items[1]
   const image = artFor(top)
   return (
-    <article className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/80 text-white transition hover:border-white/25">
-      <Link to={scopedHref(category, groupId)} className="group block">
-        <div className="relative h-44 bg-neutral-900">
-          {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-transparent" />
-          <span className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.title}</span>
-          <span className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-xs font-black text-white backdrop-blur">{category.count}</span>
-          <div className="absolute inset-x-0 bottom-0 p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
-            <h3 className="mt-1 line-clamp-1 text-xl font-black text-white drop-shadow">{top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
-          </div>
-        </div>
+    <article className="group relative min-h-[18.5rem] overflow-hidden rounded-[1.65rem] border border-white/10 bg-neutral-950 text-white transition hover:-translate-y-0.5 hover:border-white/25">
+      <Link to={scopedHref(category, groupId)} className="absolute inset-0" aria-label={`Open ${category.title}`}>
+        {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
       </Link>
-      <div className="p-4">
-        <p className="line-clamp-2 min-h-[2.75rem] text-sm leading-6 text-neutral-400">{top?.overview || top?.url || category.description}</p>
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2 text-[11px] font-bold text-neutral-300">
-            <span className="rounded-full border border-white/10 px-2.5 py-1">Score {category.score}</span>
-            <span className="rounded-full border border-white/10 px-2.5 py-1">{category.picks} picks</span>
-            <span className="rounded-full border border-white/10 px-2.5 py-1">{category.done} done</span>
-          </div>
-          {top ? <button type="button" onClick={() => onInfo(top)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 text-neutral-300 transition hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={16} /></button> : null}
+
+      <div className="pointer-events-none relative z-10 flex min-h-[18.5rem] flex-col justify-between p-4">
+        <div className="flex items-start justify-between gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.title}</span>
+          <span className="rounded-full border border-white/10 bg-black/55 px-3 py-1.5 text-xs font-black text-white backdrop-blur">{category.count}</span>
         </div>
-        {second ? <p className="mt-3 truncate text-xs text-neutral-500">Next: {second.title}</p> : null}
+
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">Top {category.singular.toLowerCase()}</p>
+          <h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg">{top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
+          <div className="pointer-events-auto mt-4 flex gap-2">
+            {top ? <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); onInfo(top) }} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-white hover:text-neutral-950" aria-label={`Info for ${top.title}`}><AppIcon name="info" size={17} /></button> : null}
+            <Link to={scopedHref(category, groupId)} className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-3 text-xs font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="list" size={14} />Pile</Link>
+          </div>
+        </div>
       </div>
     </article>
   )
@@ -196,9 +179,7 @@ export default function CliqueDetail() {
 
   const allItems = useMemo(() => categories.flatMap((category) => category.items).sort((a, b) => b.sortValue - a.sortValue), [categories])
   const totalItems = allItems.length
-  const totalPicks = allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0)
   const activeCategories = categories.filter((category) => category.count > 0).length
-  const completedItems = allItems.filter((item) => item.done || item.rating).length
   const topCategory = categories.slice().sort((a, b) => b.count - a.count || b.score - a.score)[0]
   const heroItem = allItems[0]
   const heroImage = artFor(heroItem)
@@ -213,29 +194,22 @@ export default function CliqueDetail() {
               <div className="min-w-0">
                 <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">Clique workspace</p>
                 <h1 className="mt-2 max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl">{groupName}</h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">A shared content dashboard for movies, series, games, and videos.</p>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">{totalItems} items across {activeCategories} active content types.</p>
               </div>
-              <button type="button" onClick={() => setAddOpen(true)} className="inline-flex h-11 w-fit shrink-0 items-center gap-2 rounded-full bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="explore" size={15} />Add</button>
+              <button type="button" onClick={() => setAddOpen(true)} className="inline-flex h-10 w-fit shrink-0 items-center gap-2 rounded-full bg-white px-4 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="explore" size={15} />Add</button>
             </div>
             {!session?.user && hasSupabase ? <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-neutral-300">Sign in from Profile to add and vote inside cliques.</p> : null}
             <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {categories.map((category) => <HeroCategoryTile key={category.key} category={category} groupId={groupId} />)}
-            </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricPill icon="dashboard" label="Items" value={loading ? '…' : totalItems} />
-              <MetricPill icon="explore" label="Active types" value={loading ? '…' : `${activeCategories}/4`} />
-              <MetricPill icon="users" label="Picks" value={loading ? '…' : totalPicks} />
-              <MetricPill icon="list" label="Done" value={loading ? '…' : completedItems} />
+              {categories.map((category) => <MiniCategoryTile key={category.key} category={category} groupId={groupId} />)}
             </div>
           </div>
-          <div className="relative min-h-[22rem] bg-neutral-950">
-            {heroImage ? <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+          <div className="relative min-h-[21rem] bg-neutral-950">
+            {heroImage ? <img src={heroImage} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
             <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">Top pick</div>
             <div className="absolute inset-x-0 bottom-0 p-6">
               <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-300">{heroItem?.type || 'Empty clique'}</p>
               <h2 className="mt-2 text-3xl font-black text-white">{heroItem?.title || 'Add the first clique item'}</h2>
-              <p className="mt-2 line-clamp-2 max-w-lg text-sm leading-6 text-neutral-300">{heroItem?.overview || 'Use Add to search for a movie, series, game, or upload a video link directly into this clique.'}</p>
             </div>
           </div>
         </div>
@@ -248,7 +222,7 @@ export default function CliqueDetail() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">Category overview</p>
             <h2 className="mt-1 text-3xl font-black text-white">Contents at a glance</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Open a category to search, add, vote, or upload inside this clique. Strongest category: {topCategory?.title || 'none yet'}.</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Strongest category: {topCategory?.title || 'none yet'}.</p>
           </div>
           <button type="button" onClick={() => setAddOpen(true)} className="inline-flex h-10 w-fit items-center gap-2 rounded-full border border-white/10 px-4 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="explore" size={15} />Add</button>
         </div>
