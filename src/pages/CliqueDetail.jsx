@@ -130,39 +130,76 @@ function CategoryOverviewCard({ category, groupId, active, copying, itemIndex, o
   const current = items[safeIndex]
   const title = current?.title || `No ${category.title.toLowerCase()} yet`
   const canCycle = items.length > 1
+  const sourceRating = current?.tmdbRating ?? current?.rawgRating
+  const summaryRows = current ? [
+    ['Score', current.score || 0],
+    ['Picks', current.picks || 0],
+    current.rating ? ['Rating', Number(current.rating).toFixed(1)] : null,
+    sourceRating !== null && sourceRating !== undefined ? [current.type === 'Game' ? 'RAWG' : 'TMDB', Number(sourceRating).toFixed(1)] : null,
+  ].filter(Boolean) : []
+  const stopAnd = (handler) => (event) => { event.stopPropagation(); handler() }
+  const flipCard = () => onToggle(category.key)
+
   return (
-    <article className={`group relative min-h-[24rem] overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950 text-white shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 ${active ? 'ring-1 ring-white/25' : ''}`}>
-      {artFor(current) ? <img src={artFor(current)} alt="" className={`absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105 ${active ? 'opacity-25 blur-[1px]' : 'opacity-85'}`} /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
-      <button type="button" onClick={() => onToggle(category.key)} className="absolute inset-0 z-10 text-left" aria-label={`Open actions for ${category.title}`} />
-      <div className="pointer-events-none relative z-20 flex min-h-[24rem] flex-col justify-between p-5">
-        <div className="flex items-start justify-between gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.title}</span>
-          <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
-            {canCycle ? <IconBubble icon="chevronLeft" label={`Previous ${category.title}`} onClick={(event) => { event.stopPropagation(); onCycle(category, -1) }} /> : null}
-            {canCycle ? <IconBubble icon="chevronRight" label={`Next ${category.title}`} onClick={(event) => { event.stopPropagation(); onCycle(category, 1) }} /> : null}
-            <ActionChip icon="list" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'swipe') }} className="min-h-10 rounded-full px-3 text-xs">{category.count}</ActionChip>
-            {current ? <IconBubble icon="info" label={`Info for ${title}`} onClick={(event) => { event.stopPropagation(); onInfo(current) }} /> : null}
-          </div>
-        </div>
-        {active ? (
-          <div className="pointer-events-auto rounded-[1.5rem] border border-white/10 bg-black/70 p-4 shadow-2xl shadow-black/30 backdrop-blur-md">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-400">Actions</p>
-            <h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight">{title}</h3>
-            <p className="mt-3 line-clamp-3 text-sm leading-6 text-neutral-300">{detailsText(current)}</p>
-            <div className="mt-4 grid gap-2 sm:grid-cols-4">
-              <ActionChip icon="list" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'cards') }}>Cards</ActionChip>
-              <ActionChip icon="explore" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'swipe') }}>Pile</ActionChip>
-              {current ? <ActionChip icon="share" active onClick={(event) => { event.stopPropagation(); onShare(current) }}>Share</ActionChip> : <Link to={scopedHref(category, groupId)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white bg-white px-3 py-2 text-center text-sm font-black text-neutral-950 shadow-lg shadow-white/10 hover:bg-neutral-200"><AppIcon name="explore" size={16} />Add</Link>}
-              {current ? <ActionChip icon="copy" disabled={!current || copying} onClick={(event) => { event.stopPropagation(); onCopy(current) }}>{copying ? 'Copying…' : 'Copy'}</ActionChip> : null}
+    <article
+      role="button"
+      tabIndex={0}
+      aria-pressed={active}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); flipCard() } }}
+      className={`group relative min-h-[24rem] cursor-pointer rounded-[1.75rem] text-white outline-none [perspective:1400px] focus-visible:ring-2 focus-visible:ring-white/50 ${active ? 'ring-1 ring-white/25' : ''}`}
+    >
+      <div className={`absolute inset-0 rounded-[1.75rem] transition duration-500 [transform-style:preserve-3d] ${active ? '[transform:rotateY(180deg)]' : ''}`}>
+        <div className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 [backface-visibility:hidden] transition hover:-translate-y-0.5 hover:border-white/25">
+          {artFor(current) ? <img src={artFor(current)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+          <button type="button" onClick={flipCard} className="absolute inset-0 z-10 text-left" aria-label={`Flip ${category.title} card`} />
+          <div className="pointer-events-none relative z-20 flex min-h-[24rem] flex-col justify-between p-5">
+            <div className="flex items-start justify-between gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.title}</span>
+              <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
+                {canCycle ? <IconBubble icon="chevronLeft" label={`Previous ${category.title}`} onClick={(event) => { event.stopPropagation(); onCycle(category, -1) }} /> : null}
+                {canCycle ? <IconBubble icon="chevronRight" label={`Next ${category.title}`} onClick={(event) => { event.stopPropagation(); onCycle(category, 1) }} /> : null}
+                <ActionChip icon="list" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'swipe') }} className="min-h-10 rounded-full px-3 text-xs">{category.count}</ActionChip>
+                {current ? <IconBubble icon="info" label={`Info for ${title}`} onClick={(event) => { event.stopPropagation(); onInfo(current) }} /> : null}
+              </div>
+            </div>
+            <div>
+              <p className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-200 backdrop-blur"><AppIcon name="info" size={12} />Tap to flip</p>
+              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">#{safeIndex + 1} in {category.title}</p>
+              <h3 className="mt-1 line-clamp-2 text-3xl font-black leading-tight text-white drop-shadow-lg">{title}</h3>
             </div>
           </div>
-        ) : (
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">#{safeIndex + 1} in {category.title}</p>
-            <h3 className="mt-1 line-clamp-2 text-3xl font-black leading-tight text-white drop-shadow-lg">{title}</h3>
+        </div>
+
+        <div className="absolute inset-0 flex overflow-hidden rounded-[1.75rem] border border-white/15 bg-neutral-950 p-5 shadow-2xl shadow-black/30 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <div className="flex min-h-full w-full flex-col">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0"><p className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300"><AppIcon name={category.icon} size={12} />{category.singular}</p><h3 className="mt-3 text-3xl font-black leading-tight text-white">{title}</h3></div>
+              <IconBubble icon="chevronLeft" label="Flip back" onClick={stopAnd(flipCard)} />
+            </div>
+
+            {current ? (
+              <>
+                <div className="mt-4 flex flex-wrap gap-2">{summaryRows.map(([label, value]) => <Pill key={label}>{label} {value}</Pill>)}{current.done ? <Pill light>{current.type === 'Series' ? 'Finished' : current.type === 'Game' ? 'Played' : current.type === 'Video' ? 'Classic' : 'Watched'}</Pill> : null}</div>
+                <div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-3xl border border-white/10 bg-white/[0.035] p-4" onClick={(event) => event.stopPropagation()}>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Full content</p>
+                  <p className="mt-3 whitespace-pre-wrap break-words text-base leading-7 text-neutral-200">{detailsText(current)}</p>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                  <ActionChip icon="list" onClick={stopAnd(() => onOpenPile(category, 'cards'))}>Cards</ActionChip>
+                  <ActionChip icon="explore" onClick={stopAnd(() => onOpenPile(category, 'swipe'))}>Pile</ActionChip>
+                  <ActionChip icon="share" active onClick={stopAnd(() => onShare(current))}>Share</ActionChip>
+                  <ActionChip icon="copy" disabled={copying} onClick={stopAnd(() => onCopy(current))}>{copying ? 'Copying…' : 'Copy'}</ActionChip>
+                </div>
+              </>
+            ) : (
+              <div className="mt-4 flex flex-1 flex-col justify-between rounded-3xl border border-dashed border-white/10 bg-white/[0.025] p-4">
+                <p className="text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} have been added to this clique yet.</p>
+                <Link to={scopedHref(category, groupId)} onClick={(event) => event.stopPropagation()} className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white bg-white px-3 py-2 text-center text-sm font-black text-neutral-950 shadow-lg shadow-white/10 hover:bg-neutral-200"><AppIcon name="explore" size={16} />Add</Link>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </article>
   )
