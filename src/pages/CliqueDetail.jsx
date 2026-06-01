@@ -52,6 +52,34 @@ function GenreChips({ genres }) {
 function CategoryBadge({ item, category }) {
   return <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-lg shadow-black/30 backdrop-blur"><AppIcon name={category?.icon || item?.icon || 'explore'} size={14} />{category?.singular || item?.type || 'Pick'}</span>
 }
+function ActionChip({ icon, children, onClick, disabled = false, active = false, title, className = '' }) {
+  return (
+    <button
+      type="button"
+      title={title || (typeof children === 'string' ? children : undefined)}
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-3 py-2 text-sm font-black transition disabled:pointer-events-none disabled:opacity-50 ${active ? 'border-white bg-white text-neutral-950 shadow-lg shadow-white/10 hover:bg-neutral-200' : 'border-white/10 bg-white/[0.045] text-white hover:border-white/25 hover:bg-white hover:text-neutral-950'} ${className}`}
+    >
+      <AppIcon name={icon} size={16} />
+      <span>{children}</span>
+    </button>
+  )
+}
+function IconBubble({ icon, label, onClick, disabled = false, strong = false, className = '' }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      disabled={disabled}
+      className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition disabled:pointer-events-none disabled:opacity-50 ${strong ? 'border-white bg-white text-neutral-950 shadow-lg shadow-white/10 hover:bg-neutral-200' : 'border-white/15 bg-black/55 text-white backdrop-blur hover:bg-white hover:text-neutral-950'} ${className}`}
+    >
+      <AppIcon name={icon} size={17} />
+    </button>
+  )
+}
 
 function AddContentModal({ groupId, groupName, onClose }) {
   if (!groupId) return null
@@ -90,7 +118,7 @@ function HeroSlide({ category, item, index, total, onOpenList }) {
       {artFor(item) ? <img src={artFor(item)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
       <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">{category.title} · {index + 1}/{total}</div>
-      <button type="button" onClick={() => onOpenList(category)} className="absolute right-5 top-5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-neutral-950 hover:bg-neutral-200">Open list</button>
+      <button type="button" onClick={() => onOpenList(category)} className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-neutral-950 hover:bg-neutral-200"><AppIcon name="list" size={13} />Open list</button>
       <div className="absolute inset-x-0 bottom-0 p-6"><p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-300">#1 in {category.title}</p><h2 className="mt-2 text-4xl font-black leading-tight text-white">{item?.title || `No ${category.title.toLowerCase()} yet`}</h2><p className="mt-2 line-clamp-2 max-w-lg text-sm leading-6 text-neutral-300">{detailsText(item)}</p></div>
     </div>
   )
@@ -106,18 +134,35 @@ function CategoryOverviewCard({ category, groupId, active, copying, itemIndex, o
     <article className={`group relative min-h-[24rem] overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950 text-white shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 ${active ? 'ring-1 ring-white/25' : ''}`}>
       {artFor(current) ? <img src={artFor(current)} alt="" className={`absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105 ${active ? 'opacity-25 blur-[1px]' : 'opacity-85'}`} /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
-      <button type="button" onClick={() => onToggle(category.key)} className="absolute inset-0 z-10 text-left" />
+      <button type="button" onClick={() => onToggle(category.key)} className="absolute inset-0 z-10 text-left" aria-label={`Open actions for ${category.title}`} />
       <div className="pointer-events-none relative z-20 flex min-h-[24rem] flex-col justify-between p-5">
         <div className="flex items-start justify-between gap-3">
           <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.title}</span>
-          <div className="pointer-events-auto flex gap-2">
-            {canCycle ? <button type="button" onClick={(event) => { event.stopPropagation(); onCycle(category, -1) }} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur hover:bg-white hover:text-neutral-950"><AppIcon name="chevronLeft" size={17} /></button> : null}
-            {canCycle ? <button type="button" onClick={(event) => { event.stopPropagation(); onCycle(category, 1) }} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur hover:bg-white hover:text-neutral-950"><AppIcon name="chevronRight" size={17} /></button> : null}
-            <button type="button" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'swipe') }} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 text-xs font-black text-white backdrop-blur hover:bg-white hover:text-neutral-950"><AppIcon name="list" size={14} />{category.count}</button>
-            {current ? <button type="button" onClick={(event) => { event.stopPropagation(); onInfo(current) }} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={17} /></button> : null}
+          <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
+            {canCycle ? <IconBubble icon="chevronLeft" label={`Previous ${category.title}`} onClick={(event) => { event.stopPropagation(); onCycle(category, -1) }} /> : null}
+            {canCycle ? <IconBubble icon="chevronRight" label={`Next ${category.title}`} onClick={(event) => { event.stopPropagation(); onCycle(category, 1) }} /> : null}
+            <ActionChip icon="list" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'swipe') }} className="min-h-10 rounded-full px-3 text-xs">{category.count}</ActionChip>
+            {current ? <IconBubble icon="info" label={`Info for ${title}`} onClick={(event) => { event.stopPropagation(); onInfo(current) }} /> : null}
           </div>
         </div>
-        {active ? <div className="pointer-events-auto rounded-[1.5rem] border border-white/10 bg-black/65 p-4 backdrop-blur-md"><p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-400">Actions</p><h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight">{title}</h3><p className="mt-3 line-clamp-3 text-sm leading-6 text-neutral-300">{detailsText(current)}</p><div className="mt-4 grid gap-2 sm:grid-cols-4"><button type="button" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'cards') }} className="rounded-2xl border border-white/10 px-3 py-3 text-sm font-black hover:bg-white hover:text-neutral-950">Cards</button><button type="button" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'swipe') }} className="rounded-2xl border border-white/10 px-3 py-3 text-sm font-black hover:bg-white hover:text-neutral-950">Pile</button>{current ? <button type="button" onClick={(event) => { event.stopPropagation(); onShare(current) }} className="rounded-2xl bg-white px-3 py-3 text-sm font-black text-neutral-950 hover:bg-neutral-200">Share</button> : <Link to={scopedHref(category, groupId)} className="rounded-2xl bg-white px-3 py-3 text-center text-sm font-black text-neutral-950 hover:bg-neutral-200">Add</Link>}{current ? <button type="button" onClick={(event) => { event.stopPropagation(); onCopy(current) }} disabled={!current || copying} className="rounded-2xl border border-white/10 px-3 py-3 text-sm font-black hover:bg-white hover:text-neutral-950 disabled:opacity-45">{copying ? 'Copying…' : 'Copy'}</button> : null}</div></div> : <div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">#{safeIndex + 1} in {category.title}</p><h3 className="mt-1 line-clamp-2 text-3xl font-black leading-tight text-white drop-shadow-lg">{title}</h3></div>}
+        {active ? (
+          <div className="pointer-events-auto rounded-[1.5rem] border border-white/10 bg-black/70 p-4 shadow-2xl shadow-black/30 backdrop-blur-md">
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-400">Actions</p>
+            <h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight">{title}</h3>
+            <p className="mt-3 line-clamp-3 text-sm leading-6 text-neutral-300">{detailsText(current)}</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-4">
+              <ActionChip icon="list" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'cards') }}>Cards</ActionChip>
+              <ActionChip icon="explore" onClick={(event) => { event.stopPropagation(); onOpenPile(category, 'swipe') }}>Pile</ActionChip>
+              {current ? <ActionChip icon="share" active onClick={(event) => { event.stopPropagation(); onShare(current) }}>Share</ActionChip> : <Link to={scopedHref(category, groupId)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white bg-white px-3 py-2 text-center text-sm font-black text-neutral-950 shadow-lg shadow-white/10 hover:bg-neutral-200"><AppIcon name="explore" size={16} />Add</Link>}
+              {current ? <ActionChip icon="copy" disabled={!current || copying} onClick={(event) => { event.stopPropagation(); onCopy(current) }}>{copying ? 'Copying…' : 'Copy'}</ActionChip> : null}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">#{safeIndex + 1} in {category.title}</p>
+            <h3 className="mt-1 line-clamp-2 text-3xl font-black leading-tight text-white drop-shadow-lg">{title}</h3>
+          </div>
+        )}
       </div>
     </article>
   )
@@ -129,16 +174,91 @@ function ExploreListModal({ category, groupId, copyingKey, onClose, onInfo, onOp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div className="max-h-[88vh] w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 text-white shadow-2xl shadow-black/50">
-        <div className="flex flex-col gap-4 border-b border-white/10 p-5 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-500">Public ladder</p><h2 className="mt-1 text-3xl font-black">Top {category.title}</h2><p className="mt-2 text-sm text-neutral-400">Explore-style list overview for this clique.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => { onClose(); onOpenPile(category, 'swipe') }} className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 hover:bg-neutral-200">Swipe pile</button><Link to={scopedHref(category, groupId)} onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 hover:bg-white hover:text-neutral-950">Open add/search</Link><button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 hover:bg-white hover:text-neutral-950">Close</button></div></div>
-        <div className="max-h-[62vh] overflow-y-auto p-5"><div className="space-y-3">{items.length ? items.map((item, index) => { const image = posterFor(item); const saving = copyingKey === actionKey(item, 'copy-'); return <article key={`${item.type}-${item.id}`} className="grid gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-3 transition hover:border-white/20 hover:bg-white/[0.05] sm:grid-cols-[auto_1fr_auto] sm:items-center"><div className="flex items-center gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">#{index + 1}</div><button type="button" onClick={() => onInfo(item)} className="h-20 w-16 shrink-0 overflow-hidden rounded-2xl bg-neutral-900">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-neutral-400"><AppIcon name={category.icon} size={24} /></div>}</button></div><button type="button" onClick={() => onInfo(item)} className="min-w-0 text-left"><h3 className="line-clamp-2 text-lg font-black leading-tight text-white">{item.title}</h3><p className="mt-1 line-clamp-2 text-sm leading-5 text-neutral-400">{detailsText(item)}</p><div className="mt-2 flex flex-wrap gap-2"><Pill>Score {item.score || 0}</Pill><Pill>{item.picks || 0} picks</Pill>{item.rating ? <Pill>Rating {Number(item.rating).toFixed(1)}</Pill> : null}{item.done ? <Pill light>Done</Pill> : null}</div></button><div className="flex flex-wrap gap-2 sm:justify-end"><button type="button" onClick={() => onInfo(item)} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-white/10 px-3 text-xs font-black text-white hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={14} />Info</button><button type="button" onClick={() => onShare(item)} className="inline-flex h-10 items-center gap-2 rounded-2xl border border-white/10 px-3 text-xs font-black text-white hover:bg-white hover:text-neutral-950"><AppIcon name="share" size={14} />Share</button><button type="button" onClick={() => onCopy(item)} disabled={saving} className="inline-flex h-10 items-center gap-2 rounded-2xl bg-white px-3 text-xs font-black text-neutral-950 hover:bg-neutral-200 disabled:opacity-60"><AppIcon name="copy" size={14} />{saving ? '...' : 'Copy'}</button></div></article> }) : <p className="rounded-3xl border border-dashed border-white/10 p-6 text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} in this clique yet.</p>}</div></div>
+        <div className="flex flex-col gap-4 border-b border-white/10 p-5 sm:flex-row sm:items-start sm:justify-between">
+          <div><p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-500">Public ladder</p><h2 className="mt-1 text-3xl font-black">Top {category.title}</h2><p className="mt-2 text-sm text-neutral-400">Explore-style list overview for this clique.</p></div>
+          <div className="flex flex-wrap gap-2"><ActionChip icon="explore" active onClick={() => { onClose(); onOpenPile(category, 'swipe') }}>Swipe pile</ActionChip><Link to={scopedHref(category, groupId)} onClick={onClose} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2 text-sm font-black text-white hover:bg-white hover:text-neutral-950"><AppIcon name="explore" size={16} />Open add/search</Link><ActionChip icon="chevronLeft" onClick={onClose}>Close</ActionChip></div>
+        </div>
+        <div className="max-h-[62vh] overflow-y-auto p-5">
+          <div className="space-y-3">
+            {items.length ? items.map((item, index) => {
+              const image = posterFor(item)
+              const saving = copyingKey === actionKey(item, 'copy-')
+              return (
+                <article key={`${item.type}-${item.id}`} className="grid gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-3 transition hover:border-white/20 hover:bg-white/[0.05] sm:grid-cols-[auto_1fr_auto] sm:items-center">
+                  <div className="flex items-center gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">#{index + 1}</div><button type="button" onClick={() => onInfo(item)} className="h-20 w-16 shrink-0 overflow-hidden rounded-2xl bg-neutral-900">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-neutral-400"><AppIcon name={category.icon} size={24} /></div>}</button></div>
+                  <button type="button" onClick={() => onInfo(item)} className="min-w-0 text-left"><h3 className="line-clamp-2 text-lg font-black leading-tight text-white">{item.title}</h3><p className="mt-1 line-clamp-2 text-sm leading-5 text-neutral-400">{detailsText(item)}</p><div className="mt-2 flex flex-wrap gap-2"><Pill>Score {item.score || 0}</Pill><Pill>{item.picks || 0} picks</Pill>{item.rating ? <Pill>Rating {Number(item.rating).toFixed(1)}</Pill> : null}{item.done ? <Pill light>Done</Pill> : null}</div></button>
+                  <div className="flex flex-wrap gap-2 sm:justify-end"><IconBubble icon="info" label={`Info for ${item.title}`} onClick={() => onInfo(item)} /><IconBubble icon="share" label={`Share ${item.title}`} onClick={() => onShare(item)} /><IconBubble icon="copy" label={`Copy ${item.title}`} onClick={() => onCopy(item)} disabled={saving} strong /></div>
+                </article>
+              )
+            }) : <p className="rounded-3xl border border-dashed border-white/10 p-6 text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} in this clique yet.</p>}
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
 function CardTile({ item, category, saving, onInfo, onShare, onCopy }) {
+  const [flipped, setFlipped] = useState(false)
   const image = artFor(item)
-  return <article className="group relative min-h-[16rem] overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950 transition hover:border-white/25">{image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}<div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" /><button type="button" onClick={() => onInfo(item)} className="absolute inset-0 z-10 text-left" /><div className="pointer-events-none relative z-20 flex min-h-[16rem] flex-col justify-between p-4"><div className="pointer-events-auto flex justify-end gap-2"><button type="button" onClick={(event) => { event.stopPropagation(); onInfo(item) }} aria-label={`Info for ${item.title}`} title="Info" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white hover:bg-white hover:text-neutral-950"><AppIcon name="info" size={15} /></button><button type="button" onClick={(event) => { event.stopPropagation(); onShare(item) }} aria-label={`Share ${item.title}`} title="Share" className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white hover:bg-white hover:text-neutral-950"><AppIcon name="share" size={15} /></button><button type="button" onClick={(event) => { event.stopPropagation(); onCopy(item) }} disabled={saving} aria-label={`Copy ${item.title}`} title="Copy" className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-neutral-950 hover:bg-neutral-200 disabled:opacity-60"><AppIcon name="copy" size={15} /></button></div><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">{category.singular}</p><h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white">{item.title}</h3></div></div></article>
+  const sourceRating = item.tmdbRating ?? item.rawgRating
+  const summaryRows = [
+    ['Score', item.score || 0],
+    ['Picks', item.picks || 0],
+    item.rating ? ['Rating', Number(item.rating).toFixed(1)] : null,
+    sourceRating !== null && sourceRating !== undefined ? [item.type === 'Game' ? 'RAWG' : 'TMDB', Number(sourceRating).toFixed(1)] : null,
+  ].filter(Boolean)
+  const toggleFlip = () => setFlipped((value) => !value)
+  const stopAnd = (handler) => (event) => { event.stopPropagation(); handler() }
+  return (
+    <article
+      role="button"
+      tabIndex={0}
+      aria-pressed={flipped}
+      onClick={toggleFlip}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleFlip() } }}
+      className="group relative min-h-[22rem] cursor-pointer rounded-[1.5rem] text-white outline-none [perspective:1400px] focus-visible:ring-2 focus-visible:ring-white/50"
+    >
+      <div className={`absolute inset-0 rounded-[1.5rem] transition duration-500 [transform-style:preserve-3d] ${flipped ? '[transform:rotateY(180deg)]' : ''}`}>
+        <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/25 [backface-visibility:hidden] group-hover:border-white/25">
+          {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-78 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+          <div className="pointer-events-none relative z-20 flex min-h-[22rem] flex-col justify-between p-4">
+            <div className="flex items-start justify-between gap-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.singular}</span>
+              <div className="pointer-events-auto flex gap-2">
+                <IconBubble icon="info" label={`Info for ${item.title}`} onClick={stopAnd(() => onInfo(item))} />
+                <IconBubble icon="share" label={`Share ${item.title}`} onClick={stopAnd(() => onShare(item))} />
+                <IconBubble icon="copy" label={`Copy ${item.title}`} onClick={stopAnd(() => onCopy(item))} disabled={saving} strong />
+              </div>
+            </div>
+            <div>
+              <p className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-200 backdrop-blur"><AppIcon name="info" size={12} />Tap to flip</p>
+              <h3 className="mt-3 line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg">{item.title}</h3>
+            </div>
+          </div>
+        </div>
+        <div className="absolute inset-0 flex overflow-hidden rounded-[1.5rem] border border-white/15 bg-neutral-950 p-5 shadow-2xl shadow-black/30 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <div className="flex min-h-full w-full flex-col">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0"><p className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300"><AppIcon name={category.icon} size={12} />{category.singular}</p><h3 className="mt-3 text-2xl font-black leading-tight text-white">{item.title}</h3></div>
+              <IconBubble icon="chevronLeft" label="Flip back" onClick={stopAnd(toggleFlip)} />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">{summaryRows.map(([label, value]) => <Pill key={label}>{label} {value}</Pill>)}{item.done ? <Pill light>{item.type === 'Series' ? 'Finished' : item.type === 'Game' ? 'Played' : item.type === 'Video' ? 'Classic' : 'Watched'}</Pill> : null}</div>
+            <div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-3xl border border-white/10 bg-white/[0.035] p-4">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Full text</p>
+              <p className="mt-3 whitespace-pre-wrap text-base leading-7 text-neutral-200">{detailsText(item)}</p>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              <ActionChip icon="info" onClick={stopAnd(() => onInfo(item))}>Info</ActionChip>
+              <ActionChip icon="share" onClick={stopAnd(() => onShare(item))} active>Share</ActionChip>
+              <ActionChip icon="copy" disabled={saving} onClick={stopAnd(() => onCopy(item))}>{saving ? 'Copying…' : 'Copy'}</ActionChip>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  )
 }
 
 function PilePanel({ category, groupId, mode, swiped, copyingKey, onMode, onSwipe, onClose, onInfo, onShare, onCopy }) {
@@ -148,8 +268,11 @@ function PilePanel({ category, groupId, mode, swiped, copyingKey, onMode, onSwip
   const isCards = mode === 'cards'
   return (
     <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5" id="clique-category-panel">
-      <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />{isCards ? 'Card overview' : 'Swipe pile'}</p><h2 className="mt-1 text-3xl font-black text-white">{category.title} in this clique</h2><p className="mt-2 text-sm text-neutral-400">Toggle between a swipe pile and a card overview without leaving this page.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => onMode('swipe')} className={`rounded-2xl px-4 py-2 text-sm font-black ${!isCards ? 'bg-white text-neutral-950' : 'border border-white/10 text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>Swipe cards</button><button type="button" onClick={() => onMode('cards')} className={`rounded-2xl px-4 py-2 text-sm font-black ${isCards ? 'bg-white text-neutral-950' : 'border border-white/10 text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>Card overview</button><Link to={scopedHref(category, groupId)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 hover:bg-white hover:text-neutral-950">Open add/search</Link><button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 hover:bg-white hover:text-neutral-950">Close</button></div></div>
-      {isCards ? <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{items.length ? items.map((item) => <CardTile key={`${item.type}-${item.id}`} item={item} category={category} saving={copyingKey === actionKey(item, 'copy-')} onInfo={onInfo} onShare={onShare} onCopy={onCopy} />) : <p className="rounded-3xl border border-dashed border-white/10 p-6 text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} in this clique yet.</p>}</div> : <div className="mt-6"><SwipeDeck items={deckItems} onSwipe={(vote, item) => onSwipe(category, item, vote)} itemLabel={category.title.toLowerCase()} emptyLabel={`No ${category.title.toLowerCase()} left in this pile`} likeLabel="Keep" dislikeLabel="Pass" infoType={category.singular.toLowerCase()} /></div>}
+      <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
+        <div><p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />{isCards ? 'Flippable cards' : 'Swipe pile'}</p><h2 className="mt-1 text-3xl font-black text-white">{category.title} in this clique</h2><p className="mt-2 text-sm text-neutral-400">{isCards ? 'Tap any card to flip it. The back becomes a full-text view without the artwork.' : 'Toggle between a swipe pile and a flippable card overview without leaving this page.'}</p></div>
+        <div className="flex flex-wrap gap-2"><ActionChip icon="explore" active={!isCards} onClick={() => onMode('swipe')}>Swipe</ActionChip><ActionChip icon="list" active={isCards} onClick={() => onMode('cards')}>Cards</ActionChip><Link to={scopedHref(category, groupId)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2 text-sm font-black text-white hover:bg-white hover:text-neutral-950"><AppIcon name="explore" size={16} />Add/search</Link><ActionChip icon="chevronLeft" onClick={onClose}>Close</ActionChip></div>
+      </div>
+      {isCards ? <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.length ? items.map((item) => <CardTile key={`${item.type}-${item.id}`} item={item} category={category} saving={copyingKey === actionKey(item, 'copy-')} onInfo={onInfo} onShare={onShare} onCopy={onCopy} />) : <p className="rounded-3xl border border-dashed border-white/10 p-6 text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} in this clique yet.</p>}</div> : <div className="mt-6"><SwipeDeck items={deckItems} onSwipe={(vote, item) => onSwipe(category, item, vote)} itemLabel={category.title.toLowerCase()} emptyLabel={`No ${category.title.toLowerCase()} left in this pile`} likeLabel="Keep" dislikeLabel="Pass" infoType={category.singular.toLowerCase()} /></div>}
     </section>
   )
 }
