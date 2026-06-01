@@ -257,9 +257,104 @@ function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onInfo
   )
 }
 
+function SwipePileCard({ item, index, total, busy, dragOffset, onPointerDown, onPointerMove, onPointerUp, onVote, onInfo, onShare, onCopy }) {
+  const image = item?.backdrop || item?.poster
+  const rotation = dragOffset / 18
+  const voteHint = dragOffset > 42 ? 'WATCH' : dragOffset < -42 ? 'PASS' : ''
+
+  if (!item) return null
+
+  return (
+    <article className="mx-auto w-full max-w-xl">
+      <div
+        className="relative min-h-[31rem] touch-pan-y overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/30 transition-transform duration-150"
+        style={{ transform: `translateX(${dragOffset}px) rotate(${rotation}deg)` }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" draggable="false" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/5" />
+        {voteHint ? <div className="absolute left-5 top-20 rotate-[-8deg] rounded-2xl border-2 border-white px-4 py-2 text-2xl font-black tracking-[0.2em] text-white shadow-2xl shadow-black/30">{voteHint}</div> : null}
+        <div className="absolute left-5 top-5 right-5 flex items-center justify-between gap-3">
+          <span className="rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-white backdrop-blur">{item.type}</span>
+          <span className="rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-xs font-bold text-neutral-200 backdrop-blur">{index + 1}/{total}</span>
+        </div>
+        <div className="absolute inset-x-0 bottom-0 p-5">
+          <h3 className="line-clamp-2 text-4xl font-black leading-tight text-white drop-shadow-lg">{item.title}</h3>
+          <p className="mt-3 line-clamp-3 text-sm leading-6 text-neutral-300">{item.overview || item.description || 'No description yet.'}</p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-neutral-200">
+            <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">Score {item.score || 0}</span>
+            <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">{item.picks || 0} picks</span>
+            {item.rating ? <span className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 backdrop-blur">★ {Number(item.rating).toFixed(1)}</span> : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <button type="button" disabled={busy} onClick={() => onVote?.(item, 'dislike')} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Pass</button>
+        <button type="button" disabled={busy} onClick={() => onVote?.(item, 'like')} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">{busy ? 'Saving…' : 'Watch'}</button>
+        <button type="button" onClick={() => onInfo?.(item)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Info</button>
+        <button type="button" onClick={() => onShare?.(item)} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share</button>
+        <button type="button" onClick={() => onCopy?.(item)} className="col-span-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Copy to My Library</button>
+      </div>
+      <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-neutral-600">Swipe right to watch · swipe left to pass</p>
+    </article>
+  )
+}
+
 function CliquePilePanel({ category, loading, votingKey, onClose, onVote, onInfo, onShare, onCopy }) {
+  const [viewMode, setViewMode] = useState('swipe')
+  const [cardIndex, setCardIndex] = useState(0)
+  const [dragStartX, setDragStartX] = useState(null)
+  const [dragOffset, setDragOffset] = useState(0)
+
   if (!category) return null
   const items = category.items || []
+  const safeIndex = items.length ? Math.min(cardIndex, items.length - 1) : 0
+  const activeItem = items[safeIndex]
+  const activeVoteKey = itemActionKey(activeItem, 'vote-')
+  const activeBusy = votingKey === activeVoteKey
+
+  useEffect(() => {
+    setViewMode('swipe')
+    setCardIndex(0)
+    setDragOffset(0)
+    setDragStartX(null)
+  }, [category.title])
+
+  useEffect(() => {
+    setCardIndex((current) => items.length ? Math.min(current, items.length - 1) : 0)
+  }, [items.length])
+
+  function voteAndAdvance(item, vote) {
+    if (!item) return
+    onVote?.(item, vote)
+    setDragOffset(0)
+    setDragStartX(null)
+    setCardIndex((current) => items.length > 1 ? Math.min(current + 1, items.length - 1) : 0)
+  }
+
+  function handlePointerDown(event) {
+    setDragStartX(event.clientX)
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+  }
+
+  function handlePointerMove(event) {
+    if (dragStartX === null) return
+    const nextOffset = Math.max(-140, Math.min(140, event.clientX - dragStartX))
+    setDragOffset(nextOffset)
+  }
+
+  function handlePointerUp() {
+    if (dragStartX === null) return
+    const offset = dragOffset
+    setDragStartX(null)
+    setDragOffset(0)
+    if (offset > 80) voteAndAdvance(activeItem, 'like')
+    if (offset < -80) voteAndAdvance(activeItem, 'dislike')
+  }
 
   return (
     <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5" id="clique-inline-pile">
@@ -267,48 +362,73 @@ function CliquePilePanel({ category, loading, votingKey, onClose, onVote, onInfo
         <div>
           <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />Clique pile</p>
           <h2 className="mt-1 text-3xl font-black text-white">{category.title} voting list</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Vote directly inside this clique. No redirect to My Library.</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Vote directly inside this clique. Use swipe mode for quick decisions or switch to the full list.</p>
         </div>
-        <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Close pile</button>
+        <div className="flex flex-wrap gap-2">
+          <div className="rounded-2xl border border-white/10 bg-neutral-950 p-1">
+            <button type="button" onClick={() => setViewMode('swipe')} className={`rounded-xl px-4 py-2 text-sm font-black transition ${viewMode === 'swipe' ? 'bg-white text-neutral-950' : 'text-neutral-400 hover:text-white'}`}>Swipe pile</button>
+            <button type="button" onClick={() => setViewMode('list')} className={`rounded-xl px-4 py-2 text-sm font-black transition ${viewMode === 'list' ? 'bg-white text-neutral-950' : 'text-neutral-400 hover:text-white'}`}>All list</button>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Close pile</button>
+        </div>
       </div>
 
       {loading ? (
         <p className="mt-5 rounded-3xl border border-white/10 p-5 text-sm text-neutral-400">Loading pile…</p>
       ) : items.length ? (
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {items.map((item, index) => {
-            const image = item.backdrop || item.poster
-            const voteKey = itemActionKey(item, 'vote-')
-            const busy = votingKey === voteKey
-            return (
-              <article key={`${item.type}-${item.id}`} className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/80">
-                <button type="button" onClick={() => onInfo?.(item)} className="group relative block h-44 w-full overflow-hidden text-left">
-                  {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
-                  <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/55 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur">#{index + 1}</span>
-                  <div className="absolute inset-x-0 bottom-0 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-neutral-300">{item.type}</p>
-                    <h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{item.title}</h3>
+        viewMode === 'swipe' ? (
+          <div className="mt-5">
+            <SwipePileCard
+              item={activeItem}
+              index={safeIndex}
+              total={items.length}
+              busy={activeBusy}
+              dragOffset={dragOffset}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onVote={voteAndAdvance}
+              onInfo={onInfo}
+              onShare={onShare}
+              onCopy={onCopy}
+            />
+          </div>
+        ) : (
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {items.map((item, index) => {
+              const image = item.backdrop || item.poster
+              const voteKey = itemActionKey(item, 'vote-')
+              const busy = votingKey === voteKey
+              return (
+                <article key={`${item.type}-${item.id}`} className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/80">
+                  <button type="button" onClick={() => onInfo?.(item)} className="group relative block h-44 w-full overflow-hidden text-left">
+                    {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
+                    <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/55 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur">#{index + 1}</span>
+                    <div className="absolute inset-x-0 bottom-0 p-4">
+                      <p className="text-xs uppercase tracking-[0.22em] text-neutral-300">{item.type}</p>
+                      <h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{item.title}</h3>
+                    </div>
+                  </button>
+                  <div className="p-4">
+                    <p className="line-clamp-2 text-sm leading-6 text-neutral-400">{item.overview || item.description || 'No description yet.'}</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
+                      <span className="rounded-full border border-white/10 px-3 py-1.5">Score {item.score || 0}</span>
+                      <span className="rounded-full border border-white/10 px-3 py-1.5">{item.picks || 0} picks</span>
+                      {item.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <button type="button" disabled={busy} onClick={() => onVote?.(item, 'like')} className="rounded-2xl bg-white px-3 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">{busy ? 'Saving…' : 'Watch'}</button>
+                      <button type="button" disabled={busy} onClick={() => onVote?.(item, 'dislike')} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Pass</button>
+                      <button type="button" onClick={() => onShare?.(item)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share</button>
+                      <button type="button" onClick={() => onCopy?.(item)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Copy</button>
+                    </div>
                   </div>
-                </button>
-                <div className="p-4">
-                  <p className="line-clamp-2 text-sm leading-6 text-neutral-400">{item.overview || item.description || 'No description yet.'}</p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
-                    <span className="rounded-full border border-white/10 px-3 py-1.5">Score {item.score || 0}</span>
-                    <span className="rounded-full border border-white/10 px-3 py-1.5">{item.picks || 0} picks</span>
-                    {item.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <button type="button" disabled={busy} onClick={() => onVote?.(item, 'like')} className="rounded-2xl bg-white px-3 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">{busy ? 'Saving…' : 'Watch'}</button>
-                    <button type="button" disabled={busy} onClick={() => onVote?.(item, 'dislike')} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Pass</button>
-                    <button type="button" onClick={() => onShare?.(item)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share</button>
-                    <button type="button" onClick={() => onCopy?.(item)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Copy</button>
-                  </div>
-                </div>
-              </article>
-            )
-          })}
-        </div>
+                </article>
+              )
+            })}
+          </div>
+        )
       ) : (
         <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} in this clique yet. Add the first pick from the media search later.</p>
       )}
@@ -547,7 +667,7 @@ export default function Home() {
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Section highlights</p>
           <h2 className="mt-1 text-3xl font-black text-white">Top items by category</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Tap a card to flip it for sharing and copying. Press the number or Ladder to open the pile right here in this clique.</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Tap a card to flip it for sharing and copying. Press the number or Ladder to open the swipe pile right here in this clique.</p>
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           {categories.map((category) => (
