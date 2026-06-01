@@ -24,6 +24,20 @@ function artFor(item) { return item?.backdrop || item?.poster || null }
 function posterFor(item) { return item?.poster || item?.backdrop || null }
 function actionKey(item, prefix = '') { return item ? `${prefix}${item.type}-${item.id}` : '' }
 function detailsText(item) { return item?.overview || item?.description || item?.url || 'No description available yet.' }
+function releaseYearFor(item) {
+  if (!item) return ''
+  const raw = item.year || item.released || item.release_date || item.first_air_date || item.firstAirDate
+  const match = String(raw || '').match(/\d{4}/)
+  return match?.[0] || ''
+}
+function genreSummaryFor(item, limit = 2) {
+  const values = Array.isArray(item?.genres) ? item.genres.filter(Boolean) : []
+  return values.slice(0, limit).join(', ')
+}
+function metaLineFor(item) {
+  const parts = [releaseYearFor(item), genreSummaryFor(item)].filter(Boolean)
+  return parts.join(' · ')
+}
 function normalizeItems(rows = [], meta) {
   return rows.map((item) => ({
     ...item,
@@ -131,6 +145,7 @@ function CategoryOverviewCard({ category, groupId, active, copying, itemIndex, o
   const title = current?.title || `No ${category.title.toLowerCase()} yet`
   const canCycle = items.length > 1
   const sourceRating = current?.tmdbRating ?? current?.rawgRating
+  const metaLine = metaLineFor(current)
   const summaryRows = current ? [
     ['Score', current.score || 0],
     ['Picks', current.picks || 0],
@@ -163,10 +178,11 @@ function CategoryOverviewCard({ category, groupId, active, copying, itemIndex, o
                 {current ? <IconBubble icon="info" label={`Info for ${title}`} onClick={(event) => { event.stopPropagation(); onInfo(current) }} /> : null}
               </div>
             </div>
-            <div>
-              <p className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-200 backdrop-blur"><AppIcon name="info" size={12} />Tap to flip</p>
-              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">#{safeIndex + 1} in {category.title}</p>
+            <div className="max-w-xl rounded-[1.5rem] border border-white/10 bg-black/45 p-4 backdrop-blur-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">#{safeIndex + 1} in {category.title}</p>
               <h3 className="mt-1 line-clamp-2 text-3xl font-black leading-tight text-white drop-shadow-lg">{title}</h3>
+              {metaLine ? <p className="mt-2 line-clamp-1 text-sm font-bold text-neutral-200">{metaLine}</p> : null}
+              {current ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-300">{detailsText(current)}</p> : null}
             </div>
           </div>
         </div>
@@ -174,7 +190,7 @@ function CategoryOverviewCard({ category, groupId, active, copying, itemIndex, o
         <div className="absolute inset-0 flex overflow-hidden rounded-[1.75rem] border border-white/15 bg-neutral-950 p-5 shadow-2xl shadow-black/30 [backface-visibility:hidden] [transform:rotateY(180deg)]">
           <div className="flex min-h-full w-full flex-col">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0"><p className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300"><AppIcon name={category.icon} size={12} />{category.singular}</p><h3 className="mt-3 text-3xl font-black leading-tight text-white">{title}</h3></div>
+              <div className="min-w-0"><p className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300"><AppIcon name={category.icon} size={12} />{category.singular}</p><h3 className="mt-3 text-3xl font-black leading-tight text-white">{title}</h3>{metaLine ? <p className="mt-2 text-sm font-semibold text-neutral-400">{metaLine}</p> : null}</div>
               <IconBubble icon="chevronLeft" label="Flip back" onClick={stopAnd(flipCard)} />
             </div>
 
@@ -220,10 +236,11 @@ function ExploreListModal({ category, groupId, copyingKey, onClose, onInfo, onOp
             {items.length ? items.map((item, index) => {
               const image = posterFor(item)
               const saving = copyingKey === actionKey(item, 'copy-')
+              const metaLine = metaLineFor(item)
               return (
                 <article key={`${item.type}-${item.id}`} className="grid gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-3 transition hover:border-white/20 hover:bg-white/[0.05] sm:grid-cols-[auto_1fr_auto] sm:items-center">
                   <div className="flex items-center gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-neutral-950">#{index + 1}</div><button type="button" onClick={() => onInfo(item)} className="h-20 w-16 shrink-0 overflow-hidden rounded-2xl bg-neutral-900">{image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-neutral-400"><AppIcon name={category.icon} size={24} /></div>}</button></div>
-                  <button type="button" onClick={() => onInfo(item)} className="min-w-0 text-left"><h3 className="line-clamp-2 text-lg font-black leading-tight text-white">{item.title}</h3><p className="mt-1 line-clamp-2 text-sm leading-5 text-neutral-400">{detailsText(item)}</p><div className="mt-2 flex flex-wrap gap-2"><Pill>Score {item.score || 0}</Pill><Pill>{item.picks || 0} picks</Pill>{item.rating ? <Pill>Rating {Number(item.rating).toFixed(1)}</Pill> : null}{item.done ? <Pill light>Done</Pill> : null}</div></button>
+                  <button type="button" onClick={() => onInfo(item)} className="min-w-0 text-left"><h3 className="line-clamp-2 text-lg font-black leading-tight text-white">{item.title}</h3>{metaLine ? <p className="mt-1 line-clamp-1 text-xs font-bold text-neutral-300">{metaLine}</p> : null}<p className="mt-1 line-clamp-2 text-sm leading-5 text-neutral-400">{detailsText(item)}</p><div className="mt-2 flex flex-wrap gap-2"><Pill>Score {item.score || 0}</Pill><Pill>{item.picks || 0} picks</Pill>{item.rating ? <Pill>Rating {Number(item.rating).toFixed(1)}</Pill> : null}{item.done ? <Pill light>Done</Pill> : null}</div></button>
                   <div className="flex flex-wrap gap-2 sm:justify-end"><IconBubble icon="info" label={`Info for ${item.title}`} onClick={() => onInfo(item)} /><IconBubble icon="share" label={`Share ${item.title}`} onClick={() => onShare(item)} /><IconBubble icon="copy" label={`Copy ${item.title}`} onClick={() => onCopy(item)} disabled={saving} strong /></div>
                 </article>
               )
@@ -239,6 +256,7 @@ function CardTile({ item, category, saving, onInfo, onShare, onCopy }) {
   const [flipped, setFlipped] = useState(false)
   const image = artFor(item)
   const sourceRating = item.tmdbRating ?? item.rawgRating
+  const metaLine = metaLineFor(item)
   const summaryRows = [
     ['Score', item.score || 0],
     ['Picks', item.picks || 0],
@@ -269,16 +287,17 @@ function CardTile({ item, category, saving, onInfo, onShare, onCopy }) {
                 <IconBubble icon="copy" label={`Copy ${item.title}`} onClick={stopAnd(() => onCopy(item))} disabled={saving} strong />
               </div>
             </div>
-            <div>
-              <p className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-200 backdrop-blur"><AppIcon name="info" size={12} />Tap to flip</p>
-              <h3 className="mt-3 line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg">{item.title}</h3>
+            <div className="rounded-[1.35rem] border border-white/10 bg-black/55 p-3 backdrop-blur-sm">
+              <h3 className="line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg">{item.title}</h3>
+              {metaLine ? <p className="mt-2 line-clamp-1 text-sm font-bold text-neutral-200">{metaLine}</p> : null}
+              <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-300">{detailsText(item)}</p>
             </div>
           </div>
         </div>
         <div className="absolute inset-0 flex overflow-hidden rounded-[1.5rem] border border-white/15 bg-neutral-950 p-5 shadow-2xl shadow-black/30 [backface-visibility:hidden] [transform:rotateY(180deg)]">
           <div className="flex min-h-full w-full flex-col">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0"><p className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300"><AppIcon name={category.icon} size={12} />{category.singular}</p><h3 className="mt-3 text-2xl font-black leading-tight text-white">{item.title}</h3></div>
+              <div className="min-w-0"><p className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300"><AppIcon name={category.icon} size={12} />{category.singular}</p><h3 className="mt-3 text-2xl font-black leading-tight text-white">{item.title}</h3>{metaLine ? <p className="mt-2 text-sm font-semibold text-neutral-400">{metaLine}</p> : null}</div>
               <IconBubble icon="chevronLeft" label="Flip back" onClick={stopAnd(toggleFlip)} />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">{summaryRows.map(([label, value]) => <Pill key={label}>{label} {value}</Pill>)}{item.done ? <Pill light>{item.type === 'Series' ? 'Finished' : item.type === 'Game' ? 'Played' : item.type === 'Video' ? 'Classic' : 'Watched'}</Pill> : null}</div>
@@ -306,7 +325,7 @@ function PilePanel({ category, groupId, mode, swiped, copyingKey, onMode, onSwip
   return (
     <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5" id="clique-category-panel">
       <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div><p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />{isCards ? 'Flippable cards' : 'Swipe pile'}</p><h2 className="mt-1 text-3xl font-black text-white">{category.title} in this clique</h2><p className="mt-2 text-sm text-neutral-400">{isCards ? 'Tap any card to flip it. The back becomes a full-text view without the artwork.' : 'Toggle between a swipe pile and a flippable card overview without leaving this page.'}</p></div>
+        <div><p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />{isCards ? 'Cards view' : 'Swipe pile'}</p><h2 className="mt-1 text-3xl font-black text-white">{category.title} in this clique</h2><p className="mt-2 text-sm text-neutral-400">{isCards ? 'Each card shows year, genres, and a quick summary on the front. Flip it for the full text view.' : 'Toggle between a swipe pile and a flippable card overview without leaving this page.'}</p></div>
         <div className="flex flex-wrap gap-2"><ActionChip icon="explore" active={!isCards} onClick={() => onMode('swipe')}>Swipe</ActionChip><ActionChip icon="list" active={isCards} onClick={() => onMode('cards')}>Cards</ActionChip><Link to={scopedHref(category, groupId)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2 text-sm font-black text-white hover:bg-white hover:text-neutral-950"><AppIcon name="explore" size={16} />Add/search</Link><ActionChip icon="chevronLeft" onClick={onClose}>Close</ActionChip></div>
       </div>
       {isCards ? <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{items.length ? items.map((item) => <CardTile key={`${item.type}-${item.id}`} item={item} category={category} saving={copyingKey === actionKey(item, 'copy-')} onInfo={onInfo} onShare={onShare} onCopy={onCopy} />) : <p className="rounded-3xl border border-dashed border-white/10 p-6 text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} in this clique yet.</p>}</div> : <div className="mt-6"><SwipeDeck items={deckItems} onSwipe={(vote, item) => onSwipe(category, item, vote)} itemLabel={category.title.toLowerCase()} emptyLabel={`No ${category.title.toLowerCase()} left in this pile`} likeLabel="Keep" dislikeLabel="Pass" infoType={category.singular.toLowerCase()} /></div>}
@@ -316,7 +335,8 @@ function PilePanel({ category, groupId, mode, swiped, copyingKey, onMode, onSwip
 
 function ContentRow({ item, onInfo }) {
   const image = posterFor(item)
-  return <button type="button" onClick={() => onInfo(item)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-950/70 p-2 text-left transition hover:border-white/25 hover:bg-white/[0.06]"><div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-neutral-900">{image ? <img src={image} alt="" className="h-full w-full object-cover opacity-90" /> : <div className="flex h-full w-full items-center justify-center text-neutral-500"><AppIcon name={item.icon || 'explore'} size={17} /></div>}</div><div className="min-w-0 flex-1"><p className="truncate font-black text-white">{item.title}</p><p className="mt-0.5 truncate text-xs text-neutral-500">{item.type} · Score {item.score || 0} · {item.picks || 0} picks</p></div></button>
+  const metaLine = metaLineFor(item)
+  return <button type="button" onClick={() => onInfo(item)} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-950/70 p-2 text-left transition hover:border-white/25 hover:bg-white/[0.06]"><div className="h-14 w-16 shrink-0 overflow-hidden rounded-xl bg-neutral-900">{image ? <img src={image} alt="" className="h-full w-full object-cover opacity-90" /> : <div className="flex h-full w-full items-center justify-center text-neutral-500"><AppIcon name={item.icon || 'explore'} size={17} /></div>}</div><div className="min-w-0 flex-1"><p className="truncate font-black text-white">{item.title}</p><p className="mt-0.5 truncate text-xs text-neutral-500">{item.type}{metaLine ? ` · ${metaLine}` : ''} · Score {item.score || 0} · {item.picks || 0} picks</p></div></button>
 }
 
 function CliqueItemDetailModal({ item, groupName, saving, onShare, onCopy, onClose }) {
