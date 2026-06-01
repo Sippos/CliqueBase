@@ -15,7 +15,7 @@ import {
   parseInviteCode,
   setActiveGroup,
 } from '../lib/groups.js'
-import { searchMembersByProfileName } from '../lib/communityShare.js'
+import { addFriend, getFriendsList, removeFriend, searchMembersByProfileName } from '../lib/communityShare.js'
 import {
   createRemoteGroup,
   getCurrentSession,
@@ -99,18 +99,25 @@ function LogoMark() {
   )
 }
 
-function SearchCard({ title, subtitle, actionLabel, to, onClick }) {
-  const content = (
-    <div className="flex items-center justify-between gap-3 rounded-3xl border border-white/10 bg-neutral-900 p-3 text-white transition hover:border-white/25 hover:bg-white/[0.08]">
-      <div className="min-w-0">
-        <div className="truncate font-black">{title}</div>
-        <div className="mt-1 truncate text-xs text-neutral-500">{subtitle}</div>
+function PersonRow({ person, onAdd, onRemove, onClose }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-neutral-900 p-3 text-white">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Link to={`/members/${person.id}`} onClick={onClose} className="min-w-0 flex-1 transition hover:opacity-80">
+          <div className="truncate font-black">{person.displayName}</div>
+          <div className="mt-1 text-xs text-neutral-500">{person.libraryCount || 0} library items · {person.isFriend ? 'Friend' : 'CliqueBase member'}</div>
+        </Link>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Link to={`/members/${person.id}`} onClick={onClose} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-semibold text-white transition hover:bg-white hover:text-neutral-950">View library</Link>
+          {person.isFriend ? (
+            <button type="button" onClick={() => onRemove(person)} className="rounded-xl border border-red-300/30 px-3 py-2 text-xs font-semibold text-red-100 transition hover:bg-red-500 hover:text-white">Remove</button>
+          ) : (
+            <button type="button" onClick={() => onAdd(person)} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200">Add friend</button>
+          )}
+        </div>
       </div>
-      <span className="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-black text-neutral-950">{actionLabel}</span>
     </div>
   )
-  if (to) return <Link to={to} onClick={onClick}>{content}</Link>
-  return <button type="button" onClick={onClick} className="w-full text-left">{content}</button>
 }
 
 export default function PageNav({ active = 'library' }) {
@@ -118,6 +125,7 @@ export default function PageNav({ active = 'library' }) {
   const [handle, setHandle] = useState('')
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
+  const [friends, setFriends] = useState([])
   const [session, setSession] = useState(null)
   const [mediaOpen, setMediaOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -174,6 +182,7 @@ export default function PageNav({ active = 'library' }) {
     setDraft('')
     setEmailDraft('')
     setGroups([])
+    setFriends([])
     setActiveGroupState(null)
     setProfileToolsOpen(false)
     setActiveGroup('')
@@ -221,8 +230,12 @@ export default function PageNav({ active = 'library' }) {
           setHandle('')
           setDraft('')
         }
-        const remoteGroups = await getRemoteGroups().catch(() => [])
+        const [remoteGroups, nextFriends] = await Promise.all([
+          getRemoteGroups().catch(() => []),
+          getFriendsList().catch(() => []),
+        ])
         setGroups(remoteGroups)
+        setFriends(nextFriends)
         const activeId = getActiveGroupId()
         const nextActive = activeId ? remoteGroups.find((group) => group.id === activeId) || null : null
         setActiveGroupState(nextActive)
@@ -239,6 +252,7 @@ export default function PageNav({ active = 'library' }) {
     setEmailDraft('')
     setSession(null)
     setGroups(getGroups())
+    setFriends([])
     setActiveGroupState(getActiveGroup())
   }
 
@@ -413,6 +427,34 @@ export default function PageNav({ active = 'library' }) {
     }
   }
 
+  async function handleAddFriend(person) {
+    setLoading(true)
+    try {
+      const friend = await addFriend(person.id)
+      setFriends((current) => [friend, ...current.filter((item) => item.id !== friend.id)])
+      setPeopleResults((current) => current.map((item) => item.id === person.id ? { ...item, isFriend: true } : item))
+      flash(`${friend.displayName} added to friends.`)
+    } catch (error) {
+      flash(error.message || 'Could not add friend.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleRemoveFriend(person) {
+    setLoading(true)
+    try {
+      await removeFriend(person.id)
+      setFriends((current) => current.filter((item) => item.id !== person.id))
+      setPeopleResults((current) => current.map((item) => item.id === person.id ? { ...item, isFriend: false } : item))
+      flash(`${person.displayName} removed from friends.`)
+    } catch (error) {
+      flash(error.message || 'Could not remove friend.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleAuth(event) {
     event.preventDefault()
     setAuthNotice(null)
@@ -513,7 +555,7 @@ export default function PageNav({ active = 'library' }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-4 shadow-2xl shadow-black/40 sm:p-6">
             <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0"><div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile</div><h2 className="mt-1 truncate text-2xl font-black text-white">{navProfileLabel}</h2></div>
+              <div className="min-w-0"><div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile settings</div><h2 className="mt-1 truncate text-2xl font-black text-white">{navProfileLabel}</h2></div>
               <div className="flex shrink-0 items-center gap-2">
                 <button type="button" aria-label="Edit profile details" onClick={() => setProfileToolsOpen((value) => !value)} className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/10 transition ${profileToolsOpen ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white hover:bg-white hover:text-neutral-950'}`}><AppIcon name="settings" size={19} /></button>
                 <button type="button" aria-label="Close profile" onClick={closeProfileModal} className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 text-2xl text-neutral-400 transition hover:bg-white hover:text-neutral-950">×</button>
@@ -537,11 +579,18 @@ export default function PageNav({ active = 'library' }) {
             </section>
 
             <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Friends list</p><h3 className="mt-1 text-xl font-black text-white">Your friends</h3></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{friends.length} friends</span></div>
+              <div className="mt-3 grid gap-2">
+                {!usingRemoteGroups ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">Sign in to manage your friends list.</p> : friends.length ? friends.map((friend) => <PersonRow key={friend.id} person={friend} onAdd={handleAddFriend} onRemove={handleRemoveFriend} onClose={closeProfileModal} />) : <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm leading-6 text-neutral-400">No friends yet. Search people below and add them to keep their libraries one tap away.</p>}
+              </div>
+            </section>
+
+            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
               <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Discover</p>
-              <h3 className="mt-1 text-xl font-black text-white">Find people and libraries</h3>
+              <h3 className="mt-1 text-xl font-black text-white">Find people and add friends</h3>
               <input value={peopleSearch} onChange={(event) => setPeopleSearch(event.target.value)} placeholder="Search profile name..." className="mt-4 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
               <div className="mt-3 grid gap-2">
-                {!usingRemoteGroups ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">Sign in to search other CliqueBase users.</p> : peopleSearching ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">Searching people...</p> : peopleSearch.trim().length < 2 ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">Type at least 2 letters to find profiles.</p> : peopleResults.length ? peopleResults.map((person) => <SearchCard key={person.id} title={person.displayName} subtitle="Open public library preview" actionLabel="View" to={`/members/${person.id}`} onClick={closeProfileModal} />) : <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">No people found.</p>}
+                {!usingRemoteGroups ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">Sign in to search other CliqueBase users.</p> : peopleSearching ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">Searching people...</p> : peopleSearch.trim().length < 2 ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">Type at least 2 letters to find profiles.</p> : peopleResults.length ? peopleResults.map((person) => <PersonRow key={person.id} person={person} onAdd={handleAddFriend} onRemove={handleRemoveFriend} onClose={closeProfileModal} />) : <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">No people found.</p>}
               </div>
             </section>
 
