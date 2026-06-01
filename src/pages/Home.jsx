@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import MemberShareModal from '../components/MemberShareModal.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, parseInviteCode, setActiveGroup } from '../lib/groups.js'
 import { getSavedHandle } from '../lib/handle.js'
-import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
+import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase, saveGame, saveMovie, saveSeries, voteGame, voteMovie, voteSeries } from '../lib/supabaseClient.js'
 
 const TYPE_ICONS = {
   Movie: 'movies',
@@ -23,20 +23,14 @@ function StatCard({ label, value, detail }) {
   )
 }
 
-function normalizeItems(rows, type, code, to) {
+function normalizeItems(rows, type, code) {
   return rows.map((item) => ({
     ...item,
     type,
     code,
-    to,
     rating: item.rating || null,
     sortValue: Number(item.score || 0) * 10 + Number(item.picks || 0) + Number(item.rating || 0),
   })).sort((a, b) => b.sortValue - a.sortValue)
-}
-
-function scopedMediaPath(path, groupId) {
-  if (!groupId) return path
-  return `${path}?clique=${encodeURIComponent(groupId)}`
 }
 
 function itemActionKey(item, prefix = '') {
@@ -44,7 +38,7 @@ function itemActionKey(item, prefix = '') {
   return `${prefix}${item.type}-${item.id}`
 }
 
-function LibrarySectionCard({ category, loading, onShare }) {
+function LibrarySectionCard({ category, loading, onShare, onOpen }) {
   const top = category.top
   const image = top?.backdrop || top?.poster
   const topTitle = top?.title || `No ${category.title.toLowerCase()} yet`
@@ -57,7 +51,7 @@ function LibrarySectionCard({ category, loading, onShare }) {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
-      <Link to={category.to} onClick={() => category.groupId && setActiveGroup(category.groupId)} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
+      <button type="button" onClick={() => onOpen?.(category)} className="absolute inset-0 z-0" aria-label={`Open ${category.title}`} />
 
       <div className="pointer-events-none relative z-10 flex h-full min-h-[9.5rem] flex-col justify-between p-3.5">
         <div className="flex items-start justify-between gap-3">
@@ -67,9 +61,9 @@ function LibrarySectionCard({ category, loading, onShare }) {
           </div>
           <div className="pointer-events-auto flex gap-2">
             {top ? <button type="button" onClick={() => onShare?.(top)} className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">Share</button> : null}
-            <Link to={category.to} onClick={() => category.groupId && setActiveGroup(category.groupId)} aria-label={`Open ${category.title}`} className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">
+            <button type="button" onClick={() => onOpen?.(category)} aria-label={`Open ${category.title}`} className="rounded-full bg-black/45 px-3 py-1 text-sm font-black text-white backdrop-blur transition hover:bg-white hover:text-neutral-950">
               {loading ? '…' : category.count}
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -79,7 +73,7 @@ function LibrarySectionCard({ category, loading, onShare }) {
   )
 }
 
-function LibraryOverviewPanel({ items, categories, loading, onShare }) {
+function LibraryOverviewPanel({ items, categories, loading, onShare, onOpen }) {
   return (
     <section className="mt-4 rounded-[1.6rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20">
       <div className="flex flex-wrap items-end justify-between gap-3 px-1">
@@ -94,13 +88,13 @@ function LibraryOverviewPanel({ items, categories, loading, onShare }) {
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        {categories.map((category) => <LibrarySectionCard key={category.title} category={category} loading={loading} onShare={onShare} />)}
+        {categories.map((category) => <LibrarySectionCard key={category.title} category={category} loading={loading} onShare={onShare} onOpen={onOpen} />)}
       </div>
     </section>
   )
 }
 
-function LibraryShowcase({ items, loading, onShare }) {
+function LibraryShowcase({ items, loading, onShare, onInfo }) {
   const [index, setIndex] = useState(0)
 
   useEffect(() => {
@@ -144,7 +138,7 @@ function LibraryShowcase({ items, loading, onShare }) {
 
   return (
     <div className="relative min-h-[250px] overflow-hidden bg-neutral-950">
-      <Link to={item.to} className="group absolute inset-0 flex items-end p-5">
+      <button type="button" onClick={() => onInfo?.(item)} className="group absolute inset-0 flex items-end p-5 text-left">
         {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65 transition duration-700 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))]" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
         <div className="absolute left-5 top-5 right-5 flex items-center justify-between gap-3">
@@ -156,13 +150,13 @@ function LibraryShowcase({ items, loading, onShare }) {
           <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">{item.title}</h2>
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-300">{item.overview || `Score ${item.score || 0} · ${item.picks || 0} picks`}</p>
         </div>
-      </Link>
+      </button>
       <button type="button" onClick={() => onShare?.(item)} className="absolute bottom-5 right-5 z-10 rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 shadow-2xl shadow-black/30 transition hover:bg-neutral-200">Share</button>
     </div>
   )
 }
 
-function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onInfo, onShare, onCopy }) {
+function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onInfo, onShare, onCopy, onOpenPile }) {
   const top = category.top
   const image = top?.poster || top?.backdrop
   const displayTitle = top?.title || category.title
@@ -171,6 +165,11 @@ function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onInfo
   function handleToggle() {
     if (!top && !loading) return
     onToggle?.(category)
+  }
+
+  function openPile(event) {
+    event.stopPropagation()
+    onOpenPile?.(category)
   }
 
   return (
@@ -213,14 +212,14 @@ function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onInfo
                 <AppIcon name="info" size={18} strokeWidth={2.2} />
               </button>
             ) : null}
-            <Link
-              to={category.to}
-              onClick={(event) => { event.stopPropagation(); category.groupId && setActiveGroup(category.groupId) }}
+            <button
+              type="button"
+              onClick={openPile}
               aria-label={`Open all ${category.title}`}
               className="flex h-12 min-w-12 items-center justify-center rounded-full border border-white/15 bg-black/65 px-3 text-lg font-black text-white shadow-lg shadow-black/30 backdrop-blur transition hover:bg-white hover:text-neutral-950"
             >
               {loading ? '…' : category.count}
-            </Link>
+            </button>
           </div>
 
           <div className="absolute inset-x-0 bottom-0 p-5">
@@ -239,21 +238,81 @@ function CategoryFlipCard({ category, loading, flipped, saving, onToggle, onInfo
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-neutral-950">
               <AppIcon name={category.icon} size={20} />
             </span>
-            <button type="button" onClick={(event) => { event.stopPropagation(); onToggle?.(category) }} className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-neutral-400 transition hover:bg-white hover:text-neutral-950">Flip back</button>
+            <span className="rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-400">Actions</span>
           </div>
 
           <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-neutral-500">{category.title} actions</p>
           <h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight text-white">{displayTitle}</h3>
           <p className="mt-3 line-clamp-5 flex-1 text-sm leading-6 text-neutral-400">{summary}</p>
 
-          <div className="mt-5 grid gap-2">
-            <Link to={category.to} onClick={(event) => { event.stopPropagation(); category.groupId && setActiveGroup(category.groupId) }} className="rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Open clique voting list · {category.count}</Link>
-            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onShare?.(top) }} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share {category.singular.toLowerCase()}</button> : null}
-            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onCopy?.(top) }} disabled={saving} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">{saving ? 'Copying…' : 'Copy to My Library'}</button> : null}
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <button type="button" onClick={openPile} className="inline-flex items-center justify-center rounded-2xl bg-white px-3 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Ladder ↗</button>
+            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onShare?.(top) }} className="inline-flex items-center justify-center rounded-2xl border border-white/10 px-3 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+            {top ? <button type="button" onClick={(event) => { event.stopPropagation(); onCopy?.(top) }} disabled={saving} className="col-span-2 inline-flex items-center justify-center rounded-2xl border border-white/10 px-3 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">{saving ? 'Copying…' : 'Copy'}</button> : null}
           </div>
+          <p className="mt-3 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-600">Tap again to flip back</p>
         </div>
       </div>
     </article>
+  )
+}
+
+function CliquePilePanel({ category, loading, votingKey, onClose, onVote, onInfo, onShare, onCopy }) {
+  if (!category) return null
+  const items = category.items || []
+
+  return (
+    <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5" id="clique-inline-pile">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />Clique pile</p>
+          <h2 className="mt-1 text-3xl font-black text-white">{category.title} voting list</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Vote directly inside this clique. No redirect to My Library.</p>
+        </div>
+        <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Close pile</button>
+      </div>
+
+      {loading ? (
+        <p className="mt-5 rounded-3xl border border-white/10 p-5 text-sm text-neutral-400">Loading pile…</p>
+      ) : items.length ? (
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {items.map((item, index) => {
+            const image = item.backdrop || item.poster
+            const voteKey = itemActionKey(item, 'vote-')
+            const busy = votingKey === voteKey
+            return (
+              <article key={`${item.type}-${item.id}`} className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/80">
+                <button type="button" onClick={() => onInfo?.(item)} className="group relative block h-44 w-full overflow-hidden text-left">
+                  {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
+                  <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/55 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur">#{index + 1}</span>
+                  <div className="absolute inset-x-0 bottom-0 p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-neutral-300">{item.type}</p>
+                    <h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{item.title}</h3>
+                  </div>
+                </button>
+                <div className="p-4">
+                  <p className="line-clamp-2 text-sm leading-6 text-neutral-400">{item.overview || item.description || 'No description yet.'}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
+                    <span className="rounded-full border border-white/10 px-3 py-1.5">Score {item.score || 0}</span>
+                    <span className="rounded-full border border-white/10 px-3 py-1.5">{item.picks || 0} picks</span>
+                    {item.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <button type="button" disabled={busy} onClick={() => onVote?.(item, 'like')} className="rounded-2xl bg-white px-3 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">{busy ? 'Saving…' : 'Watch'}</button>
+                    <button type="button" disabled={busy} onClick={() => onVote?.(item, 'dislike')} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Pass</button>
+                    <button type="button" onClick={() => onShare?.(item)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Share</button>
+                    <button type="button" onClick={() => onCopy?.(item)} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950">Copy</button>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="mt-5 rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-6 text-neutral-400">No {category.title.toLowerCase()} in this clique yet. Add the first pick from the media search later.</p>
+      )}
+    </section>
   )
 }
 
@@ -321,7 +380,9 @@ export default function Home() {
   const [sharingItem, setSharingItem] = useState(null)
   const [infoItem, setInfoItem] = useState(null)
   const [flippedCategory, setFlippedCategory] = useState('')
+  const [activePileTitle, setActivePileTitle] = useState('')
   const [copyingKey, setCopyingKey] = useState('')
+  const [votingKey, setVotingKey] = useState('')
 
   useEffect(() => {
     if (routeGroupId) setActiveGroup(routeGroupId)
@@ -331,18 +392,16 @@ export default function Home() {
     return () => window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
   }, [routeGroupId])
 
-  const moviePath = scopedMediaPath('/movies', context.groupId)
-  const seriesPath = scopedMediaPath('/series', context.groupId)
-  const gamesPath = scopedMediaPath('/games', context.groupId)
-  const movieItems = useMemo(() => normalizeItems(media.movies, 'Movie', 'MOV', moviePath), [media.movies, moviePath])
-  const seriesItems = useMemo(() => normalizeItems(media.series, 'Series', 'SER', seriesPath), [media.series, seriesPath])
-  const gameItems = useMemo(() => normalizeItems(media.games, 'Game', 'GAM', gamesPath), [media.games, gamesPath])
+  const movieItems = useMemo(() => normalizeItems(media.movies, 'Movie', 'MOV'), [media.movies])
+  const seriesItems = useMemo(() => normalizeItems(media.series, 'Series', 'SER'), [media.series])
+  const gameItems = useMemo(() => normalizeItems(media.games, 'Game', 'GAM'), [media.games])
   const allItems = useMemo(() => [...movieItems, ...seriesItems, ...gameItems].sort((a, b) => b.sortValue - a.sortValue), [movieItems, seriesItems, gameItems])
   const categories = useMemo(() => [
-    { title: 'Movies', singular: 'Movie', code: 'MOV', icon: TYPE_ICONS.Movie, to: moviePath, groupId: context.groupId, items: movieItems, top: movieItems[0], count: movieItems.length, rated: movieItems.filter((item) => item.rating).length },
-    { title: 'Series', singular: 'Series', code: 'SER', icon: TYPE_ICONS.Series, to: seriesPath, groupId: context.groupId, items: seriesItems, top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
-    { title: 'Games', singular: 'Game', code: 'GAM', icon: TYPE_ICONS.Game, to: gamesPath, groupId: context.groupId, items: gameItems, top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
-  ], [context.groupId, moviePath, seriesPath, gamesPath, movieItems, seriesItems, gameItems])
+    { title: 'Movies', singular: 'Movie', code: 'MOV', icon: TYPE_ICONS.Movie, groupId: context.groupId, items: movieItems, top: movieItems[0], count: movieItems.length, rated: movieItems.filter((item) => item.rating).length },
+    { title: 'Series', singular: 'Series', code: 'SER', icon: TYPE_ICONS.Series, groupId: context.groupId, items: seriesItems, top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
+    { title: 'Games', singular: 'Game', code: 'GAM', icon: TYPE_ICONS.Game, groupId: context.groupId, items: gameItems, top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
+  ], [context.groupId, movieItems, seriesItems, gameItems])
+  const activePile = useMemo(() => categories.find((category) => category.title === activePileTitle) || null, [categories, activePileTitle])
 
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
   const totalPicks = useMemo(() => allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0), [allItems])
@@ -370,9 +429,10 @@ export default function Home() {
       const remoteGroups = await getRemoteGroups().catch(() => [])
       const activeId = preferredGroupId || getActiveGroupId()
       const group = remoteGroups.find((item) => item.id === activeId) || null
-      const groupId = group?.id || null
-      if (preferredGroupId && group) setActiveGroup(group.id)
-      setContext({ type: group ? 'group' : 'personal', name: group?.name || 'My Library', groupId })
+      const localGroup = getActiveGroup()
+      const groupId = activeId || null
+      if (groupId) setActiveGroup(groupId)
+      setContext({ type: groupId ? 'group' : 'personal', name: group?.name || (groupId && localGroup?.id === groupId ? localGroup.name : null) || (groupId ? 'Clique' : 'My Library'), groupId })
       const [movies, seriesRows, games] = await Promise.all([getMovies(groupId), getSeries(groupId), getGames(groupId)])
       setMedia({ movies, series: seriesRows, games })
       setStatus('ready')
@@ -408,6 +468,12 @@ export default function Home() {
     setFlippedCategory((current) => current === category.title ? '' : category.title)
   }
 
+  function openPile(category) {
+    setActivePileTitle(category.title)
+    setFlippedCategory('')
+    window.setTimeout(() => document.getElementById('clique-inline-pile')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
   async function copyToLibrary(item) {
     if (!item || !hasSupabase || status !== 'ready') {
       handleShareMessage('Sign in from Profile before copying to My Library.')
@@ -430,6 +496,28 @@ export default function Home() {
     }
   }
 
+  async function voteInClique(item, vote) {
+    if (!item || !context.groupId || !hasSupabase || status !== 'ready') {
+      handleShareMessage('Open a clique first to vote.')
+      return
+    }
+
+    const key = itemActionKey(item, 'vote-')
+    setVotingKey(key)
+    try {
+      if (item.type === 'Movie') await voteMovie(item, vote, context.groupId)
+      else if (item.type === 'Series') await voteSeries(item, vote, context.groupId)
+      else if (item.type === 'Game') await voteGame(item, vote, context.groupId)
+      else throw new Error('Unsupported item type.')
+      handleShareMessage(vote === 'like' ? `Voted to watch "${item.title}".` : `Passed on "${item.title}".`)
+      await refreshDashboard(context.groupId)
+    } catch (error) {
+      handleShareMessage(error.message || 'Could not save your vote.')
+    } finally {
+      setVotingKey('')
+    }
+  }
+
   return (
     <PageShell active={context.type === 'group' ? 'cliques' : 'library'}>
       <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
@@ -438,9 +526,9 @@ export default function Home() {
             <h1 className="max-w-3xl text-3xl font-black tracking-tight text-white sm:text-5xl">{context.name}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400 sm:text-base">{context.type === 'group' ? 'Shared movie, series, and game picks for this clique.' : 'Your watched movies, finished series, and played games in one place.'}</p>
             {status === 'signed-out' ? <p className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and join cliques.</p> : null}
-            <LibraryOverviewPanel items={loading ? [] : allItems} categories={categories} loading={loading} onShare={openShare} />
+            <LibraryOverviewPanel items={loading ? [] : allItems} categories={categories} loading={loading} onShare={openShare} onOpen={openPile} />
           </div>
-          <LibraryShowcase items={loading ? [] : allItems} loading={loading} onShare={openShare} />
+          <LibraryShowcase items={loading ? [] : allItems} loading={loading} onShare={openShare} onInfo={setInfoItem} />
         </div>
       </section>
 
@@ -459,7 +547,7 @@ export default function Home() {
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Section highlights</p>
           <h2 className="mt-1 text-3xl font-black text-white">Top items by category</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Tap a card to flip it for sharing and copying. Press the info button for details. The number opens the clique voting list.</p>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Tap a card to flip it for sharing and copying. Press the number or Ladder to open the pile right here in this clique.</p>
         </div>
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           {categories.map((category) => (
@@ -473,10 +561,22 @@ export default function Home() {
               onInfo={setInfoItem}
               onShare={openShare}
               onCopy={copyToLibrary}
+              onOpenPile={openPile}
             />
           ))}
         </div>
       </section>
+
+      <CliquePilePanel
+        category={activePile}
+        loading={loading}
+        votingKey={votingKey}
+        onClose={() => setActivePileTitle('')}
+        onVote={voteInClique}
+        onInfo={setInfoItem}
+        onShare={openShare}
+        onCopy={copyToLibrary}
+      />
 
       <ItemInfoModal item={infoItem} onClose={() => setInfoItem(null)} />
       <MemberShareModal item={sharingItem} type={sharingItem?.type?.toLowerCase()} onClose={() => setSharingItem(null)} onMessage={handleShareMessage} />
