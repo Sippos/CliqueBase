@@ -6,7 +6,7 @@ function clean(value) {
 }
 
 function requireConfiguredSupabase() {
-  if (!hasSupabase || !supabase) throw new Error('Sign in to use CliqueBase sharing.')
+  if (!hasSupabase || !supabase) throw new Error('Sign in to use CliqueBase social features.')
   return supabase
 }
 
@@ -16,10 +16,29 @@ function isMissingRpc(error, names = []) {
 }
 
 function platformSearchError(error) {
-  if (isMissingRpc(error, ['search_members_by_profile_name', 'share_media_with_member', 'search_my_cliques_by_name', 'share_media_with_clique', 'get_member_public_library'])) {
-    return new Error('Platform social features need the latest Supabase sharing migration. Until then, use WhatsApp or copy the share link.')
+  if (isMissingRpc(error, [
+    'search_members_by_profile_name',
+    'share_media_with_member',
+    'search_my_cliques_by_name',
+    'share_media_with_clique',
+    'get_member_public_library',
+    'get_my_friends',
+    'add_friend',
+    'remove_friend',
+  ])) {
+    return new Error('Platform social features need the latest Supabase social migration. Until then, use WhatsApp or copy the share link.')
   }
   return error
+}
+
+function normalizeMember(member, fallbackId = '') {
+  return {
+    id: member?.id || fallbackId,
+    displayName: clean(member?.display_name || member?.displayName) || 'CliqueBase member',
+    isFriend: Boolean(member?.is_friend ?? member?.isFriend),
+    libraryCount: Number(member?.library_count ?? member?.libraryCount ?? 0),
+    friendSince: member?.created_at || member?.friendSince || null,
+  }
 }
 
 export async function searchMembersByProfileName(query, limit = 10) {
@@ -35,15 +54,35 @@ export async function searchMembersByProfileName(query, limit = 10) {
 
   const seen = new Set()
   return (data || [])
-    .map((member) => ({
-      id: member.id,
-      displayName: clean(member.display_name) || 'CliqueBase member',
-    }))
+    .map((member) => normalizeMember(member))
     .filter((member) => {
       if (!member.id || seen.has(member.id)) return false
       seen.add(member.id)
       return true
     })
+}
+
+export async function getFriendsList() {
+  const client = requireConfiguredSupabase()
+  const { data, error } = await client.rpc('get_my_friends')
+  if (error) throw platformSearchError(error)
+  return (data || []).map((friend) => normalizeMember({ ...friend, is_friend: true }))
+}
+
+export async function addFriend(memberId) {
+  const client = requireConfiguredSupabase()
+  if (!memberId) throw new Error('Choose a member first.')
+  const { data, error } = await client.rpc('add_friend', { friend_id_input: memberId })
+  if (error) throw platformSearchError(error)
+  return normalizeMember(Array.isArray(data) ? data[0] : data, memberId)
+}
+
+export async function removeFriend(memberId) {
+  const client = requireConfiguredSupabase()
+  if (!memberId) throw new Error('Choose a friend first.')
+  const { error } = await client.rpc('remove_friend', { friend_id_input: memberId })
+  if (error) throw platformSearchError(error)
+  return true
 }
 
 export async function searchCliquesByName(query = '', limit = 10) {
@@ -76,8 +115,8 @@ export async function getMemberPublicLibrary(memberId) {
   const items = Array.isArray(payload.items) ? payload.items : []
   return {
     profile: {
-      id: profile.id || memberId,
-      displayName: clean(profile.displayName || profile.display_name) || 'CliqueBase member',
+      ...normalizeMember(profile, memberId),
+      isSelf: Boolean(profile.isSelf || profile.is_self),
     },
     items: items.map((item) => ({
       id: item.id,
@@ -91,6 +130,12 @@ export async function getMemberPublicLibrary(memberId) {
       rating: item.rating ?? null,
       released: item.released || null,
       year: item.year || '',
+      genres: item.genres || [],
+      runtime: item.runtime ?? null,
+      seasons: item.seasons ?? null,
+      episodes: item.episodes ?? null,
+      platform: item.platform || '',
+      platforms: item.platforms || [],
     })),
     totals: payload.totals || {},
   }
