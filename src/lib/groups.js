@@ -1,5 +1,6 @@
 export const GROUPS_STORAGE_KEY = 'cliquebase_groups'
 export const ACTIVE_GROUP_STORAGE_KEY = 'cliquebase_active_group'
+export const PENDING_GROUP_INVITE_STORAGE_KEY = 'cliquebase_pending_group_invite'
 export const GROUPS_CHANGED_EVENT = 'cliquebase:groups-changed'
 
 function emitGroupsChanged() {
@@ -152,5 +153,7 @@ export function getGroupOpenPath(group) {
 export function getGroupInviteUrl(group) {
   const path = getGroupInvitePath(group)
   if (typeof window === 'undefined') return path
-  return `${window.location.origin}${import.meta.env.BASE_URL || '/'}${path.replace(/^\//, '')}`
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/')
+  const invitePath = `${base}${path.replace(/^\//, '')}`
+  return new URL(invitePath, window.location.origin).toString()
 }

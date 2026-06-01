@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import Movies from './pages/Movies.jsx'
@@ -9,7 +10,60 @@ import Groups from './pages/Groups.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
 import Share from './pages/Share.jsx'
 import MemberLibrary from './pages/MemberLibrary.jsx'
-import { ACTIVE_GROUP_STORAGE_KEY } from './lib/groups.js'
+import {
+  ACTIVE_GROUP_STORAGE_KEY,
+  PENDING_GROUP_INVITE_STORAGE_KEY,
+  joinGroup as joinLocalGroup,
+  parseInviteCode,
+  setActiveGroup,
+} from './lib/groups.js'
+import { getCurrentSession, hasSupabase, joinRemoteGroup, onAuthStateChanged } from './lib/supabaseClient.js'
+
+function getAppPathname() {
+  const pathname = window.location.pathname || '/'
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+  if (base && base !== '/' && pathname.startsWith(`${base}/`)) return pathname.slice(base.length) || '/'
+  return pathname
+}
+
+function getAppBasePath() {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/')
+  return base.startsWith('/') ? base : `/${base}`
+}
+
+function getPendingInvite() {
+  if (typeof window === 'undefined') return ''
+  return parseInviteCode(window.localStorage.getItem(PENDING_GROUP_INVITE_STORAGE_KEY) || '')
+}
+
+function clearPendingInvite(code) {
+  if (typeof window === 'undefined') return
+  const pending = getPendingInvite()
+  if (!code || pending === parseInviteCode(code)) window.localStorage.removeItem(PENDING_GROUP_INVITE_STORAGE_KEY)
+}
+
+function syncPendingInviteFromUrl() {
+  if (typeof window === 'undefined') return
+
+  const pathname = getAppPathname()
+  const inviteMatch = pathname.match(/^\/invite\/([^/?#]+)/)
+  const inviteCode = parseInviteCode(inviteMatch?.[1] || '')
+
+  if (inviteCode) {
+    window.localStorage.setItem(PENDING_GROUP_INVITE_STORAGE_KEY, inviteCode)
+    return
+  }
+
+  const pendingInvite = getPendingInvite()
+  if (!pendingInvite) return
+
+  const shouldResumeInvite = ['/', '/explore', '/leaderboard', '/dashboard', '/library'].includes(pathname)
+  if (!shouldResumeInvite) return
+
+  const base = getAppBasePath()
+  const nextPath = `${base}invite/${encodeURIComponent(pendingInvite)}${window.location.search || ''}${window.location.hash || ''}`
+  window.location.replace(nextPath)
+}
 
 function syncCliqueScopeFromUrl() {
   if (typeof window === 'undefined') return
@@ -18,8 +72,39 @@ function syncCliqueScopeFromUrl() {
   if (cliqueId) window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, cliqueId)
 }
 
+async function acceptPendingInvite(session = null) {
+  const pendingInvite = getPendingInvite()
+  if (!pendingInvite) return null
+
+  if (hasSupabase) {
+    const activeSession = session || await getCurrentSession().catch(() => null)
+    if (!activeSession?.user) return null
+    const displayName = activeSession.user.user_metadata?.display_name || activeSession.user.email?.split('@')[0] || 'Member'
+    const joined = await joinRemoteGroup(pendingInvite, displayName)
+    setActiveGroup(joined.id)
+    clearPendingInvite(pendingInvite)
+    return joined
+  }
+
+  const joined = joinLocalGroup(pendingInvite, 'Member')
+  if (joined?.id) {
+    setActiveGroup(joined.id)
+    clearPendingInvite(pendingInvite)
+  }
+  return joined
+}
+
 export default function App() {
+  syncPendingInviteFromUrl()
   syncCliqueScopeFromUrl()
+
+  useEffect(() => {
+    acceptPendingInvite().catch((error) => console.warn('Pending invite join failed:', error))
+    if (!hasSupabase) return undefined
+    return onAuthStateChanged((nextSession) => {
+      if (nextSession?.user) acceptPendingInvite(nextSession).catch((error) => console.warn('Pending invite join failed:', error))
+    })
+  }, [])
 
   return (
     <Routes>
