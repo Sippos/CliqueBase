@@ -67,8 +67,8 @@
     left: 0.72rem !important;
     right: 0.72rem !important;
     top: auto !important;
-    bottom: 0.72rem !important;
-    z-index: 9999 !important;
+    bottom: max(0.72rem, env(safe-area-inset-bottom)) !important;
+    z-index: 2147483000 !important;
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 0.18rem !important;
@@ -120,6 +120,153 @@
 
   div[class*="bottom-5"][class*="z-[60]"] {
     bottom: 5.6rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar,
+  body[data-app-path^="/g/"] .clique-governance-bar {
+    margin-bottom: 0.75rem !important;
+    border-radius: 1.15rem !important;
+    padding: 0.55rem 0.75rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section,
+  body[data-app-path^="/g/"] .clique-governance-bar + section {
+    border-radius: 1.35rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section > div,
+  body[data-app-path^="/g/"] .clique-governance-bar + section > div {
+    display: block !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section > div > div:first-child,
+  body[data-app-path^="/g/"] .clique-governance-bar + section > div > div:first-child {
+    padding: 1rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section h1,
+  body[data-app-path^="/g/"] .clique-governance-bar + section h1 {
+    margin-top: 0.25rem !important;
+    font-size: 1.7rem !important;
+    line-height: 1.05 !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section p,
+  body[data-app-path^="/g/"] .clique-governance-bar + section p {
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section > div > div:first-child > div:first-child,
+  body[data-app-path^="/g/"] .clique-governance-bar + section > div > div:first-child > div:first-child {
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 0.75rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section > div > div:first-child > div:first-child button,
+  body[data-app-path^="/g/"] .clique-governance-bar + section > div > div:first-child > div:first-child button {
+    height: 2.25rem !important;
+    padding-inline: 0.9rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section > div > div:last-child,
+  body[data-app-path^="/g/"] .clique-governance-bar + section > div > div:last-child {
+    display: none !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section .mt-5.grid,
+  body[data-app-path^="/g/"] .clique-governance-bar + section .mt-5.grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.55rem !important;
+    margin-top: 0.9rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section .mt-5.grid button,
+  body[data-app-path^="/g/"] .clique-governance-bar + section .mt-5.grid button {
+    min-height: 7rem !important;
+    border-radius: 1rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section .mt-5.grid button > div:last-child,
+  body[data-app-path^="/g/"] .clique-governance-bar + section .mt-5.grid button > div:last-child {
+    min-height: 7rem !important;
+    padding: 0.65rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section .mt-5.grid h3,
+  body[data-app-path^="/g/"] .clique-governance-bar + section .mt-5.grid h3 {
+    font-size: 0.95rem !important;
+    line-height: 1.1 !important;
+  }
+
+  body[data-app-path^="/cliques/"] .clique-governance-bar + section + div + section,
+  body[data-app-path^="/g/"] .clique-governance-bar + section + div + section {
+    display: none !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"],
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] {
+    margin-top: 0.9rem !important;
+    border-radius: 1.35rem !important;
+    padding: 0.8rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] h2,
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] h2 {
+    font-size: 1.35rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] > div:first-child,
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] > div:first-child {
+    gap: 0.7rem !important;
+    padding-bottom: 0.8rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] .mt-6.grid,
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] .mt-6.grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.65rem !important;
+    margin-top: 0.8rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] article,
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] article {
+    min-height: 12rem !important;
+    border-radius: 1.05rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] article > div,
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] article > div {
+    border-radius: 1.05rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] article div[class*="min-h-[22rem]"],
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] article div[class*="min-h-[22rem]"] {
+    min-height: 12rem !important;
+    padding: 0.55rem !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] article h3,
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] article h3 {
+    font-size: 0.95rem !important;
+    line-height: 1.1 !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] article p,
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] article p {
+    display: none !important;
+  }
+
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] article button[aria-label^="Info"],
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] article button[aria-label^="Share"],
+  body[data-app-path^="/cliques/"] section[id="clique-category-panel"] article button[aria-label^="Copy"],
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] article button[aria-label^="Info"],
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] article button[aria-label^="Share"],
+  body[data-app-path^="/g/"] section[id="clique-category-panel"] article button[aria-label^="Copy"] {
+    width: 1.85rem !important;
+    height: 1.85rem !important;
   }
 }
 
