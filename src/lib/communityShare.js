@@ -23,6 +23,7 @@ function platformSearchError(error) {
     'share_media_with_clique',
     'get_member_public_library',
     'get_my_friends',
+    'send_friend_request',
     'add_friend',
     'remove_friend',
   ])) {
@@ -72,9 +73,10 @@ export async function getFriendsList() {
 export async function addFriend(memberId) {
   const client = requireConfiguredSupabase()
   if (!memberId) throw new Error('Choose a member first.')
-  const { data, error } = await client.rpc('add_friend', { friend_id_input: memberId })
+  const { data, error } = await client.rpc('send_friend_request', { friend_id_input: memberId })
   if (error) throw platformSearchError(error)
-  return normalizeMember(Array.isArray(data) ? data[0] : data, memberId)
+  const request = Array.isArray(data) ? data[0] : data
+  return normalizeMember({ id: memberId, display_name: request?.status === 'accepted' ? 'Friend' : 'Friend request sent', is_friend: request?.status === 'accepted' }, memberId)
 }
 
 export async function removeFriend(memberId) {
