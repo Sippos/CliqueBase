@@ -6,7 +6,7 @@ import TonightMode from '../components/TonightMode.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
 import { addMediaComment, createRecommendationNote, getSocialActivity } from '../lib/communityActivity.js'
 import { getCurrentSession, getRemoteGroups, hasSupabase } from '../lib/supabaseClient.js'
-import { reportContent } from '../lib/safety.js'
+import { blockUser, reportContent } from '../lib/safety.js'
 
 const itemTypes = [
   { value: 'movie', label: 'Movie' },
@@ -131,11 +131,12 @@ function ActivityCommentForm({ activity, signedIn, onCommented, onFlash }) {
   )
 }
 
-function ActivityReportForm({ activity, signedIn, onFlash }) {
+function ActivityReportForm({ activity, signedIn, onFlash, onBlocked }) {
   const [open, setOpen] = useState(false)
   const [reason, setReason] = useState('spam')
   const [details, setDetails] = useState('')
   const [saving, setSaving] = useState(false)
+  const [blocking, setBlocking] = useState(false)
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -164,23 +165,50 @@ function ActivityReportForm({ activity, signedIn, onFlash }) {
     }
   }
 
+  async function handleBlock() {
+    if (!signedIn) {
+      onFlash('Sign in to block members.')
+      return
+    }
+    if (!activity.actorId) {
+      onFlash('This activity has no member to block.')
+      return
+    }
+    setBlocking(true)
+    try {
+      await blockUser(activity.actorId)
+      setOpen(false)
+      onFlash(`${activity.actorDisplayName || 'Member'} blocked.`)
+      onBlocked?.()
+    } catch (error) {
+      onFlash(error.message || 'Could not block member.')
+    } finally {
+      setBlocking(false)
+    }
+  }
+
   return (
     <div className="mt-3">
       <button type="button" onClick={() => setOpen((value) => !value)} className="text-xs font-bold text-neutral-500 transition hover:text-neutral-200">
-        {open ? 'Cancel report' : 'Report'}
+        {open ? 'Cancel safety actions' : 'Report / block'}
       </button>
       {open ? (
-        <form onSubmit={handleSubmit} className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-neutral-950/75 p-3">
-          <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
-            <select value={reason} onChange={(event) => setReason(event.target.value)} className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none">
-              {reportReasons.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-            <input value={details} onChange={(event) => setDetails(event.target.value)} placeholder="Optional details for moderators" className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600" />
-          </div>
-          <button disabled={saving || !signedIn} className="rounded-xl border border-red-300/20 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-red-100 transition hover:bg-red-500 hover:text-white disabled:opacity-50">
-            {saving ? 'Sending…' : 'Submit report'}
+        <div className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-neutral-950/75 p-3">
+          <form onSubmit={handleSubmit} className="grid gap-2">
+            <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
+              <select value={reason} onChange={(event) => setReason(event.target.value)} className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none">
+                {reportReasons.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <input value={details} onChange={(event) => setDetails(event.target.value)} placeholder="Optional details for moderators" className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600" />
+            </div>
+            <button disabled={saving || !signedIn} className="rounded-xl border border-red-300/20 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-red-100 transition hover:bg-red-500 hover:text-white disabled:opacity-50">
+              {saving ? 'Sending…' : 'Submit report'}
+            </button>
+          </form>
+          <button type="button" disabled={blocking || !signedIn || !activity.actorId} onClick={handleBlock} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">
+            {blocking ? 'Blocking…' : `Block ${activity.actorDisplayName || 'member'}`}
           </button>
-        </form>
+        </div>
       ) : null}
     </div>
   )
@@ -208,7 +236,7 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash }) {
             {tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-neutral-950">{tag}</span>)}
           </div>
           <ActivityCommentForm activity={activity} signedIn={signedIn} onCommented={onCommented} onFlash={onFlash} />
-          <ActivityReportForm activity={activity} signedIn={signedIn} onFlash={onFlash} />
+          <ActivityReportForm activity={activity} signedIn={signedIn} onFlash={onFlash} onBlocked={onCommented} />
         </div>
       </div>
     </article>
