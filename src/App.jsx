@@ -22,6 +22,25 @@ import {
 } from './lib/groups.js'
 import { getCurrentSession, hasSupabase, joinRemoteGroup, onAuthStateChanged } from './lib/supabaseClient.js'
 
+function getAppPathname() {
+  if (typeof window === 'undefined') return '/'
+  const pathname = window.location.pathname || '/'
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
+  if (base && base !== '/' && pathname.startsWith(`${base}/`)) return pathname.slice(base.length) || '/'
+  return pathname
+}
+
+function getAppBasePath() {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/')
+  return base.startsWith('/') ? base : `/${base}`
+}
+
+function getInviteCodeFromPath(pathname) {
+  const parts = String(pathname || '').split('/').filter(Boolean)
+  if (parts[0] !== 'invite' || !parts[1]) return ''
+  return parseInviteCode(parts[1])
+}
+
 function getPendingInvite() {
   if (typeof window === 'undefined') return ''
   return parseInviteCode(window.localStorage.getItem(PENDING_GROUP_INVITE_STORAGE_KEY) || '')
@@ -33,13 +52,30 @@ function clearPendingInvite(code) {
   if (!code || pending === parseInviteCode(code)) window.localStorage.removeItem(PENDING_GROUP_INVITE_STORAGE_KEY)
 }
 
+function syncPendingInviteFromUrl() {
+  if (typeof window === 'undefined') return
+  const pathname = getAppPathname()
+  const inviteCode = getInviteCodeFromPath(pathname)
+  if (inviteCode) {
+    window.localStorage.setItem(PENDING_GROUP_INVITE_STORAGE_KEY, inviteCode)
+    return
+  }
+  const pendingInvite = getPendingInvite()
+  if (!pendingInvite) return
+  const resumablePaths = ['/', '/community', '/explore', '/leaderboard', '/dashboard', '/library']
+  if (!resumablePaths.includes(pathname)) return
+  const base = getAppBasePath()
+  const nextPath = `${base}invite/${encodeURIComponent(pendingInvite)}${window.location.search || ''}${window.location.hash || ''}`
+  window.location.replace(nextPath)
+}
+
 function isPersonalLibraryPath(pathname) {
   return ['/dashboard', '/library', '/library/movies', '/library/series', '/library/games', '/movies', '/series', '/games', '/videos', '/music'].includes(pathname)
 }
 
 function syncCliqueScopeFromUrl() {
   if (typeof window === 'undefined') return
-  const pathname = window.location.pathname || '/'
+  const pathname = getAppPathname()
   const params = new URLSearchParams(window.location.search)
   const cliqueId = params.get('clique') || params.get('group') || params.get('scope')
   if (cliqueId) window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, cliqueId)
@@ -67,6 +103,7 @@ async function acceptPendingInvite(session = null) {
 }
 
 export default function App() {
+  syncPendingInviteFromUrl()
   syncCliqueScopeFromUrl()
 
   useEffect(() => {
