@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
+import TonightMode from '../components/TonightMode.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
 import { addMediaComment, createRecommendationNote, getSocialActivity } from '../lib/communityActivity.js'
 import { getCurrentSession, getRemoteGroups, hasSupabase } from '../lib/supabaseClient.js'
@@ -285,7 +286,10 @@ export default function Community() {
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-        <RecommendationComposer groups={groups} signedIn={signedIn} onCreated={refresh} onFlash={flash} />
+        <div className="grid gap-6">
+          <RecommendationComposer groups={groups} signedIn={signedIn} onCreated={refresh} onFlash={flash} />
+          <TonightMode groups={groups} signedIn={signedIn} onFlash={flash} />
+        </div>
         <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-4">
           <div className="mb-4 flex items-center justify-between gap-3 px-1">
             <div><p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Live taste graph</p><h2 className="mt-1 text-2xl font-black text-white">Friend activity</h2></div>
