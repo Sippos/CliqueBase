@@ -53,34 +53,13 @@ function OverviewMetric({ icon, label, value, detail }) {
   )
 }
 
-function CategoryImageTile({ category, loading, onOpen }) {
-  const top = category.top
-  const image = imageFor(top)
-  return (
-    <button type="button" onClick={() => onOpen?.(category)} className="group relative min-h-[5.45rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 text-left transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[7.75rem]">
-      {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-72 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.07),rgba(0,0,0,0.45))]" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/10" />
-      <div className="relative flex min-h-[5.45rem] flex-col justify-between p-2 sm:min-h-[7.75rem] sm:p-3">
-        <div className="flex items-start justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-neutral-950 sm:px-2.5 sm:text-[9px] sm:tracking-[0.14em]"><AppIcon name={category.icon} size={10} />{category.title}</span>
-          <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black text-white backdrop-blur">{loading ? '…' : category.count}</span>
-        </div>
-        <h3 className="line-clamp-1 text-sm font-black text-white sm:text-base">{loading ? 'Loading…' : top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
-      </div>
-    </button>
-  )
-}
-
-function LibraryOverviewPanel({ items, categories, loading, ratedCount, totalPicks, onOpen }) {
+function LibraryOverviewPanel({ items, loading, ratedCount, totalPicks }) {
   return (
     <section className="mt-3 rounded-[1.4rem] border border-white/10 bg-neutral-950/70 p-2 shadow-2xl shadow-black/20 sm:mt-5 sm:rounded-[1.6rem] sm:p-3">
       <div className="grid grid-cols-3 gap-2">
         <OverviewMetric icon="dashboard" label="Total" value={loading ? '…' : items.length} detail="saved" />
         <OverviewMetric icon="info" label="Rated" value={loading ? '…' : ratedCount} detail="scores" />
         <OverviewMetric icon="users" label="Picks" value={loading ? '…' : totalPicks} detail="votes" />
-      </div>
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3 lg:grid-cols-3">
-        {categories.map((category) => <CategoryImageTile key={category.title} category={category} loading={loading} onOpen={onOpen} />)}
       </div>
     </section>
   )
@@ -124,7 +103,7 @@ function CategorySpotlightCard({ category, loading, isClique, saving, index, onC
 
       <div className="pointer-events-none relative z-20 flex min-h-[15.25rem] flex-col justify-between p-3 sm:min-h-[19rem] sm:p-4">
         <div className="flex items-start justify-between gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-950 sm:px-3 sm:text-[10px] sm:tracking-[0.16em]"><AppIcon name={category.icon} size={12} />{category.title}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/45 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-100 backdrop-blur sm:px-3 sm:text-[10px] sm:tracking-[0.16em]">Featured</span>
           <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
             <SmallIconButton icon="list" label={`Open ${category.title} list`} onClick={(event) => { event.stopPropagation(); onOpenPile?.(category) }} strong />
             {item ? <SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={(event) => { event.stopPropagation(); onInfo?.(item) }} /> : null}
@@ -135,7 +114,7 @@ function CategorySpotlightCard({ category, loading, isClique, saving, index, onC
 
         <div className="pointer-events-auto flex max-w-[94%] items-end gap-3 rounded-[1.35rem] border border-white/10 bg-black/62 p-3 shadow-2xl shadow-black/30 backdrop-blur-md sm:max-w-[88%] sm:p-4">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">{loading ? 'Loading…' : `#${safeIndex + 1} in ${category.title}`}</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">{loading ? 'Loading…' : 'Top pick'}</p>
             <h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white sm:text-2xl">{title}</h3>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {chips.length ? chips.map((chip) => <span key={chip} className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-[10px] font-bold text-neutral-200">{chip}</span>) : <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-[10px] font-bold text-neutral-300">{item ? `${item.picks || 0} picks` : 'Empty'}</span>}
@@ -157,13 +136,13 @@ function LibraryListPanel({ category, categories = [], loading, isClique, voting
       <div className="border-b border-white/10 pb-4 sm:pb-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500 sm:text-xs sm:tracking-[0.24em]"><AppIcon name={category.icon} size={14} />{isClique ? 'Clique list' : 'Library list'}</p>
+            <p className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500 sm:text-xs sm:tracking-[0.24em]"><AppIcon name={category.icon} size={14} />Library</p>
             <h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">{category.title}</h2>
             <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:mt-2 sm:text-sm sm:leading-6">{loading ? 'Loading…' : plural(items.length, 'item')} in this section.</p>
           </div>
           <div className="flex shrink-0 gap-2">
             <button type="button" onClick={() => onViewModeChange?.(isGrid ? 'list' : 'grid')} className="inline-flex items-center gap-1.5 rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950"><AppIcon name={isGrid ? 'list' : 'dashboard'} size={13} />{isGrid ? 'List' : 'Grid'}</button>
-            <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 sm:px-4 sm:text-sm">Close</button>
+            <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 sm:px-4 sm:text-sm">Hide</button>
           </div>
         </div>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
@@ -253,7 +232,7 @@ export default function Home() {
   const [shareNotice, setShareNotice] = useState('')
   const [sharingItem, setSharingItem] = useState(null)
   const [infoItem, setInfoItem] = useState(null)
-  const [activePileTitle, setActivePileTitle] = useState('')
+  const [activePileTitle, setActivePileTitle] = useState('Movies')
   const [copyingKey, setCopyingKey] = useState('')
   const [votingKey, setVotingKey] = useState('')
   const [spotlightIndexes, setSpotlightIndexes] = useState({})
@@ -277,14 +256,15 @@ export default function Home() {
     { title: 'Series', singular: 'Series', code: 'SER', icon: TYPE_ICONS.Series, groupId: context.groupId, items: seriesItems, top: seriesItems[0], count: seriesItems.length, rated: seriesItems.filter((item) => item.rating).length },
     { title: 'Games', singular: 'Game', code: 'GAM', icon: TYPE_ICONS.Game, groupId: context.groupId, items: gameItems, top: gameItems[0], count: gameItems.length, rated: gameItems.filter((item) => item.rating).length },
   ], [context.groupId, movieItems, seriesItems, gameItems])
-  const activePile = useMemo(() => categories.find((category) => category.title === activePileTitle) || null, [categories, activePileTitle])
+  const activePile = useMemo(() => categories.find((category) => category.title === activePileTitle) || categories[0] || null, [categories, activePileTitle])
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
   const totalPicks = useMemo(() => allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0), [allItems])
   const isClique = Boolean(context.groupId)
 
   useEffect(() => {
     if (!categories.some((category) => category.title === activeTopTitle)) setActiveTopTitle(categories[0]?.title || '')
-  }, [activeTopTitle, categories])
+    if (!categories.some((category) => category.title === activePileTitle)) setActivePileTitle(categories[0]?.title || '')
+  }, [activeTopTitle, activePileTitle, categories])
 
   async function refreshDashboard(preferredGroupId = null) {
     setLoading(true)
@@ -328,8 +308,8 @@ export default function Home() {
   function openShare(item) { setSharingItem(item) }
   function handleShareMessage(text) { setShareNotice(text); setTimeout(() => setShareNotice(''), 2600) }
   function openPile(category) { setActivePileTitle(category.title); window.setTimeout(() => document.getElementById('library-inline-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }
-  function selectPile(category) { setActivePileTitle(category.title); window.setTimeout(() => document.getElementById('library-inline-list')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50) }
-  function jumpToSpotlight(category) { setActiveTopTitle(category.title); document.getElementById(categoryTargetId(category))?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }) }
+  function selectPile(category) { setActivePileTitle(category.title); setActiveTopTitle(category.title); window.setTimeout(() => document.getElementById('library-inline-list')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50) }
+  function jumpToSpotlight(category) { setActiveTopTitle(category.title); setActivePileTitle(category.title); document.getElementById(categoryTargetId(category))?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }) }
   function handleTopScroll(event) {
     const container = event.currentTarget
     const cards = Array.from(container.querySelectorAll('[data-top-category]'))
@@ -338,7 +318,10 @@ export default function Home() {
       const distance = Math.abs(card.offsetLeft - container.scrollLeft)
       return !best || distance < best.distance ? { distance, title: card.dataset.topCategory } : best
     }, null)
-    if (current?.title && current.title !== activeTopTitle) setActiveTopTitle(current.title)
+    if (current?.title && current.title !== activeTopTitle) {
+      setActiveTopTitle(current.title)
+      setActivePileTitle(current.title)
+    }
   }
   function cycleSpotlight(category, direction) { if (!category?.items?.length) return; setSpotlightIndexes((current) => { const previous = current[category.title] || 0; const next = (previous + direction + category.items.length) % category.items.length; return { ...current, [category.title]: next } }) }
   async function copyToLibrary(item) { if (!item || !hasSupabase || status !== 'ready') return handleShareMessage('Sign in from Profile before copying to My Library.'); const key = itemActionKey(item, 'copy-'); setCopyingKey(key); try { const nominatedBy = getSavedHandle() || 'anonymous'; if (item.type === 'Movie') await saveMovie(item, nominatedBy, null); else if (item.type === 'Series') await saveSeries(item, nominatedBy, null); else if (item.type === 'Game') await saveGame(item, nominatedBy, null); else throw new Error('Unsupported item type.'); handleShareMessage(`Copied "${item.title}" to My Library.`) } catch (error) { handleShareMessage(error.message || 'Could not copy this item to My Library.') } finally { setCopyingKey('') } }
@@ -350,9 +333,9 @@ export default function Home() {
         <div className="grid gap-0 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="p-3 sm:p-6">
             <h1 className="max-w-3xl text-2xl font-black tracking-tight text-white sm:text-5xl">{context.name}</h1>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:mt-2 sm:text-base sm:leading-6">{isClique ? 'Shared movie, series, and game picks for this clique.' : 'Your watched movies, finished series, and played games in one clean overview.'}</p>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:mt-2 sm:text-base sm:leading-6">{isClique ? 'Shared movie, series, and game picks for this clique.' : 'Your saved movies, series, and games.'}</p>
             {status === 'signed-out' ? <p className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and sync your library.</p> : null}
-            <LibraryOverviewPanel items={loading ? [] : allItems} categories={categories} loading={loading} ratedCount={ratedCount} totalPicks={totalPicks} onOpen={openPile} />
+            <LibraryOverviewPanel items={loading ? [] : allItems} loading={loading} ratedCount={ratedCount} totalPicks={totalPicks} />
           </div>
           <div className="hidden xl:block">
             <LibraryShowcase items={loading ? [] : allItems} loading={loading} onShare={openShare} onInfo={setInfoItem} />
@@ -364,7 +347,7 @@ export default function Home() {
       {message ? <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-950/30 p-4 text-sm text-rose-100">{message}</div> : null}
 
       <section className="mt-4 rounded-[1.55rem] border border-white/10 bg-white/[0.03] p-4 sm:mt-5 sm:rounded-[2rem] sm:p-5">
-        <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black text-white sm:text-3xl">Top by section</h2></div>
+        <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black text-white sm:text-3xl">Highlights</h2></div>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
           {categories.map((category) => {
             const active = category.title === activeTopTitle
