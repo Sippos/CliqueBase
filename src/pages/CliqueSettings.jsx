@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { StatusMessage } from '../components/MediaBlocks.jsx'
+import ModerationInbox from '../components/ModerationInbox.jsx'
 import { getCurrentSession, getRemoteGroups, hasSupabase } from '../lib/supabaseClient.js'
 import {
   deleteGroup,
@@ -221,7 +222,7 @@ export default function CliqueSettings() {
       <StatusMessage message={message} />
 
       <section className="mt-5 grid gap-3 sm:grid-cols-4">
-        {[['Owners', owners], ['Admins', admins], ['Moderators', moderators], ['Members', regularMembers]].map(([label, value]) => <div key={label} className="rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4 text-white"><div className="text-3xl font-black">{value}</div><div className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-neutral-500">{label}</div></div>)}
+        {[["Owners", owners], ["Admins", admins], ["Moderators", moderators], ["Members", regularMembers]].map(([label, value]) => <div key={label} className="rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4 text-white"><div className="text-3xl font-black">{value}</div><div className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-neutral-500">{label}</div></div>)}
       </section>
 
       <section className="mt-5 grid gap-5 lg:grid-cols-[0.88fr_1.12fr]">
@@ -249,6 +250,8 @@ export default function CliqueSettings() {
               <span>{permissions.canDeleteGroup ? '✓' : '–'} Delete clique</span>
             </div>
           </section>
+
+          <ModerationInbox groupId={groupId} canModerate={Boolean(permissions.canModerateContent)} onMessage={showMessage} />
 
           <section className="rounded-[2rem] border border-red-300/20 bg-red-500/5 p-5 text-white">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-red-200/70">Danger zone</p>
