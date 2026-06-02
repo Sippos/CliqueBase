@@ -1,6 +1,10 @@
 -- Let users inspect and undo their block list.
 -- This is intentionally self-contained so it can be run after either the full
 -- safety migration or the feed block-filter migration.
+--
+-- Keep avatar_url as a nullable return field for frontend compatibility, but do
+-- not read public.profiles.avatar_url because older CliqueBase schemas do not
+-- define that column.
 
 create table if not exists public.user_blocks (
   blocker_id uuid not null references auth.users(id) on delete cascade,
@@ -47,7 +51,7 @@ as $$
     b.blocked_id as user_id,
     coalesce(nullif(trim(p.display_name), ''), split_part(coalesce(p.email, ''), '@', 1), 'CliqueBase member') as display_name,
     p.email,
-    p.avatar_url,
+    null::text as avatar_url,
     b.created_at as blocked_at
   from public.user_blocks b
   left join public.profiles p on p.id = b.blocked_id
