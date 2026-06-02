@@ -62,8 +62,8 @@ export default function CliqueGovernanceBar({ active = '' }) {
   const canManage = Boolean(permissions.canManageMembers || permissions.canUpdateSettings)
 
   return (
-    <section className="mb-5 rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-3 text-white shadow-xl shadow-black/10">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="clique-governance-bar mb-5 rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-3 text-white shadow-xl shadow-black/10">
+      <div className="hidden flex-col gap-3 sm:flex sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name="settings" size={18} /></span>
           <div className="min-w-0">
@@ -80,6 +80,13 @@ export default function CliqueGovernanceBar({ active = '' }) {
           {canManage ? <span className="rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-black text-emerald-100">Admin tools enabled</span> : null}
           <Link to={`/cliques/${encodeURIComponent(groupId)}/settings`} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="users" size={16} />Manage</Link>
         </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 sm:hidden">
+        <div className="min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-500">Permissions</p>
+          <p className="truncate text-xs font-bold text-neutral-300">{signedIn ? roleLabel(role) : 'Sign in'}{members.length ? ` · ${members.length} members` : ''}{loading ? ' · syncing' : ''}</p>
+        </div>
+        <Link to={`/cliques/${encodeURIComponent(groupId)}/settings`} aria-label="Clique settings" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="settings" size={16} /></Link>
       </div>
     </section>
   )
