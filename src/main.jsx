@@ -6,6 +6,7 @@ import './cardFlipFix.css'
 import './logoHover.css'
 import './detailNoteEnhancer.js'
 import './cliqueMediaRouter.js'
+import './mobileBottomNav.css'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
