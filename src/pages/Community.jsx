@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
-import { createRecommendationNote, getSocialActivity } from '../lib/communityActivity.js'
+import { addMediaComment, createRecommendationNote, getSocialActivity } from '../lib/communityActivity.js'
 import { getCurrentSession, getRemoteGroups, hasSupabase } from '../lib/supabaseClient.js'
 
 const itemTypes = [
@@ -77,7 +77,51 @@ function EmptyCommunity({ signedIn }) {
   )
 }
 
-function ActivityCard({ activity }) {
+function ActivityCommentForm({ activity, signedIn, onCommented, onFlash }) {
+  const [body, setBody] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    if (!signedIn) {
+      onFlash('Sign in to comment on recommendations.')
+      return
+    }
+    setSaving(true)
+    try {
+      await addMediaComment({
+        itemType: activity.itemType || 'other',
+        itemId: activity.itemId || `${activity.type}:${activity.id}`,
+        title: activity.title,
+        body,
+        groupId: activity.groupId || null,
+      })
+      setBody('')
+      onFlash('Comment posted.')
+      onCommented?.()
+    } catch (error) {
+      onFlash(error.message || 'Could not post comment.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row">
+      <input
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+        placeholder={signedIn ? 'Add a take, warning, or +1…' : 'Sign in to comment'}
+        className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-600"
+      />
+      <button disabled={saving || !body.trim() || !signedIn} className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-45">
+        {saving ? 'Posting…' : 'Comment'}
+      </button>
+    </form>
+  )
+}
+
+function ActivityCard({ activity, signedIn, onCommented, onFlash }) {
   const text = payloadText(activity)
   const tags = Array.isArray(activity.payload?.moodTags) ? activity.payload.moodTags : []
   return (
@@ -98,6 +142,7 @@ function ActivityCard({ activity }) {
             {activity.payload?.priority ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-400">{activity.payload.priority}</span> : null}
             {tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-neutral-950">{tag}</span>)}
           </div>
+          <ActivityCommentForm activity={activity} signedIn={signedIn} onCommented={onCommented} onFlash={onFlash} />
         </div>
       </div>
     </article>
@@ -247,7 +292,7 @@ export default function Community() {
             <button type="button" onClick={refresh} className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button>
           </div>
           <div className="grid gap-3">
-            {loading ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-5 text-sm text-neutral-400">Loading social activity…</p> : activity.length ? activity.map((item) => <ActivityCard key={item.id} activity={item} />) : <EmptyCommunity signedIn={signedIn} />}
+            {loading ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-5 text-sm text-neutral-400">Loading social activity…</p> : activity.length ? activity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={refresh} onFlash={flash} />) : <EmptyCommunity signedIn={signedIn} />}
           </div>
         </section>
       </div>
