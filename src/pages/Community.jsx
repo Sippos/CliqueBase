@@ -6,6 +6,7 @@ import TonightMode from '../components/TonightMode.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
 import { addMediaComment, createRecommendationNote, getSocialActivity } from '../lib/communityActivity.js'
 import { getCurrentSession, getRemoteGroups, hasSupabase } from '../lib/supabaseClient.js'
+import { reportContent } from '../lib/safety.js'
 
 const itemTypes = [
   { value: 'movie', label: 'Movie' },
@@ -20,6 +21,14 @@ const priorities = [
   { value: 'must', label: 'Must try' },
   { value: 'maybe', label: 'Maybe' },
   { value: 'later', label: 'Later' },
+]
+
+const reportReasons = [
+  { value: 'spam', label: 'Spam' },
+  { value: 'harassment', label: 'Harassment' },
+  { value: 'spoiler', label: 'Spoiler' },
+  { value: 'unsafe', label: 'Unsafe' },
+  { value: 'other', label: 'Other' },
 ]
 
 function relativeTime(value) {
@@ -122,6 +131,61 @@ function ActivityCommentForm({ activity, signedIn, onCommented, onFlash }) {
   )
 }
 
+function ActivityReportForm({ activity, signedIn, onFlash }) {
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('spam')
+  const [details, setDetails] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(event) {
+    event.preventDefault()
+    if (!signedIn) {
+      onFlash('Sign in to report content.')
+      return
+    }
+    setSaving(true)
+    try {
+      await reportContent({
+        actorId: activity.actorId || null,
+        groupId: activity.groupId || null,
+        itemType: 'activity',
+        itemId: activity.id || activity.itemId || '',
+        reason,
+        details,
+      })
+      setOpen(false)
+      setDetails('')
+      setReason('spam')
+      onFlash('Report sent to moderators.')
+    } catch (error) {
+      onFlash(error.message || 'Could not submit report.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <button type="button" onClick={() => setOpen((value) => !value)} className="text-xs font-bold text-neutral-500 transition hover:text-neutral-200">
+        {open ? 'Cancel report' : 'Report'}
+      </button>
+      {open ? (
+        <form onSubmit={handleSubmit} className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-neutral-950/75 p-3">
+          <div className="grid gap-2 sm:grid-cols-[10rem_1fr]">
+            <select value={reason} onChange={(event) => setReason(event.target.value)} className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none">
+              {reportReasons.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <input value={details} onChange={(event) => setDetails(event.target.value)} placeholder="Optional details for moderators" className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600" />
+          </div>
+          <button disabled={saving || !signedIn} className="rounded-xl border border-red-300/20 px-3 py-2 text-xs font-black uppercase tracking-[0.14em] text-red-100 transition hover:bg-red-500 hover:text-white disabled:opacity-50">
+            {saving ? 'Sending…' : 'Submit report'}
+          </button>
+        </form>
+      ) : null}
+    </div>
+  )
+}
+
 function ActivityCard({ activity, signedIn, onCommented, onFlash }) {
   const text = payloadText(activity)
   const tags = Array.isArray(activity.payload?.moodTags) ? activity.payload.moodTags : []
@@ -144,6 +208,7 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash }) {
             {tags.map((tag) => <span key={tag} className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-neutral-950">{tag}</span>)}
           </div>
           <ActivityCommentForm activity={activity} signedIn={signedIn} onCommented={onCommented} onFlash={onFlash} />
+          <ActivityReportForm activity={activity} signedIn={signedIn} onFlash={onFlash} />
         </div>
       </div>
     </article>
