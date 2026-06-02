@@ -28,6 +28,8 @@ function ensureNavVisible() {
 function enhanceShareSheet() {
   const overlays = [...document.querySelectorAll('div[class*="z-[70]"] article')]
   overlays.forEach((article) => {
+    article.style.maxHeight = 'calc(100dvh - 2.2rem)'
+    article.style.overflowY = 'auto'
     if (article.dataset.memberShareEnhanced === 'true') return
     const buttons = [...article.querySelectorAll('button')]
     const cliqueBaseButton = buttons.find((button) => /cliquebase/i.test(button.textContent || ''))
@@ -57,6 +59,7 @@ function openMemberSearch(article) {
   } else {
     panel.querySelector('input')?.focus()
   }
+  window.requestAnimationFrame(() => panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
 }
 
 let searchTimer = null
@@ -107,9 +110,27 @@ async function shareWithMember(article, member, button) {
   }
 }
 
+function enhanceContributorCards() {
+  const headings = [...document.querySelectorAll('h3')]
+  headings.forEach((heading) => {
+    const card = heading.closest('article')
+    if (!card || card.querySelector('[data-member-library-link]')) return
+    const sectionText = card.closest('section')?.querySelector('h2')?.textContent || ''
+    if (!/top contributors/i.test(sectionText)) return
+    const name = heading.textContent?.trim()
+    if (!name) return
+    const link = document.createElement('a')
+    link.setAttribute('data-member-library-link', 'true')
+    link.href = `/members/${encodeURIComponent(name)}`
+    link.textContent = 'Open library'
+    card.appendChild(link)
+  })
+}
+
 function enhance() {
   ensureNavVisible()
   enhanceShareSheet()
+  enhanceContributorCards()
 }
 
 if (typeof window !== 'undefined') {
