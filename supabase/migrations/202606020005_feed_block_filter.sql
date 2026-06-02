@@ -1,6 +1,38 @@
 -- Make user blocks affect the social feed.
 -- Replaces the community feed RPC so blocked actors disappear from the caller's feed,
 -- and actors who blocked the caller are also hidden.
+--
+-- This migration defensively creates public.user_blocks because this RPC is often
+-- tested manually after copying only this file. The full safety migration still
+-- owns the report/block functions and policies.
+
+create table if not exists public.user_blocks (
+  blocker_id uuid not null references auth.users(id) on delete cascade,
+  blocked_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id <> blocked_id)
+);
+
+create index if not exists user_blocks_blocked_idx on public.user_blocks(blocked_id);
+
+alter table public.user_blocks enable row level security;
+
+drop policy if exists "Users can read their own blocks" on public.user_blocks;
+drop policy if exists "Users can create their own blocks" on public.user_blocks;
+drop policy if exists "Users can delete their own blocks" on public.user_blocks;
+
+create policy "Users can read their own blocks"
+on public.user_blocks for select to authenticated
+using (blocker_id = (select auth.uid()));
+
+create policy "Users can create their own blocks"
+on public.user_blocks for insert to authenticated
+with check (blocker_id = (select auth.uid()) and blocker_id <> blocked_id);
+
+create policy "Users can delete their own blocks"
+on public.user_blocks for delete to authenticated
+using (blocker_id = (select auth.uid()));
 
 create or replace function public.get_social_activity(limit_input integer default 40, include_public_input boolean default true)
 returns table(
