@@ -23,6 +23,14 @@ function itemActionKey(item, prefix = '') { return item ? `${prefix}${item.type}
 function itemText(item) { return item?.overview || item?.description || 'No description yet.' }
 function plural(value, singular, pluralLabel = `${singular}s`) { return `${value} ${Number(value) === 1 ? singular : pluralLabel}` }
 function imageFor(item) { return item?.backdrop || item?.poster || null }
+function categoryTargetId(category) { return `top-${category.title.toLowerCase()}` }
+function itemMetaChips(item) {
+  if (!item) return []
+  const genres = Array.isArray(item.genres) ? item.genres.filter(Boolean) : []
+  const platforms = Array.isArray(item.platforms) ? item.platforms.filter(Boolean) : []
+  const fallbackPlatform = item.platform || platforms[0]
+  return [item.year, genres[0], genres[1] || (!genres.length ? fallbackPlatform : '')].filter(Boolean).slice(0, 3)
+}
 
 function SmallIconButton({ icon, label, onClick, disabled = false, strong = false, className = '' }) {
   return (
@@ -50,10 +58,10 @@ function CategoryImageTile({ category, loading, onOpen }) {
   const image = imageFor(top)
   const picks = category.items.reduce((sum, item) => sum + Number(item.picks || 0), 0)
   return (
-    <button type="button" onClick={() => onOpen?.(category)} className="group relative min-h-[6.6rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 text-left transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[7.75rem]">
+    <button type="button" onClick={() => onOpen?.(category)} className="group relative min-h-[5.9rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 text-left transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[7.75rem]">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-72 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.07),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/10" />
-      <div className="relative flex min-h-[6.6rem] flex-col justify-between p-2.5 sm:min-h-[7.75rem] sm:p-3">
+      <div className="relative flex min-h-[5.9rem] flex-col justify-between p-2 sm:min-h-[7.75rem] sm:p-3">
         <div className="flex items-start justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-neutral-950 sm:px-2.5 sm:text-[9px] sm:tracking-[0.14em]"><AppIcon name={category.icon} size={10} />{category.title}</span>
           <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black text-white backdrop-blur">{loading ? '…' : category.count}</span>
@@ -69,13 +77,13 @@ function CategoryImageTile({ category, loading, onOpen }) {
 
 function LibraryOverviewPanel({ items, categories, loading, ratedCount, totalPicks, onOpen }) {
   return (
-    <section className="mt-5 rounded-[1.6rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20">
+    <section className="mt-3 rounded-[1.4rem] border border-white/10 bg-neutral-950/70 p-2 shadow-2xl shadow-black/20 sm:mt-5 sm:rounded-[1.6rem] sm:p-3">
       <div className="grid grid-cols-3 gap-2">
         <OverviewMetric icon="dashboard" label="Total" value={loading ? '…' : items.length} detail="saved" />
         <OverviewMetric icon="info" label="Rated" value={loading ? '…' : ratedCount} detail="scores" />
         <OverviewMetric icon="users" label="Picks" value={loading ? '…' : totalPicks} detail="votes" />
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-3 lg:grid-cols-3">
         {categories.map((category) => <CategoryImageTile key={category.title} category={category} loading={loading} onOpen={onOpen} />)}
       </div>
     </section>
@@ -110,19 +118,18 @@ function CategorySpotlightCard({ category, loading, isClique, saving, index, onC
   const image = imageFor(item)
   const canCycle = items.length > 1
   const title = loading ? 'Loading section…' : item?.title || `No ${category.title.toLowerCase()} yet`
+  const chips = itemMetaChips(item)
 
   return (
-    <article className="group relative min-h-[16.5rem] snap-start overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950/80 text-white shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[19rem]">
+    <article id={categoryTargetId(category)} className="group relative min-h-[15.25rem] snap-start overflow-hidden rounded-[1.6rem] border border-white/10 bg-neutral-950/80 text-white shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[19rem] sm:rounded-[1.75rem]">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
       <button type="button" onClick={() => item ? onInfo?.(item) : onOpenPile?.(category)} className="absolute inset-0 z-10" aria-label={`Open ${title}`} />
 
-      <div className="pointer-events-none relative z-20 flex min-h-[16.5rem] flex-col justify-between p-3 sm:min-h-[19rem] sm:p-4">
+      <div className="pointer-events-none relative z-20 flex min-h-[15.25rem] flex-col justify-between p-3 sm:min-h-[19rem] sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <span className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-950 sm:px-3 sm:text-[10px] sm:tracking-[0.16em]"><AppIcon name={category.icon} size={12} />{category.title}</span>
           <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
-            {canCycle ? <SmallIconButton icon="chevronLeft" label={`Previous ${category.singular}`} onClick={(event) => { event.stopPropagation(); onCycle?.(category, -1) }} /> : null}
-            {canCycle ? <SmallIconButton icon="chevronRight" label={`Next ${category.singular}`} onClick={(event) => { event.stopPropagation(); onCycle?.(category, 1) }} /> : null}
             <SmallIconButton icon="list" label={`Open ${category.title} list`} onClick={(event) => { event.stopPropagation(); onOpenPile?.(category) }} strong />
             {item ? <SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={(event) => { event.stopPropagation(); onInfo?.(item) }} /> : null}
             {item ? <SmallIconButton icon="share" label={`Share ${item.title}`} onClick={(event) => { event.stopPropagation(); onShare?.(item) }} /> : null}
@@ -130,31 +137,80 @@ function CategorySpotlightCard({ category, loading, isClique, saving, index, onC
           </div>
         </div>
 
-        <div className="pointer-events-auto max-w-[92%] rounded-[1.4rem] border border-white/10 bg-black/62 p-3 shadow-2xl shadow-black/30 backdrop-blur-md sm:max-w-[88%] sm:p-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">{loading ? 'Loading…' : `#${safeIndex + 1} in ${category.title}`}</p>
-          <h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white sm:text-2xl">{title}</h3>
-          <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-300 sm:text-sm">{item ? itemText(item) : `Add ${category.title.toLowerCase()} to make this section feel alive.`}</p>
+        <div className="pointer-events-auto flex max-w-[94%] items-end gap-3 rounded-[1.35rem] border border-white/10 bg-black/62 p-3 shadow-2xl shadow-black/30 backdrop-blur-md sm:max-w-[88%] sm:p-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">{loading ? 'Loading…' : `#${safeIndex + 1} in ${category.title}`}</p>
+            <h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white sm:text-2xl">{title}</h3>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {chips.length ? chips.map((chip) => <span key={chip} className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-[10px] font-bold text-neutral-200">{chip}</span>) : <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-1 text-[10px] font-bold text-neutral-300">{item ? `${item.picks || 0} picks` : 'Empty'}</span>}
+            </div>
+          </div>
+          {canCycle ? <SmallIconButton icon="chevronRight" label={`Next ${category.singular}`} onClick={(event) => { event.stopPropagation(); onCycle?.(category, 1) }} strong className="mb-0.5 shrink-0" /> : null}
         </div>
       </div>
     </article>
   )
 }
 
-function LibraryListPanel({ category, loading, isClique, votingKey, copyingKey, onClose, onVote, onInfo, onShare, onCopy }) {
+function LibraryListPanel({ category, categories = [], loading, isClique, votingKey, copyingKey, viewMode = 'grid', onViewModeChange, onSelectCategory, onClose, onVote, onInfo, onShare, onCopy }) {
   if (!category) return null
   const items = category.items || []
+  const isGrid = viewMode === 'grid'
   return (
-    <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5" id="library-inline-list">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-5">
-        <div><p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={category.icon} size={14} />{isClique ? 'Clique list' : 'Library list'}</p><h2 className="mt-1 text-3xl font-black text-white">{category.title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">{loading ? 'Loading…' : plural(items.length, 'item')} in this section.</p></div>
-        <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Close</button>
+    <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 sm:p-5" id="library-inline-list">
+      <div className="border-b border-white/10 pb-4 sm:pb-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500 sm:text-xs sm:tracking-[0.24em]"><AppIcon name={category.icon} size={14} />{isClique ? 'Clique list' : 'Library list'}</p>
+            <h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">{category.title}</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:mt-2 sm:text-sm sm:leading-6">{loading ? 'Loading…' : plural(items.length, 'item')} in this section.</p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <button type="button" onClick={() => onViewModeChange?.(isGrid ? 'list' : 'grid')} className="inline-flex items-center gap-1.5 rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950"><AppIcon name={isGrid ? 'list' : 'dashboard'} size={13} />{isGrid ? 'List' : 'Grid'}</button>
+            <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 sm:px-4 sm:text-sm">Close</button>
+          </div>
+        </div>
+        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+          {categories.map((entry) => {
+            const active = entry.title === category.title
+            return <button key={entry.title} type="button" onClick={() => onSelectCategory?.(entry)} className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${active ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}><AppIcon name={entry.icon} size={13} />{entry.title}</button>
+          })}
+        </div>
       </div>
       {loading ? <p className="mt-5 rounded-3xl border border-white/10 p-5 text-sm text-neutral-400">Loading list…</p> : items.length ? (
-        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className={isGrid ? 'mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3' : 'mt-5 space-y-3'}>
           {items.map((item, index) => {
             const image = imageFor(item)
             const voteBusy = votingKey === itemActionKey(item, 'vote-')
             const copyBusy = copyingKey === itemActionKey(item, 'copy-')
+            const chips = itemMetaChips(item)
+
+            if (!isGrid) {
+              return (
+                <article key={`${item.type}-${item.id}`} className="flex gap-3 overflow-hidden rounded-[1.35rem] border border-white/10 bg-neutral-950/80 p-2">
+                  <button type="button" onClick={() => onInfo?.(item)} className="relative h-24 w-20 shrink-0 overflow-hidden rounded-[1rem] bg-white/[0.04] text-left" aria-label={`Show details for ${item.title}`}>
+                    {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                    <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-black text-white">#{index + 1}</span>
+                  </button>
+                  <div className="min-w-0 flex-1 py-1 pr-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{item.type}</p>
+                    <h3 className="mt-0.5 line-clamp-2 text-base font-black leading-tight text-white">{item.title}</h3>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {chips.length ? chips.map((chip) => <span key={chip} className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-bold text-neutral-300">{chip}</span>) : null}
+                      <span className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-bold text-neutral-300">{item.picks || 0} picks</span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} />
+                      <SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} />
+                      {isClique ? <SmallIconButton icon="copy" label={`Copy ${item.title} to My Library`} onClick={() => onCopy?.(item)} disabled={copyBusy} /> : null}
+                      {isClique ? <button type="button" disabled={voteBusy} onClick={() => onVote?.(item, 'like')} className="rounded-full bg-white px-3 py-1.5 text-[11px] font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">{voteBusy ? 'Saving…' : 'Watch'}</button> : null}
+                    </div>
+                  </div>
+                </article>
+              )
+            }
+
             return (
               <article key={`${item.type}-${item.id}`} className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/80">
                 <div className="group relative h-44 overflow-hidden">
@@ -166,8 +222,12 @@ function LibraryListPanel({ category, loading, isClique, votingKey, copyingKey, 
                   <div className="absolute inset-x-0 bottom-0 p-4"><p className="text-xs uppercase tracking-[0.22em] text-neutral-300">{item.type}</p><h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{item.title}</h3></div>
                 </div>
                 <div className="p-4">
-                  <p className="line-clamp-2 text-sm leading-6 text-neutral-400">{itemText(item)}</p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300"><span className="rounded-full border border-white/10 px-3 py-1.5">Score {item.score || 0}</span><span className="rounded-full border border-white/10 px-3 py-1.5">{item.picks || 0} picks</span>{item.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}</div>
+                  <div className="flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
+                    {chips.length ? chips.map((chip) => <span key={chip} className="rounded-full border border-white/10 px-3 py-1.5">{chip}</span>) : null}
+                    <span className="rounded-full border border-white/10 px-3 py-1.5">Score {item.score || 0}</span>
+                    <span className="rounded-full border border-white/10 px-3 py-1.5">{item.picks || 0} picks</span>
+                    {item.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
+                  </div>
                   {isClique ? <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={voteBusy} onClick={() => onVote?.(item, 'like')} className="rounded-2xl bg-white px-3 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">{voteBusy ? 'Saving…' : 'Watch'}</button><button type="button" disabled={voteBusy} onClick={() => onVote?.(item, 'dislike')} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Pass</button></div> : null}
                 </div>
               </article>
@@ -200,6 +260,7 @@ export default function Home() {
   const [copyingKey, setCopyingKey] = useState('')
   const [votingKey, setVotingKey] = useState('')
   const [spotlightIndexes, setSpotlightIndexes] = useState({})
+  const [listViewMode, setListViewMode] = useState('grid')
 
   useEffect(() => {
     if (routeGroupId) setActiveGroup(routeGroupId)
@@ -265,17 +326,19 @@ export default function Home() {
   function openShare(item) { setSharingItem(item) }
   function handleShareMessage(text) { setShareNotice(text); setTimeout(() => setShareNotice(''), 2600) }
   function openPile(category) { setActivePileTitle(category.title); window.setTimeout(() => document.getElementById('library-inline-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }
+  function selectPile(category) { setActivePileTitle(category.title); window.setTimeout(() => document.getElementById('library-inline-list')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50) }
+  function jumpToSpotlight(category) { document.getElementById(categoryTargetId(category))?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }) }
   function cycleSpotlight(category, direction) { if (!category?.items?.length) return; setSpotlightIndexes((current) => { const previous = current[category.title] || 0; const next = (previous + direction + category.items.length) % category.items.length; return { ...current, [category.title]: next } }) }
   async function copyToLibrary(item) { if (!item || !hasSupabase || status !== 'ready') return handleShareMessage('Sign in from Profile before copying to My Library.'); const key = itemActionKey(item, 'copy-'); setCopyingKey(key); try { const nominatedBy = getSavedHandle() || 'anonymous'; if (item.type === 'Movie') await saveMovie(item, nominatedBy, null); else if (item.type === 'Series') await saveSeries(item, nominatedBy, null); else if (item.type === 'Game') await saveGame(item, nominatedBy, null); else throw new Error('Unsupported item type.'); handleShareMessage(`Copied "${item.title}" to My Library.`) } catch (error) { handleShareMessage(error.message || 'Could not copy this item to My Library.') } finally { setCopyingKey('') } }
   async function voteInClique(item, vote) { if (!item || !context.groupId || !hasSupabase || status !== 'ready') return handleShareMessage('Open a clique first to vote.'); const key = itemActionKey(item, 'vote-'); setVotingKey(key); try { if (item.type === 'Movie') await voteMovie(item, vote, context.groupId); else if (item.type === 'Series') await voteSeries(item, vote, context.groupId); else if (item.type === 'Game') await voteGame(item, vote, context.groupId); else throw new Error('Unsupported item type.'); handleShareMessage(vote === 'like' ? `Voted to watch "${item.title}".` : `Passed on "${item.title}".`); await refreshDashboard(context.groupId) } catch (error) { handleShareMessage(error.message || 'Could not save your vote.') } finally { setVotingKey('') } }
 
   return (
     <PageShell active={isClique ? 'cliques' : 'library'}>
-      <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
+      <section className="overflow-hidden rounded-[1.55rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20 sm:rounded-[2rem]">
         <div className="grid gap-0 xl:grid-cols-[1.1fr_0.9fr]">
-          <div className="p-4 sm:p-6">
-            <h1 className="max-w-3xl text-3xl font-black tracking-tight text-white sm:text-5xl">{context.name}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400 sm:text-base">{isClique ? 'Shared movie, series, and game picks for this clique.' : 'Your watched movies, finished series, and played games in one clean overview.'}</p>
+          <div className="p-3 sm:p-6">
+            <h1 className="max-w-3xl text-2xl font-black tracking-tight text-white sm:text-5xl">{context.name}</h1>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-neutral-400 sm:mt-2 sm:text-base sm:leading-6">{isClique ? 'Shared movie, series, and game picks for this clique.' : 'Your watched movies, finished series, and played games in one clean overview.'}</p>
             {status === 'signed-out' ? <p className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and sync your library.</p> : null}
             <LibraryOverviewPanel items={loading ? [] : allItems} categories={categories} loading={loading} ratedCount={ratedCount} totalPicks={totalPicks} onOpen={openPile} />
           </div>
@@ -288,9 +351,12 @@ export default function Home() {
       {shareNotice ? <div className="mt-5 rounded-2xl border border-emerald-400/30 bg-emerald-950/30 p-4 text-sm text-emerald-100">{shareNotice}</div> : null}
       {message ? <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-950/30 p-4 text-sm text-rose-100">{message}</div> : null}
 
-      <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
-        <div><h2 className="text-2xl font-black text-white sm:text-3xl">Top items by section</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Swipe through the section cards, or use the icon controls to browse, open the list, share, or view details.</p></div>
-        <div className="mt-5 grid auto-cols-[minmax(15.5rem,82%)] grid-flow-col gap-4 overflow-x-auto pb-2 snap-x snap-mandatory lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-3 lg:overflow-visible lg:pb-0">
+      <section className="mt-4 rounded-[1.55rem] border border-white/10 bg-white/[0.03] p-4 sm:mt-5 sm:rounded-[2rem] sm:p-5">
+        <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black text-white sm:text-3xl">Top by section</h2></div>
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
+          {categories.map((category) => <button key={category.title} type="button" onClick={() => jumpToSpotlight(category)} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950"><AppIcon name={category.icon} size={13} />{category.title}</button>)}
+        </div>
+        <div className="mt-4 grid auto-cols-[minmax(14.5rem,74%)] grid-flow-col gap-3 overflow-x-auto pb-2 snap-x snap-mandatory lg:mt-5 lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:pb-0">
           {categories.map((category) => {
             const index = spotlightIndexes[category.title] || 0
             const item = category.items[index % Math.max(category.items.length, 1)] || category.top
@@ -299,7 +365,7 @@ export default function Home() {
         </div>
       </section>
 
-      <LibraryListPanel category={activePile} loading={loading} isClique={isClique} votingKey={votingKey} copyingKey={copyingKey} onClose={() => setActivePileTitle('')} onVote={voteInClique} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
+      <LibraryListPanel category={activePile} categories={categories} loading={loading} isClique={isClique} votingKey={votingKey} copyingKey={copyingKey} viewMode={listViewMode} onViewModeChange={setListViewMode} onSelectCategory={selectPile} onClose={() => setActivePileTitle('')} onVote={voteInClique} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
       <ItemInfoModal item={infoItem} onClose={() => setInfoItem(null)} />
       {sharingItem ? <MemberShareModal item={sharingItem} type={sharingItem?.type?.toLowerCase()} onClose={() => setSharingItem(null)} onMessage={handleShareMessage} /> : null}
     </PageShell>
