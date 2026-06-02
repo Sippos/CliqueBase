@@ -2,9 +2,8 @@
 -- Replaces the community feed RPC so blocked actors disappear from the caller's feed,
 -- and actors who blocked the caller are also hidden.
 --
--- This migration defensively creates public.user_blocks because this RPC is often
--- tested manually after copying only this file. The full safety migration still
--- owns the report/block functions and policies.
+-- This migration defensively creates public.user_blocks and the block/unblock
+-- RPCs because this file is often tested manually after copying only this file.
 
 create table if not exists public.user_blocks (
   blocker_id uuid not null references auth.users(id) on delete cascade,
@@ -33,6 +32,44 @@ with check (blocker_id = (select auth.uid()) and blocker_id <> blocked_id);
 create policy "Users can delete their own blocks"
 on public.user_blocks for delete to authenticated
 using (blocker_id = (select auth.uid()));
+
+create or replace function public.block_user(blocked_id_input uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+begin
+  if current_user_id is null then
+    raise exception 'You must be signed in to block someone.';
+  end if;
+  if blocked_id_input is null or blocked_id_input = current_user_id then
+    raise exception 'Choose another member to block.';
+  end if;
+
+  insert into public.user_blocks (blocker_id, blocked_id)
+  values (current_user_id, blocked_id_input)
+  on conflict do nothing;
+end;
+$$;
+
+create or replace function public.unblock_user(blocked_id_input uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'You must be signed in to unblock someone.';
+  end if;
+
+  delete from public.user_blocks
+  where blocker_id = auth.uid() and blocked_id = blocked_id_input;
+end;
+$$;
 
 create or replace function public.get_social_activity(limit_input integer default 40, include_public_input boolean default true)
 returns table(
@@ -85,4 +122,6 @@ as $$
   limit greatest(1, least(coalesce(limit_input, 40), 100));
 $$;
 
+grant execute on function public.block_user(uuid) to authenticated;
+grant execute on function public.unblock_user(uuid) to authenticated;
 grant execute on function public.get_social_activity(integer, boolean) to authenticated;
