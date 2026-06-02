@@ -6,29 +6,37 @@
 
   /* Compact the small rank/score strip under the active public-pick card. */
   div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] {
-    margin-top: -0.48rem !important;
-    padding: 0.22rem 0.28rem !important;
-    border-radius: 0.95rem !important;
+    margin-top: -0.62rem !important;
+    padding: 0.16rem 0.25rem !important;
+    border-radius: 0.9rem !important;
   }
 
   div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] > div:first-child {
     min-height: 0 !important;
-    gap: 0.25rem !important;
+    gap: 0.18rem !important;
   }
 
   div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] > div:nth-child(2) {
-    margin-top: 0 !important;
-    gap: 0.25rem !important;
+    margin-top: -0.08rem !important;
+    gap: 0.18rem !important;
   }
 
   div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] p {
-    line-height: 0.78rem !important;
+    line-height: 0.68rem !important;
+    font-size: 0.64rem !important;
   }
 
   div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] span[class*="rounded-full"] {
-    padding-top: 0.05rem !important;
-    padding-bottom: 0.05rem !important;
-    line-height: 0.72rem !important;
+    padding-top: 0.025rem !important;
+    padding-bottom: 0.025rem !important;
+    line-height: 0.64rem !important;
+    font-size: 0.58rem !important;
+  }
+
+  div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] button[aria-label*="previous"],
+  div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] button[aria-label*="next"] {
+    height: 1.5rem !important;
+    width: 1.5rem !important;
   }
 
   /* Put the flipped card content near the top and remove helper labels. */
@@ -60,25 +68,59 @@
     padding-top: 0.75rem !important;
   }
 
-  /* Make the Open Clique action available on mobile clique cards. */
+  /* Make the Open Clique action available and consistent on mobile clique cards. */
   a[href^="/cliques/"][class*="hidden"][class*="w-full"] {
+    position: absolute !important;
+    right: 0.65rem !important;
+    bottom: 0.65rem !important;
+    z-index: 30 !important;
     display: inline-flex !important;
-    margin-top: 0.55rem !important;
-    padding: 0.65rem 0.8rem !important;
-    font-size: 0.72rem !important;
+    width: auto !important;
+    min-width: 4.25rem !important;
+    margin: 0 !important;
+    padding: 0.48rem 0.72rem !important;
+    border-radius: 9999px !important;
+    font-size: 0.66rem !important;
+    line-height: 1 !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    color: #0a0a0a !important;
   }
 
-  /* Keep share sheet compact and let the in-app search panel carry the explanation. */
+  /* Share sheet must sit above the bottom nav and stay fully visible. */
+  div[class*="z-[70]"] {
+    z-index: 2147483600 !important;
+    align-items: center !important;
+    padding: 0.8rem !important;
+  }
+
+  div[class*="z-[70]"] article {
+    max-height: calc(100dvh - 2.2rem) !important;
+    overflow-y: auto !important;
+    margin-bottom: 0 !important;
+    border-radius: 1.45rem !important;
+    padding: 0.85rem !important;
+  }
+
+  div[class*="z-[70]"] article > div[class*="grid"] {
+    gap: 0.45rem !important;
+  }
+
+  div[class*="z-[70]"] article > div[class*="grid"] button {
+    padding-top: 0.72rem !important;
+    padding-bottom: 0.72rem !important;
+    border-radius: 1rem !important;
+  }
+
   div[class*="z-[70]"] article > p:last-child {
     display: none !important;
   }
 
   [data-cliquebase-member-share] {
-    margin-top: 0.75rem;
+    margin-top: 0.65rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 1rem;
     background: rgba(255, 255, 255, 0.035);
-    padding: 0.65rem;
+    padding: 0.6rem;
   }
 
   [data-cliquebase-member-share] input {
@@ -86,9 +128,9 @@
     border-radius: 0.9rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(0, 0, 0, 0.35);
-    padding: 0.65rem 0.75rem;
+    padding: 0.62rem 0.72rem;
     color: white;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     outline: none;
   }
 
@@ -97,20 +139,22 @@
   }
 
   [data-cliquebase-member-results] {
-    margin-top: 0.55rem;
+    margin-top: 0.5rem;
     display: grid;
-    gap: 0.45rem;
+    gap: 0.4rem;
+    max-height: 34dvh;
+    overflow-y: auto;
   }
 
   [data-cliquebase-member-results] button,
   [data-cliquebase-member-results] div {
-    border-radius: 0.85rem;
+    border-radius: 0.82rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.04);
-    padding: 0.55rem 0.65rem;
+    padding: 0.5rem 0.62rem;
     color: white;
     text-align: left;
-    font-size: 0.76rem;
+    font-size: 0.74rem;
     font-weight: 800;
   }
 
@@ -118,7 +162,23 @@
     display: block;
     margin-top: 0.1rem;
     color: rgba(255, 255, 255, 0.46);
-    font-size: 0.65rem;
+    font-size: 0.64rem;
     font-weight: 700;
+  }
+
+  [data-member-library-link] {
+    margin-top: 0.65rem;
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0.55rem 0.7rem;
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 900;
+    text-decoration: none;
   }
 }
