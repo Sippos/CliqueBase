@@ -39,6 +39,19 @@ export async function unblockUser(userId) {
   return true
 }
 
+export async function getBlockedUsers() {
+  const client = requireConfiguredSupabase()
+  const { data, error } = await client.rpc('get_blocked_users')
+  if (error) throw error
+  return (data || []).map((member) => ({
+    id: member.user_id,
+    displayName: member.display_name || 'CliqueBase member',
+    email: member.email || '',
+    avatarUrl: member.avatar_url || '',
+    blockedAt: member.blocked_at || null,
+  }))
+}
+
 export async function getGroupReports(groupId, includeReviewed = false) {
   const client = requireConfiguredSupabase()
   if (!groupId) return []
