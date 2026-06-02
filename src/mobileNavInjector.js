@@ -20,11 +20,16 @@ const iconSvg = {
 const items = [
   { href: '/explore', label: 'Explore', icon: 'explore', match: (path) => path === '/explore' || path === '/' },
   { href: '/dashboard', label: 'Library', icon: 'dashboard', match: (path) => path === '/dashboard' || path === '/movies' || path === '/series' || path === '/games' || path === '/videos' || path === '/music' },
-  { href: '/groups', label: 'Cliques', icon: 'users', match: (path) => path === '/groups' || path.startsWith('/cliques') },
+  { href: '/groups', label: 'Cliques', icon: 'users', match: (path) => path === '/groups' || path === '/cliques' || path.startsWith('/cliques/') || path.startsWith('/g/') },
 ]
 
 function currentPath() {
   return window.location.pathname || '/explore'
+}
+
+function setRouteAttributes(path = currentPath()) {
+  document.documentElement.dataset.appPath = path
+  document.body.dataset.appPath = path
 }
 
 function renderIcon(name) {
@@ -45,6 +50,7 @@ function buildLink(item) {
 
 function updateActive(nav) {
   const path = currentPath()
+  setRouteAttributes(path)
   nav.querySelectorAll('a').forEach((link, index) => {
     const selected = items[index]?.match(path)
     if (selected) link.setAttribute('aria-current', 'page')
@@ -53,21 +59,42 @@ function updateActive(nav) {
 }
 
 function ensureMobileNav() {
+  if (!document.body) return
   let nav = document.querySelector('.mobile-bottom-nav')
   if (!nav) {
     nav = document.createElement('nav')
     nav.className = 'mobile-bottom-nav'
     nav.setAttribute('aria-label', 'Mobile primary navigation')
     items.forEach((item) => nav.appendChild(buildLink(item)))
-    document.body.appendChild(nav)
   }
+  if (nav.parentElement !== document.body) document.body.appendChild(nav)
   updateActive(nav)
 }
 
+function patchHistoryEvent(type) {
+  const original = window.history?.[type]
+  if (typeof original !== 'function' || original.__cliqueBasePatched) return
+  function patchedHistoryMethod(...args) {
+    const result = original.apply(this, args)
+    window.dispatchEvent(new Event(type.toLowerCase()))
+    window.dispatchEvent(new Event('cliquebase:navigation'))
+    return result
+  }
+  patchedHistoryMethod.__cliqueBasePatched = true
+  window.history[type] = patchedHistoryMethod
+}
+
 if (typeof window !== 'undefined') {
+  patchHistoryEvent('pushState')
+  patchHistoryEvent('replaceState')
   ensureMobileNav()
+  window.requestAnimationFrame?.(ensureMobileNav)
+  window.addEventListener('DOMContentLoaded', ensureMobileNav)
+  window.addEventListener('load', ensureMobileNav)
   window.addEventListener('popstate', ensureMobileNav)
   window.addEventListener('pushstate', ensureMobileNav)
   window.addEventListener('replacestate', ensureMobileNav)
-  window.setInterval(ensureMobileNav, 800)
+  window.addEventListener('cliquebase:navigation', ensureMobileNav)
+  window.addEventListener('hashchange', ensureMobileNav)
+  window.setInterval(ensureMobileNav, 500)
 }
