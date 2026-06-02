@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
+import BlockedMembersPanel from '../components/BlockedMembersPanel.jsx'
 import PageShell from '../components/PageShell.jsx'
 import TonightMode from '../components/TonightMode.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
@@ -382,6 +383,7 @@ export default function Community() {
         <div className="grid gap-6">
           <RecommendationComposer groups={groups} signedIn={signedIn} onCreated={refresh} onFlash={flash} />
           <TonightMode groups={groups} signedIn={signedIn} onFlash={flash} />
+          <BlockedMembersPanel signedIn={signedIn} onFlash={flash} onChanged={refresh} />
         </div>
         <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-4">
           <div className="mb-4 flex items-center justify-between gap-3 px-1">
