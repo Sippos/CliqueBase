@@ -34,12 +34,12 @@ function SmallIconButton({ icon, label, onClick, disabled = false, strong = fals
 
 function OverviewMetric({ icon, label, value, detail }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-neutral-300"><AppIcon name={icon} size={13} strokeWidth={2.4} /></span>
+    <div className="flex min-w-0 items-center gap-1.5 rounded-2xl border border-white/10 bg-white/[0.03] p-1.5 sm:gap-2 sm:p-2">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-neutral-300 sm:h-7 sm:w-7"><AppIcon name={icon} size={13} strokeWidth={2.4} /></span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[9px] font-black uppercase tracking-[0.2em] text-neutral-500">{label}</span>
-        <span className="mt-0.5 block text-lg font-black leading-none text-white">{value}</span>
-        {detail ? <span className="mt-0.5 block truncate text-[11px] text-neutral-500">{detail}</span> : null}
+        <span className="block text-[8px] font-black uppercase tracking-[0.14em] text-neutral-500 sm:text-[9px] sm:tracking-[0.2em]">{label}</span>
+        <span className="mt-0.5 block text-base font-black leading-none text-white sm:text-lg">{value}</span>
+        {detail ? <span className="mt-0.5 block truncate text-[10px] text-neutral-500 sm:text-[11px]">{detail}</span> : null}
       </span>
     </div>
   )
@@ -50,17 +50,17 @@ function CategoryImageTile({ category, loading, onOpen }) {
   const image = imageFor(top)
   const picks = category.items.reduce((sum, item) => sum + Number(item.picks || 0), 0)
   return (
-    <button type="button" onClick={() => onOpen?.(category)} className="group relative min-h-[7.75rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 text-left transition hover:-translate-y-0.5 hover:border-white/25">
+    <button type="button" onClick={() => onOpen?.(category)} className="group relative min-h-[6.6rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 text-left transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[7.75rem]">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-72 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.07),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/10" />
-      <div className="relative flex min-h-[7.75rem] flex-col justify-between p-3">
+      <div className="relative flex min-h-[6.6rem] flex-col justify-between p-2.5 sm:min-h-[7.75rem] sm:p-3">
         <div className="flex items-start justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={10} />{category.title}</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-neutral-950 sm:px-2.5 sm:text-[9px] sm:tracking-[0.14em]"><AppIcon name={category.icon} size={10} />{category.title}</span>
           <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black text-white backdrop-blur">{loading ? '…' : category.count}</span>
         </div>
         <div>
-          <h3 className="line-clamp-1 text-base font-black text-white">{loading ? 'Loading…' : top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
-          <p className="mt-1 text-[11px] font-semibold text-neutral-400">{loading ? 'Syncing' : `${plural(category.count, 'item')} · ${picks} picks`}</p>
+          <h3 className="line-clamp-1 text-sm font-black text-white sm:text-base">{loading ? 'Loading…' : top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
+          <p className="mt-1 text-[10px] font-semibold text-neutral-400 sm:text-[11px]">{loading ? 'Syncing' : `${plural(category.count, 'item')} · ${picks} picks`}</p>
         </div>
       </div>
     </button>
@@ -70,12 +70,12 @@ function CategoryImageTile({ category, loading, onOpen }) {
 function LibraryOverviewPanel({ items, categories, loading, ratedCount, totalPicks, onOpen }) {
   return (
     <section className="mt-5 rounded-[1.6rem] border border-white/10 bg-neutral-950/70 p-3 shadow-2xl shadow-black/20">
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2">
         <OverviewMetric icon="dashboard" label="Total" value={loading ? '…' : items.length} detail="saved" />
         <OverviewMetric icon="info" label="Rated" value={loading ? '…' : ratedCount} detail="scores" />
         <OverviewMetric icon="users" label="Picks" value={loading ? '…' : totalPicks} detail="votes" />
       </div>
-      <div className="mt-3 grid gap-2 lg:grid-cols-3">
+      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-3">
         {categories.map((category) => <CategoryImageTile key={category.title} category={category} loading={loading} onOpen={onOpen} />)}
       </div>
     </section>
@@ -112,14 +112,14 @@ function CategorySpotlightCard({ category, loading, isClique, saving, index, onC
   const title = loading ? 'Loading section…' : item?.title || `No ${category.title.toLowerCase()} yet`
 
   return (
-    <article className="group relative min-h-[19rem] overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950/80 text-white shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25">
+    <article className="group relative min-h-[16.5rem] snap-start overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950/80 text-white shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[19rem]">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
       <button type="button" onClick={() => item ? onInfo?.(item) : onOpenPile?.(category)} className="absolute inset-0 z-10" aria-label={`Open ${title}`} />
 
-      <div className="pointer-events-none relative z-20 flex min-h-[19rem] flex-col justify-between p-4">
+      <div className="pointer-events-none relative z-20 flex min-h-[16.5rem] flex-col justify-between p-3 sm:min-h-[19rem] sm:p-4">
         <div className="flex items-start justify-between gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.title}</span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-950 sm:px-3 sm:text-[10px] sm:tracking-[0.16em]"><AppIcon name={category.icon} size={12} />{category.title}</span>
           <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
             {canCycle ? <SmallIconButton icon="chevronLeft" label={`Previous ${category.singular}`} onClick={(event) => { event.stopPropagation(); onCycle?.(category, -1) }} /> : null}
             {canCycle ? <SmallIconButton icon="chevronRight" label={`Next ${category.singular}`} onClick={(event) => { event.stopPropagation(); onCycle?.(category, 1) }} /> : null}
@@ -130,10 +130,10 @@ function CategorySpotlightCard({ category, loading, isClique, saving, index, onC
           </div>
         </div>
 
-        <div className="pointer-events-auto max-w-[88%] rounded-[1.4rem] border border-white/10 bg-black/62 p-4 shadow-2xl shadow-black/30 backdrop-blur-md">
+        <div className="pointer-events-auto max-w-[92%] rounded-[1.4rem] border border-white/10 bg-black/62 p-3 shadow-2xl shadow-black/30 backdrop-blur-md sm:max-w-[88%] sm:p-4">
           <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-300">{loading ? 'Loading…' : `#${safeIndex + 1} in ${category.title}`}</p>
-          <h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{title}</h3>
-          <p className="mt-2 line-clamp-2 text-sm leading-5 text-neutral-300">{item ? itemText(item) : `Add ${category.title.toLowerCase()} to make this section feel alive.`}</p>
+          <h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white sm:text-2xl">{title}</h3>
+          <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-300 sm:text-sm">{item ? itemText(item) : `Add ${category.title.toLowerCase()} to make this section feel alive.`}</p>
         </div>
       </div>
     </article>
@@ -162,7 +162,7 @@ function LibraryListPanel({ category, loading, isClique, votingKey, copyingKey, 
                   {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
                   <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/55 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur">#{index + 1}</span>
-                  <div className="absolute right-3 top-3 z-20 flex gap-2"><SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} /><SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} />{isClique ? <SmallIconButton icon="copy" label={`Copy ${item.title}`} onClick={() => onCopy?.(item)} disabled={copyBusy} /> : null}</div>
+                  <div className="absolute right-3 top-3 z-20 flex gap-2"><SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} /><SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} />{isClique ? <SmallIconButton icon="copy" label={`Copy ${item.title} to My Library`} onClick={() => onCopy?.(item)} disabled={copyBusy} /> : null}</div>
                   <div className="absolute inset-x-0 bottom-0 p-4"><p className="text-xs uppercase tracking-[0.22em] text-neutral-300">{item.type}</p><h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{item.title}</h3></div>
                 </div>
                 <div className="p-4">
@@ -279,16 +279,18 @@ export default function Home() {
             {status === 'signed-out' ? <p className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and sync your library.</p> : null}
             <LibraryOverviewPanel items={loading ? [] : allItems} categories={categories} loading={loading} ratedCount={ratedCount} totalPicks={totalPicks} onOpen={openPile} />
           </div>
-          <LibraryShowcase items={loading ? [] : allItems} loading={loading} onShare={openShare} onInfo={setInfoItem} />
+          <div className="hidden xl:block">
+            <LibraryShowcase items={loading ? [] : allItems} loading={loading} onShare={openShare} onInfo={setInfoItem} />
+          </div>
         </div>
       </section>
 
       {shareNotice ? <div className="mt-5 rounded-2xl border border-emerald-400/30 bg-emerald-950/30 p-4 text-sm text-emerald-100">{shareNotice}</div> : null}
       {message ? <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-950/30 p-4 text-sm text-rose-100">{message}</div> : null}
 
-      <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5">
-        <div><h2 className="text-3xl font-black text-white">Top items by section</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Use the icon controls on each card to browse, open the list, share, or view details.</p></div>
-        <div className="mt-5 grid gap-4 lg:grid-cols-3">
+      <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 sm:p-5">
+        <div><h2 className="text-2xl font-black text-white sm:text-3xl">Top items by section</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Swipe through the section cards, or use the icon controls to browse, open the list, share, or view details.</p></div>
+        <div className="mt-5 grid auto-cols-[minmax(15.5rem,82%)] grid-flow-col gap-4 overflow-x-auto pb-2 snap-x snap-mandatory lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-3 lg:overflow-visible lg:pb-0">
           {categories.map((category) => {
             const index = spotlightIndexes[category.title] || 0
             const item = category.items[index % Math.max(category.items.length, 1)] || category.top
