@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
+import Community from './pages/Community.jsx'
 import Home from './pages/Home.jsx'
 import Movies from './pages/Movies.jsx'
 import Series from './pages/Series.jsx'
@@ -21,18 +22,6 @@ import {
 } from './lib/groups.js'
 import { getCurrentSession, hasSupabase, joinRemoteGroup, onAuthStateChanged } from './lib/supabaseClient.js'
 
-function getAppPathname() {
-  const pathname = window.location.pathname || '/'
-  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
-  if (base && base !== '/' && pathname.startsWith(`${base}/`)) return pathname.slice(base.length) || '/'
-  return pathname
-}
-
-function getAppBasePath() {
-  const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/')
-  return base.startsWith('/') ? base : `/${base}`
-}
-
 function getPendingInvite() {
   if (typeof window === 'undefined') return ''
   return parseInviteCode(window.localStorage.getItem(PENDING_GROUP_INVITE_STORAGE_KEY) || '')
@@ -44,64 +33,22 @@ function clearPendingInvite(code) {
   if (!code || pending === parseInviteCode(code)) window.localStorage.removeItem(PENDING_GROUP_INVITE_STORAGE_KEY)
 }
 
-function syncPendingInviteFromUrl() {
-  if (typeof window === 'undefined') return
-
-  const pathname = getAppPathname()
-  const inviteMatch = pathname.match(/^\/invite\/([^/?#]+)/)
-  const inviteCode = parseInviteCode(inviteMatch?.[1] || '')
-
-  if (inviteCode) {
-    window.localStorage.setItem(PENDING_GROUP_INVITE_STORAGE_KEY, inviteCode)
-    return
-  }
-
-  const pendingInvite = getPendingInvite()
-  if (!pendingInvite) return
-
-  const shouldResumeInvite = ['/', '/explore', '/leaderboard', '/dashboard', '/library'].includes(pathname)
-  if (!shouldResumeInvite) return
-
-  const base = getAppBasePath()
-  const nextPath = `${base}invite/${encodeURIComponent(pendingInvite)}${window.location.search || ''}${window.location.hash || ''}`
-  window.location.replace(nextPath)
-}
-
 function isPersonalLibraryPath(pathname) {
-  return [
-    '/dashboard',
-    '/library',
-    '/library/movies',
-    '/library/series',
-    '/library/games',
-    '/movies',
-    '/series',
-    '/games',
-    '/videos',
-    '/music',
-  ].includes(pathname)
+  return ['/dashboard', '/library', '/library/movies', '/library/series', '/library/games', '/movies', '/series', '/games', '/videos', '/music'].includes(pathname)
 }
 
 function syncCliqueScopeFromUrl() {
   if (typeof window === 'undefined') return
-  const pathname = getAppPathname()
+  const pathname = window.location.pathname || '/'
   const params = new URLSearchParams(window.location.search)
   const cliqueId = params.get('clique') || params.get('group') || params.get('scope')
-
-  if (cliqueId) {
-    window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, cliqueId)
-    return
-  }
-
-  if (isPersonalLibraryPath(pathname)) {
-    window.localStorage.removeItem(ACTIVE_GROUP_STORAGE_KEY)
-  }
+  if (cliqueId) window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, cliqueId)
+  else if (isPersonalLibraryPath(pathname)) window.localStorage.removeItem(ACTIVE_GROUP_STORAGE_KEY)
 }
 
 async function acceptPendingInvite(session = null) {
   const pendingInvite = getPendingInvite()
   if (!pendingInvite) return null
-
   if (hasSupabase) {
     const activeSession = session || await getCurrentSession().catch(() => null)
     if (!activeSession?.user) return null
@@ -111,7 +58,6 @@ async function acceptPendingInvite(session = null) {
     clearPendingInvite(pendingInvite)
     return joined
   }
-
   const joined = joinLocalGroup(pendingInvite, 'Member')
   if (joined?.id) {
     setActiveGroup(joined.id)
@@ -121,7 +67,6 @@ async function acceptPendingInvite(session = null) {
 }
 
 export default function App() {
-  syncPendingInviteFromUrl()
   syncCliqueScopeFromUrl()
 
   useEffect(() => {
@@ -134,10 +79,10 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Leaderboard />} />
+      <Route path="/" element={<Community />} />
+      <Route path="/community" element={<Community />} />
       <Route path="/explore" element={<Leaderboard />} />
       <Route path="/leaderboard" element={<Leaderboard />} />
-
       <Route path="/dashboard" element={<Home scope="personal" />} />
       <Route path="/library" element={<Home scope="personal" />} />
       <Route path="/library/movies" element={<Movies />} />
@@ -148,7 +93,6 @@ export default function App() {
       <Route path="/games" element={<Games />} />
       <Route path="/videos" element={<Videos />} />
       <Route path="/music" element={<Music />} />
-
       <Route path="/share/:type/:id" element={<Share />} />
       <Route path="/members/:memberId" element={<MemberLibrary />} />
       <Route path="/users/:memberId" element={<MemberLibrary />} />
