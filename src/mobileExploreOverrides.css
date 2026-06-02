@@ -1,0 +1,124 @@
+@media (max-width: 640px) {
+  .mobile-bottom-nav {
+    z-index: 2147483000 !important;
+    display: grid !important;
+  }
+
+  /* Compact the small rank/score strip under the active public-pick card. */
+  div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] {
+    margin-top: -0.48rem !important;
+    padding: 0.22rem 0.28rem !important;
+    border-radius: 0.95rem !important;
+  }
+
+  div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] > div:first-child {
+    min-height: 0 !important;
+    gap: 0.25rem !important;
+  }
+
+  div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] > div:nth-child(2) {
+    margin-top: 0 !important;
+    gap: 0.25rem !important;
+  }
+
+  div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] p {
+    line-height: 0.78rem !important;
+  }
+
+  div[class*="bg-black/52"][class*="backdrop-blur"][class*="-mt-2"] span[class*="rounded-full"] {
+    padding-top: 0.05rem !important;
+    padding-bottom: 0.05rem !important;
+    line-height: 0.72rem !important;
+  }
+
+  /* Put the flipped card content near the top and remove helper labels. */
+  div[class*="bg-black/74"][class*="backdrop-blur-sm"][class*="sm:hidden"] {
+    justify-content: flex-start !important;
+    padding: 1rem 0.85rem 0.75rem !important;
+  }
+
+  div[class*="bg-black/74"][class*="backdrop-blur-sm"][class*="sm:hidden"] > p:first-child,
+  div[class*="bg-black/74"][class*="backdrop-blur-sm"][class*="sm:hidden"] > p:last-child {
+    display: none !important;
+  }
+
+  div[class*="bg-black/74"][class*="backdrop-blur-sm"][class*="sm:hidden"] > h3 {
+    margin-top: 0 !important;
+    max-width: 82% !important;
+    text-align: left !important;
+    font-size: 1.35rem !important;
+    line-height: 1.05 !important;
+  }
+
+  div[class*="bg-black/74"][class*="backdrop-blur-sm"][class*="sm:hidden"] > h3 + p {
+    margin-top: 0.35rem !important;
+    max-width: 92% !important;
+  }
+
+  div[class*="bg-black/74"][class*="backdrop-blur-sm"][class*="sm:hidden"] > div[class*="grid"] {
+    margin-top: auto !important;
+    padding-top: 0.75rem !important;
+  }
+
+  /* Make the Open Clique action available on mobile clique cards. */
+  a[href^="/cliques/"][class*="hidden"][class*="w-full"] {
+    display: inline-flex !important;
+    margin-top: 0.55rem !important;
+    padding: 0.65rem 0.8rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  /* Keep share sheet compact and let the in-app search panel carry the explanation. */
+  div[class*="z-[70]"] article > p:last-child {
+    display: none !important;
+  }
+
+  [data-cliquebase-member-share] {
+    margin-top: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.035);
+    padding: 0.65rem;
+  }
+
+  [data-cliquebase-member-share] input {
+    width: 100%;
+    border-radius: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.35);
+    padding: 0.65rem 0.75rem;
+    color: white;
+    font-size: 0.8rem;
+    outline: none;
+  }
+
+  [data-cliquebase-member-share] input::placeholder {
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  [data-cliquebase-member-results] {
+    margin-top: 0.55rem;
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  [data-cliquebase-member-results] button,
+  [data-cliquebase-member-results] div {
+    border-radius: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.55rem 0.65rem;
+    color: white;
+    text-align: left;
+    font-size: 0.76rem;
+    font-weight: 800;
+  }
+
+  [data-cliquebase-member-results] small {
+    display: block;
+    margin-top: 0.1rem;
+    color: rgba(255, 255, 255, 0.46);
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+}
