@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import MemberShareModal from '../components/MemberShareModal.jsx'
@@ -56,20 +56,16 @@ function OverviewMetric({ icon, label, value, detail }) {
 function CategoryImageTile({ category, loading, onOpen }) {
   const top = category.top
   const image = imageFor(top)
-  const picks = category.items.reduce((sum, item) => sum + Number(item.picks || 0), 0)
   return (
-    <button type="button" onClick={() => onOpen?.(category)} className="group relative min-h-[5.9rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 text-left transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[7.75rem]">
+    <button type="button" onClick={() => onOpen?.(category)} className="group relative min-h-[5.45rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 text-left transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[7.75rem]">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-72 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.07),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/10" />
-      <div className="relative flex min-h-[5.9rem] flex-col justify-between p-2 sm:min-h-[7.75rem] sm:p-3">
+      <div className="relative flex min-h-[5.45rem] flex-col justify-between p-2 sm:min-h-[7.75rem] sm:p-3">
         <div className="flex items-start justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-neutral-950 sm:px-2.5 sm:text-[9px] sm:tracking-[0.14em]"><AppIcon name={category.icon} size={10} />{category.title}</span>
           <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-black text-white backdrop-blur">{loading ? '…' : category.count}</span>
         </div>
-        <div>
-          <h3 className="line-clamp-1 text-sm font-black text-white sm:text-base">{loading ? 'Loading…' : top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
-          <p className="mt-1 text-[10px] font-semibold text-neutral-400 sm:text-[11px]">{loading ? 'Syncing' : `${plural(category.count, 'item')} · ${picks} picks`}</p>
-        </div>
+        <h3 className="line-clamp-1 text-sm font-black text-white sm:text-base">{loading ? 'Loading…' : top?.title || `No ${category.title.toLowerCase()} yet`}</h3>
       </div>
     </button>
   )
@@ -121,7 +117,7 @@ function CategorySpotlightCard({ category, loading, isClique, saving, index, onC
   const chips = itemMetaChips(item)
 
   return (
-    <article id={categoryTargetId(category)} className="group relative min-h-[15.25rem] snap-start overflow-hidden rounded-[1.6rem] border border-white/10 bg-neutral-950/80 text-white shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[19rem] sm:rounded-[1.75rem]">
+    <article id={categoryTargetId(category)} data-top-category={category.title} className="group relative min-h-[15.25rem] snap-start overflow-hidden rounded-[1.6rem] border border-white/10 bg-neutral-950/80 text-white shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[19rem] sm:rounded-[1.75rem]">
       {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
       <button type="button" onClick={() => item ? onInfo?.(item) : onOpenPile?.(category)} className="absolute inset-0 z-10" aria-label={`Open ${title}`} />
@@ -178,7 +174,7 @@ function LibraryListPanel({ category, categories = [], loading, isClique, voting
         </div>
       </div>
       {loading ? <p className="mt-5 rounded-3xl border border-white/10 p-5 text-sm text-neutral-400">Loading list…</p> : items.length ? (
-        <div className={isGrid ? 'mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3' : 'mt-5 space-y-3'}>
+        <div className={isGrid ? 'mt-5 grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-2 xl:grid-cols-3' : 'mt-5 space-y-2 sm:space-y-3'}>
           {items.map((item, index) => {
             const image = imageFor(item)
             const voteBusy = votingKey === itemActionKey(item, 'vote-')
@@ -212,23 +208,23 @@ function LibraryListPanel({ category, categories = [], loading, isClique, voting
             }
 
             return (
-              <article key={`${item.type}-${item.id}`} className="overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950/80">
-                <div className="group relative h-44 overflow-hidden">
+              <article key={`${item.type}-${item.id}`} className="overflow-hidden rounded-[1.25rem] border border-white/10 bg-neutral-950/80 sm:rounded-[1.5rem]">
+                <div className="group relative h-32 overflow-hidden sm:h-44">
                   <button type="button" onClick={() => onInfo?.(item)} className="absolute inset-0 z-10 text-left" aria-label={`Show details for ${item.title}`} />
                   {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
-                  <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/55 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur">#{index + 1}</span>
-                  <div className="absolute right-3 top-3 z-20 flex gap-2"><SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} /><SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} />{isClique ? <SmallIconButton icon="copy" label={`Copy ${item.title} to My Library`} onClick={() => onCopy?.(item)} disabled={copyBusy} /> : null}</div>
-                  <div className="absolute inset-x-0 bottom-0 p-4"><p className="text-xs uppercase tracking-[0.22em] text-neutral-300">{item.type}</p><h3 className="mt-1 line-clamp-2 text-2xl font-black leading-tight text-white">{item.title}</h3></div>
+                  <span className="absolute left-2 top-2 rounded-full border border-white/15 bg-black/55 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-white backdrop-blur sm:left-3 sm:top-3 sm:px-3 sm:py-1 sm:text-xs sm:tracking-[0.18em]">#{index + 1}</span>
+                  <div className="absolute right-2 top-2 z-20 hidden gap-2 sm:right-3 sm:top-3 sm:flex"><SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} /><SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} />{isClique ? <SmallIconButton icon="copy" label={`Copy ${item.title} to My Library`} onClick={() => onCopy?.(item)} disabled={copyBusy} /> : null}</div>
+                  <div className="absolute inset-x-0 bottom-0 p-2 sm:p-4"><p className="text-[9px] uppercase tracking-[0.18em] text-neutral-300 sm:text-xs sm:tracking-[0.22em]">{item.type}</p><h3 className="mt-0.5 line-clamp-2 text-sm font-black leading-tight text-white sm:mt-1 sm:text-2xl">{item.title}</h3></div>
                 </div>
-                <div className="p-4">
-                  <div className="flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
-                    {chips.length ? chips.map((chip) => <span key={chip} className="rounded-full border border-white/10 px-3 py-1.5">{chip}</span>) : null}
-                    <span className="rounded-full border border-white/10 px-3 py-1.5">Score {item.score || 0}</span>
-                    <span className="rounded-full border border-white/10 px-3 py-1.5">{item.picks || 0} picks</span>
-                    {item.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
+                <div className="p-2 sm:p-4">
+                  <div className="flex flex-wrap gap-1 text-[10px] font-semibold text-neutral-300 sm:gap-2 sm:text-xs">
+                    {chips.length ? chips.slice(0, 2).map((chip) => <span key={chip} className="rounded-full border border-white/10 px-2 py-1 sm:px-3 sm:py-1.5">{chip}</span>) : null}
+                    <span className="rounded-full border border-white/10 px-2 py-1 sm:px-3 sm:py-1.5">{item.picks || 0} picks</span>
+                    {item.rating ? <span className="hidden rounded-full border border-white/10 px-3 py-1.5 sm:inline-flex">★ {Number(item.rating).toFixed(1)}</span> : null}
                   </div>
-                  {isClique ? <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={voteBusy} onClick={() => onVote?.(item, 'like')} className="rounded-2xl bg-white px-3 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60">{voteBusy ? 'Saving…' : 'Watch'}</button><button type="button" disabled={voteBusy} onClick={() => onVote?.(item, 'dislike')} className="rounded-2xl border border-white/10 px-3 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Pass</button></div> : null}
+                  <div className="mt-2 flex gap-2 sm:hidden"><SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} /><SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} />{isClique ? <SmallIconButton icon="copy" label={`Copy ${item.title} to My Library`} onClick={() => onCopy?.(item)} disabled={copyBusy} /> : null}</div>
+                  {isClique ? <div className="mt-3 flex flex-wrap gap-2 sm:mt-4"><button type="button" disabled={voteBusy} onClick={() => onVote?.(item, 'like')} className="rounded-2xl bg-white px-3 py-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-60 sm:text-sm">{voteBusy ? 'Saving…' : 'Watch'}</button><button type="button" disabled={voteBusy} onClick={() => onVote?.(item, 'dislike')} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60 sm:text-sm">Pass</button></div> : null}
                 </div>
               </article>
             )
@@ -248,6 +244,7 @@ function ItemInfoModal({ item, onClose }) {
 
 export default function Home() {
   const { groupId: routeGroupId } = useParams()
+  const topScrollerRef = useRef(null)
   const [loading, setLoading] = useState(hasSupabase)
   const [status, setStatus] = useState(hasSupabase ? 'checking' : 'local')
   const [context, setContext] = useState(() => ({ type: getActiveGroup() ? 'group' : 'personal', name: getActiveGroup()?.name || 'My Library', groupId: getActiveGroup()?.id || null }))
@@ -261,6 +258,7 @@ export default function Home() {
   const [votingKey, setVotingKey] = useState('')
   const [spotlightIndexes, setSpotlightIndexes] = useState({})
   const [listViewMode, setListViewMode] = useState('grid')
+  const [activeTopTitle, setActiveTopTitle] = useState('Movies')
 
   useEffect(() => {
     if (routeGroupId) setActiveGroup(routeGroupId)
@@ -283,6 +281,10 @@ export default function Home() {
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
   const totalPicks = useMemo(() => allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0), [allItems])
   const isClique = Boolean(context.groupId)
+
+  useEffect(() => {
+    if (!categories.some((category) => category.title === activeTopTitle)) setActiveTopTitle(categories[0]?.title || '')
+  }, [activeTopTitle, categories])
 
   async function refreshDashboard(preferredGroupId = null) {
     setLoading(true)
@@ -327,7 +329,17 @@ export default function Home() {
   function handleShareMessage(text) { setShareNotice(text); setTimeout(() => setShareNotice(''), 2600) }
   function openPile(category) { setActivePileTitle(category.title); window.setTimeout(() => document.getElementById('library-inline-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }
   function selectPile(category) { setActivePileTitle(category.title); window.setTimeout(() => document.getElementById('library-inline-list')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50) }
-  function jumpToSpotlight(category) { document.getElementById(categoryTargetId(category))?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }) }
+  function jumpToSpotlight(category) { setActiveTopTitle(category.title); document.getElementById(categoryTargetId(category))?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' }) }
+  function handleTopScroll(event) {
+    const container = event.currentTarget
+    const cards = Array.from(container.querySelectorAll('[data-top-category]'))
+    if (!cards.length) return
+    const current = cards.reduce((best, card) => {
+      const distance = Math.abs(card.offsetLeft - container.scrollLeft)
+      return !best || distance < best.distance ? { distance, title: card.dataset.topCategory } : best
+    }, null)
+    if (current?.title && current.title !== activeTopTitle) setActiveTopTitle(current.title)
+  }
   function cycleSpotlight(category, direction) { if (!category?.items?.length) return; setSpotlightIndexes((current) => { const previous = current[category.title] || 0; const next = (previous + direction + category.items.length) % category.items.length; return { ...current, [category.title]: next } }) }
   async function copyToLibrary(item) { if (!item || !hasSupabase || status !== 'ready') return handleShareMessage('Sign in from Profile before copying to My Library.'); const key = itemActionKey(item, 'copy-'); setCopyingKey(key); try { const nominatedBy = getSavedHandle() || 'anonymous'; if (item.type === 'Movie') await saveMovie(item, nominatedBy, null); else if (item.type === 'Series') await saveSeries(item, nominatedBy, null); else if (item.type === 'Game') await saveGame(item, nominatedBy, null); else throw new Error('Unsupported item type.'); handleShareMessage(`Copied "${item.title}" to My Library.`) } catch (error) { handleShareMessage(error.message || 'Could not copy this item to My Library.') } finally { setCopyingKey('') } }
   async function voteInClique(item, vote) { if (!item || !context.groupId || !hasSupabase || status !== 'ready') return handleShareMessage('Open a clique first to vote.'); const key = itemActionKey(item, 'vote-'); setVotingKey(key); try { if (item.type === 'Movie') await voteMovie(item, vote, context.groupId); else if (item.type === 'Series') await voteSeries(item, vote, context.groupId); else if (item.type === 'Game') await voteGame(item, vote, context.groupId); else throw new Error('Unsupported item type.'); handleShareMessage(vote === 'like' ? `Voted to watch "${item.title}".` : `Passed on "${item.title}".`); await refreshDashboard(context.groupId) } catch (error) { handleShareMessage(error.message || 'Could not save your vote.') } finally { setVotingKey('') } }
@@ -354,9 +366,12 @@ export default function Home() {
       <section className="mt-4 rounded-[1.55rem] border border-white/10 bg-white/[0.03] p-4 sm:mt-5 sm:rounded-[2rem] sm:p-5">
         <div className="flex items-center justify-between gap-3"><h2 className="text-2xl font-black text-white sm:text-3xl">Top by section</h2></div>
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 lg:hidden">
-          {categories.map((category) => <button key={category.title} type="button" onClick={() => jumpToSpotlight(category)} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950"><AppIcon name={category.icon} size={13} />{category.title}</button>)}
+          {categories.map((category) => {
+            const active = category.title === activeTopTitle
+            return <button key={category.title} type="button" onClick={() => jumpToSpotlight(category)} className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${active ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}><AppIcon name={category.icon} size={13} />{category.title}</button>
+          })}
         </div>
-        <div className="mt-4 grid auto-cols-[minmax(14.5rem,74%)] grid-flow-col gap-3 overflow-x-auto pb-2 snap-x snap-mandatory lg:mt-5 lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:pb-0">
+        <div ref={topScrollerRef} onScroll={handleTopScroll} className="mt-4 grid auto-cols-[minmax(14.5rem,74%)] grid-flow-col gap-3 overflow-x-auto pb-2 snap-x snap-mandatory lg:mt-5 lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:pb-0">
           {categories.map((category) => {
             const index = spotlightIndexes[category.title] || 0
             const item = category.items[index % Math.max(category.items.length, 1)] || category.top
