@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
@@ -29,6 +29,19 @@ function sortByRank(items = []) {
 }
 function copyPayload(item) { return { ...item, id: String(item.id), nominated_by: getNominator(item) || 'public clique' } }
 function formatMonthYear(value) { if (!value) return null; try { return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short' }).format(new Date(value)) } catch { return value } }
+function releaseYear(item) {
+  if (item?.year) return String(item.year)
+  if (!item?.released) return null
+  const parsed = new Date(item.released)
+  return Number.isNaN(parsed.getTime()) ? null : String(parsed.getFullYear())
+}
+function genreText(item, limit = 2) {
+  const raw = Array.isArray(item?.genres) ? item.genres : typeof item?.genres === 'string' ? item.genres.split(',') : []
+  return raw.map((genre) => String(genre || '').trim()).filter(Boolean).slice(0, limit).join(', ')
+}
+function itemMetaLine(item) {
+  return [genreText(item), releaseYear(item)].filter(Boolean).join(' · ')
+}
 function detailValue(value) { if (Array.isArray(value)) return value.filter(Boolean).join(', '); if (value === null || value === undefined || value === '') return null; return String(value) }
 function hasMetadata(item) { return Boolean(item?.year || item?.released || item?.genres?.length || item?.runtime || item?.seasons || item?.episodes || item?.platform || item?.platforms?.length || item?.overview || item?.description || item?.tmdbRating || item?.rawgRating) }
 function mergePublicItem(base, details) {
@@ -38,7 +51,7 @@ function mergePublicItem(base, details) {
 
 function CategoryBadge({ category }) {
   const meta = getCategoryMeta(category)
-  return <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-lg shadow-black/30 backdrop-blur"><AppIcon name={meta.icon} size={14} strokeWidth={2.2} className="shrink-0" />{meta.label}</span>
+  return <span className="hidden items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-lg shadow-black/30 backdrop-blur sm:inline-flex"><AppIcon name={meta.icon} size={14} strokeWidth={2.2} className="shrink-0" />{meta.label}</span>
 }
 function MetricPill({ children, active = false }) { return <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${active ? 'border-white bg-white text-neutral-950 shadow-lg shadow-white/10' : 'border-white/10 bg-white/[0.05] text-neutral-200'}`}>{children}</span> }
 function IconButton({ icon, label, onClick, disabled = false, strong = false, className = '' }) {
@@ -54,24 +67,59 @@ function EmptyState() {
   return <section className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.02] p-6 text-neutral-400"><h2 className="text-2xl font-black text-white">No public rankings yet</h2><p className="mt-2 max-w-2xl text-sm leading-6">The Explore dashboard will fill with the best rated public clique picks once movies, series, or games get votes.</p><Link to="/groups" className="mt-5 inline-flex rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Manage cliques</Link></section>
 }
 
-function FeaturedPickCard({ item, onInfo, rankLabel = 'global pick' }) {
+function FeaturedPickCard({ item, onInfo, onFlip, rankLabel = 'global pick', flipped = false, onCopy, onShare, saving = false }) {
   if (!item) return null
+  const meta = getCategoryMeta(item.category)
   const displayRank = item.categoryRank || item.rank || '—'
-  return <article className="group relative z-10 outline-none"><div className="relative min-h-[20rem] overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 transition group-hover:-translate-y-0.5 group-hover:border-white/20"><MediaArt item={item} className="absolute inset-0 opacity-82 transition duration-500 group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" /><div className="absolute left-4 top-4"><CategoryBadge category={item.category} /></div><IconButton icon="info" label={`Show details for ${item.title}`} onClick={(event) => { event.stopPropagation(); onInfo(item) }} className="absolute right-4 top-4" /><div className="absolute inset-x-0 bottom-0 p-5"><p className="text-xs font-bold uppercase tracking-[0.22em] text-neutral-300">#{displayRank} {rankLabel}</p><h3 className="mt-2 line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg">{item.title}</h3></div></div></article>
+  const groupPath = item.groupId ? getGroupOpenPath({ id: item.groupId }) : null
+  return (
+    <article className="group relative z-10 outline-none">
+      <div role="button" tabIndex={0} onClick={onFlip} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onFlip?.() }} className="relative min-h-[17.6rem] overflow-hidden rounded-[1.55rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 transition group-hover:-translate-y-0.5 group-hover:border-white/20 sm:min-h-[20rem] sm:rounded-[2rem]">
+        <MediaArt item={item} className={`absolute inset-0 opacity-82 transition duration-500 group-hover:scale-105 ${flipped ? 'scale-105 opacity-35 sm:opacity-82' : ''}`} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+        <div className="absolute left-4 top-4"><CategoryBadge category={item.category} /></div>
+        <IconButton icon="info" label={`Show details for ${item.title}`} onClick={(event) => { event.stopPropagation(); onInfo(item) }} className="absolute right-3 top-3 sm:right-4 sm:top-4" />
+        <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-neutral-300 sm:text-xs">#{displayRank} {rankLabel}</p>
+          <h3 className="mt-1.5 line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg sm:mt-2">{item.title}</h3>
+          {itemMetaLine(item) ? <p className="mt-1 block truncate text-xs font-semibold text-neutral-300 sm:hidden">{itemMetaLine(item)}</p> : null}
+          <p className="mt-2 hidden text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-400 sm:block">Tap the info button for details</p>
+        </div>
+        {flipped ? (
+          <div className="absolute inset-0 z-30 flex flex-col justify-end bg-black/72 p-4 backdrop-blur-sm sm:hidden" onClick={(event) => event.stopPropagation()}>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-400">{meta.label} actions</p>
+            <h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white">{item.title}</h3>
+            <p className="mt-1 truncate text-xs text-neutral-400">#{displayRank} in {item.groupName || 'Public clique'}{getNominator(item) ? ` · ${getNominator(item)}` : ''}</p>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <button type="button" onClick={() => onInfo(item)} className="inline-flex flex-col items-center justify-center gap-1 rounded-2xl border border-white/10 bg-white/[0.06] px-2 py-3 text-[11px] font-black text-white"><AppIcon name="info" size={17} />Details</button>
+              <button type="button" onClick={() => onCopy(item)} disabled={saving} className="inline-flex flex-col items-center justify-center gap-1 rounded-2xl bg-white px-2 py-3 text-[11px] font-black text-neutral-950 disabled:opacity-60"><AppIcon name="copy" size={17} />{saving ? '...' : 'Copy'}</button>
+              <button type="button" onClick={() => onShare(item)} className="inline-flex flex-col items-center justify-center gap-1 rounded-2xl border border-white/10 bg-white/[0.06] px-2 py-3 text-[11px] font-black text-white"><AppIcon name="share" size={17} />Share</button>
+            </div>
+            <div className="mt-2 flex gap-2">
+              {groupPath ? <Link to={groupPath} className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/10 px-3 py-2.5 text-xs font-black text-white"><AppIcon name="users" size={14} />Open clique</Link> : null}
+              <button type="button" onClick={() => onFlip(false)} className="inline-flex flex-1 items-center justify-center rounded-2xl border border-white/10 px-3 py-2.5 text-xs font-black text-neutral-300">Back</button>
+            </div>
+          </div>
+        ) : <div className="absolute right-4 top-14 rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-300 backdrop-blur sm:hidden">Tap</div>}
+      </div>
+    </article>
+  )
 }
 function PilePeekCard({ item, offset = 1, onClick }) {
   if (!item) return null
   const rank = item.categoryRank || item.rank || '—'
-  return <button type="button" onClick={onClick} aria-label={`Preview ${item.title}`} className="pointer-events-auto absolute left-3 right-0 h-[20rem] overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/30 transition hover:-translate-y-0.5 hover:border-white/20" style={{ top: `${(2 - offset) * 0.65}rem`, transform: `translateY(-${offset * 1.05}rem) translateX(${offset * 0.85}rem) scale(${1 - offset * 0.035})`, zIndex: 4 - offset }}><MediaArt item={item} className="absolute inset-0 opacity-50" /><div className="absolute inset-0 bg-black/35" /><div className="absolute left-4 top-4 rounded-full border border-white/15 bg-black/60 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white backdrop-blur">Next #{rank}</div><div className="absolute bottom-4 left-4 right-4 text-left"><p className="truncate text-sm font-black text-white">{item.title}</p></div></button>
+  return <button type="button" onClick={onClick} aria-label={`Preview ${item.title}`} className="pointer-events-auto absolute left-2 right-0 h-[17.6rem] overflow-hidden rounded-[1.55rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/30 transition hover:-translate-y-0.5 hover:border-white/20 sm:left-3 sm:h-[20rem] sm:rounded-[2rem]" style={{ top: `${(2 - offset) * 0.45}rem`, transform: `translateY(-${offset * 0.7}rem) translateX(${offset * 0.65}rem) scale(${1 - offset * 0.025})`, zIndex: 4 - offset }}><MediaArt item={item} className="absolute inset-0 opacity-42 sm:opacity-50" /><div className="absolute inset-0 bg-black/40" /><div className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/60 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white backdrop-blur sm:left-4 sm:top-4">Next #{rank}</div><div className="absolute bottom-3 left-3 right-3 text-left sm:bottom-4 sm:left-4 sm:right-4"><p className="truncate text-sm font-black text-white">{item.title}</p></div></button>
 }
 function ProgressDots({ count, active, onSelect }) {
   if (count < 2) return null
   return <div className="flex items-center gap-1.5" aria-label="Pick position">{Array.from({ length: Math.min(count, 8) }).map((_, index) => <button key={index} type="button" onClick={() => onSelect(index)} aria-label={`Show pick ${index + 1}`} className={`h-1.5 rounded-full transition ${index === active ? 'w-6 bg-white' : 'w-1.5 bg-white/25 hover:bg-white/60'}`} />)}{count > 8 ? <span className="text-[10px] font-black text-neutral-600">+{count - 8}</span> : null}</div>
 }
 
-function FeaturedPickPile({ category, items, onInfo, onOpenLadder }) {
+function FeaturedPickPile({ category, items, onInfo, onOpenLadder, onCopy, onShare, saving }) {
   const [activeIndex, setActiveIndex] = useState(0)
-  useEffect(() => { setActiveIndex(0) }, [category, items.length])
+  const [flipped, setFlipped] = useState(false)
+  const swipeStart = useRef(null)
+  useEffect(() => { setActiveIndex(0); setFlipped(false) }, [category, items.length])
   if (!items.length) return null
   const meta = getCategoryMeta(category)
   const safeIndex = ((activeIndex % items.length) + items.length) % items.length
@@ -80,9 +128,50 @@ function FeaturedPickPile({ category, items, onInfo, onOpenLadder }) {
   const thirdItem = items[(safeIndex + 2) % items.length]
   const canStep = items.length > 1
   const displayRank = activeItem.categoryRank || activeItem.rank || safeIndex + 1
-  function goTo(index) { if (canStep) setActiveIndex(((index % items.length) + items.length) % items.length) }
+  const metaLine = itemMetaLine(activeItem)
+  function goTo(index) { if (canStep) { setActiveIndex(((index % items.length) + items.length) % items.length); setFlipped(false) } }
   function stepCard(delta) { if (canStep) goTo(activeIndex + delta) }
-  return <div className="relative pt-8 pr-5">{items.length > 2 ? <PilePeekCard item={thirdItem} offset={2} onClick={() => stepCard(2)} /> : null}{items.length > 1 ? <PilePeekCard item={nextItem} offset={1} onClick={() => stepCard(1)} /> : null}<FeaturedPickCard key={itemKey(activeItem, 'featured-')} item={activeItem} onInfo={onInfo} rankLabel={`${meta.label.toLowerCase()} pick`} /><div className="relative z-20 -mt-3 rounded-[1.2rem] border border-white/10 bg-black/45 p-2.5 shadow-xl shadow-black/25 backdrop-blur"><div className="flex items-center justify-between gap-2"><button type="button" onClick={() => onInfo(activeItem)} className="min-w-0 flex-1 text-left"><h3 className="truncate text-base font-black leading-tight text-white">{activeItem.title}</h3><p className="mt-0.5 truncate text-[11px] text-neutral-500">#{displayRank} of {items.length} · {activeItem.groupName || 'Public clique'}{getNominator(activeItem) ? ` · ${getNominator(activeItem)}` : ''}</p></button><button type="button" onClick={() => onOpenLadder(category)} aria-label={`Open ${meta.plural} ladder`} title="Open ladder" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="list" size={13} strokeWidth={2.4} /></button></div><div className="mt-2 flex items-center justify-between gap-2"><div className="flex min-w-0 flex-wrap gap-1.5"><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-bold text-neutral-200">Score {activeItem.score || 0}</span><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-bold text-neutral-200">{activeItem.picks || 0} picks</span>{activeItem.rating ? <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-bold text-neutral-200">Rating {Number(activeItem.rating).toFixed(1)}</span> : null}</div><div className="flex shrink-0 items-center gap-1"><button type="button" onClick={() => stepCard(-1)} disabled={!canStep} aria-label={`Show previous ${meta.label.toLowerCase()} pick`} className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-sm font-black leading-none text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-white/[0.04] disabled:hover:text-white">‹</button><button type="button" onClick={() => stepCard(1)} disabled={!canStep} aria-label={`Show next ${meta.label.toLowerCase()} pick`} className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-sm font-black leading-none text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-white/[0.04] disabled:hover:text-white">›</button></div></div><div className="mt-2"><ProgressDots count={items.length} active={safeIndex} onSelect={goTo} /></div></div></div>
+  function handleTouchStart(event) {
+    const touch = event.touches?.[0]
+    if (touch) swipeStart.current = { x: touch.clientX, y: touch.clientY }
+  }
+  function handleTouchEnd(event) {
+    const start = swipeStart.current
+    const touch = event.changedTouches?.[0]
+    swipeStart.current = null
+    if (!start || !touch || flipped) return
+    const dx = touch.clientX - start.x
+    const dy = touch.clientY - start.y
+    if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.25) stepCard(dx < 0 ? 1 : -1)
+  }
+  return (
+    <section className="sm:contents">
+      <div className="mb-2 flex items-center justify-between px-1 sm:hidden">
+        <h2 className="inline-flex items-center gap-2 text-xl font-black text-white"><AppIcon name={meta.icon} size={18} />{meta.plural}</h2>
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Swipe</span>
+      </div>
+      <div className="relative pt-4 pr-2 sm:pt-8 sm:pr-5" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        {items.length > 2 ? <PilePeekCard item={thirdItem} offset={2} onClick={() => stepCard(2)} /> : null}
+        {items.length > 1 ? <PilePeekCard item={nextItem} offset={1} onClick={() => stepCard(1)} /> : null}
+        <FeaturedPickCard key={itemKey(activeItem, 'featured-')} item={activeItem} onInfo={onInfo} onFlip={(value = true) => setFlipped(value)} flipped={flipped} onCopy={onCopy} onShare={onShare} saving={saving} rankLabel={`${meta.label.toLowerCase()} pick`} />
+        <div className="relative z-20 -mt-2 rounded-[1.15rem] border border-white/10 bg-black/52 p-2.5 shadow-xl shadow-black/25 backdrop-blur sm:-mt-3 sm:rounded-[1.2rem]">
+          <div className="flex items-center justify-between gap-2">
+            <button type="button" onClick={() => onInfo(activeItem)} className="min-w-0 flex-1 text-left">
+              <h3 className="hidden truncate text-base font-black leading-tight text-white sm:block">{activeItem.title}</h3>
+              <p className="truncate text-[12px] font-black text-white sm:mt-0.5 sm:text-[11px] sm:font-normal sm:text-neutral-500"><span className="sm:hidden">#{displayRank} in {activeItem.groupName || 'Public clique'}{getNominator(activeItem) ? ` · ${getNominator(activeItem)}` : ''}</span><span className="hidden sm:inline">#{displayRank} of {items.length} · {activeItem.groupName || 'Public clique'}{getNominator(activeItem) ? ` · ${getNominator(activeItem)}` : ''}</span></p>
+              {metaLine ? <p className="mt-0.5 truncate text-[11px] font-semibold text-neutral-400 sm:hidden">{metaLine}</p> : null}
+            </button>
+            <button type="button" onClick={() => onOpenLadder(category)} aria-label={`Open ${meta.plural} ladder`} title="Open ladder" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="list" size={13} strokeWidth={2.4} /></button>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap gap-1.5"><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-bold text-neutral-200">Score {activeItem.score || 0}</span><span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-bold text-neutral-200">{activeItem.picks || 0} picks</span>{activeItem.rating ? <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] font-bold text-neutral-200">Rating {Number(activeItem.rating).toFixed(1)}</span> : null}</div>
+            <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={() => stepCard(-1)} disabled={!canStep} aria-label={`Show previous ${meta.label.toLowerCase()} pick`} className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-sm font-black leading-none text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-white/[0.04] disabled:hover:text-white">‹</button><button type="button" onClick={() => stepCard(1)} disabled={!canStep} aria-label={`Show next ${meta.label.toLowerCase()} pick`} className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-sm font-black leading-none text-white transition hover:bg-white hover:text-neutral-950 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-white/[0.04] disabled:hover:text-white">›</button></div>
+          </div>
+          <div className="mt-2"><ProgressDots count={items.length} active={safeIndex} onSelect={goTo} /></div>
+        </div>
+      </div>
+    </section>
+  )
 }
 
 function CategoryLadderModal({ category, items = [], title, subtitle, saving, onInfo, onCopy, onClose }) {
@@ -96,7 +185,7 @@ function GroupRubricTile({ summary, onOpenList }) {
   const meta = getCategoryMeta(summary.category)
   const topItem = summary.items[0]
   const ratingLabel = topItem?.rating ? ` · Rating ${Number(topItem.rating).toFixed(1)}` : ''
-  return <div className="relative pt-2 pr-2">{summary.count > 1 ? <div className="pointer-events-none absolute right-0 top-0 h-[11rem] w-[94%] rounded-2xl border border-white/10 bg-white/[0.035] shadow-xl shadow-black/20" /> : null}{summary.count > 2 ? <div className="pointer-events-none absolute right-2 top-2 h-[10.25rem] w-[91%] rounded-2xl border border-white/10 bg-white/[0.03] shadow-xl shadow-black/20" /> : null}<article className="group relative min-h-[11rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/20">{topItem?.poster ? <img src={topItem.poster} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-neutral-400"><AppIcon name={meta.icon} size={34} strokeWidth={1.7} /></div>}<div className="absolute left-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-white/15 bg-black/45 text-white shadow-lg shadow-black/30 backdrop-blur-sm"><AppIcon name={meta.icon} size={15} strokeWidth={2.2} /></div><button type="button" onClick={() => onOpenList(summary)} aria-label={`Show all ${meta.plural.toLowerCase()} in this clique`} className="absolute right-3 top-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-xs font-black text-neutral-950 shadow-lg shadow-black/30 transition hover:bg-neutral-200">{summary.count}</button><div className="absolute inset-x-3 bottom-3 rounded-2xl bg-black/45 p-2 shadow-lg shadow-black/30 backdrop-blur-sm"><h4 className="text-base font-black leading-tight text-white">{meta.plural}</h4><p className="mt-1 line-clamp-1 text-[11px] font-semibold text-neutral-300">{topItem ? `#1 ${topItem.title}` : 'No picks yet'}</p><p className="mt-1 text-[10px] font-bold text-neutral-400">Score {summary.score || 0}{ratingLabel}</p></div></article></div>
+  return <div className="relative pt-2 pr-2"><article className="group relative min-h-[11rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/20">{topItem?.poster ? <img src={topItem.poster} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-neutral-400"><AppIcon name={meta.icon} size={34} strokeWidth={1.7} /></div>}<div className="absolute left-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-2xl border border-white/15 bg-black/45 text-white shadow-lg shadow-black/30 backdrop-blur-sm"><AppIcon name={meta.icon} size={15} strokeWidth={2.2} /></div><button type="button" onClick={() => onOpenList(summary)} aria-label={`Show all ${meta.plural.toLowerCase()} in this clique`} className="absolute right-3 top-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-white px-2 text-xs font-black text-neutral-950 shadow-lg shadow-black/30 transition hover:bg-neutral-200">{summary.count}</button><div className="absolute inset-x-3 bottom-3 rounded-2xl bg-black/45 p-2 shadow-lg shadow-black/30 backdrop-blur-sm"><h4 className="text-base font-black leading-tight text-white">{meta.plural}</h4><p className="mt-1 line-clamp-1 text-[11px] font-semibold text-neutral-300">{topItem ? `#1 ${topItem.title}` : 'No picks yet'}</p><p className="mt-1 text-[10px] font-bold text-neutral-400">Score {summary.score || 0}{ratingLabel}</p></div></article></div>
 }
 function GroupSummaryCard({ group, onOpenRubric }) {
   const allItems = group.publicItems || group.topItems || []
@@ -134,7 +223,19 @@ function ExploreBoard() {
   const [activeLadder, setActiveLadder] = useState(null)
   const [savingItem, setSavingItem] = useState(false)
   useEffect(() => { if (!hasSupabase) return undefined; let cancelled = false; async function loadBoard() { setLoading(true); try { const data = await getCommunityLeaderboard(); if (!cancelled) setBoard(data) } catch (error) { if (!cancelled) setMessage(error.message || 'Could not load Explore.') } finally { if (!cancelled) setLoading(false) } } loadBoard(); return () => { cancelled = true } }, [])
-  async function copyToLibrary(item) { setSavingItem(true); try { const payload = copyPayload(item); if (item.category === 'Movies') await saveMovie(payload, payload.nominated_by); else if (item.category === 'Series') await saveSeries(payload, payload.nominated_by); else if (item.category === 'Games') await saveGame(payload, payload.nominated_by); else throw new Error('This content type cannot be copied yet.'); setMessage(`${item.title} copied to your library.`); setSelectedItem(null); setTimeout(() => setMessage(null), 2500) } catch (error) { setMessage(error.message || 'Could not copy this pick.'); setTimeout(() => setMessage(null), 3500) } finally { setSavingItem(false) } }
+  function flash(text, duration = 2500) { setMessage(text); window.setTimeout(() => setMessage(null), duration) }
+  async function copyToLibrary(item) { setSavingItem(true); try { const payload = copyPayload(item); if (item.category === 'Movies') await saveMovie(payload, payload.nominated_by); else if (item.category === 'Series') await saveSeries(payload, payload.nominated_by); else if (item.category === 'Games') await saveGame(payload, payload.nominated_by); else throw new Error('This content type cannot be copied yet.'); flash(`${item.title} copied to your library.`); setSelectedItem(null) } catch (error) { flash(error.message || 'Could not copy this pick.', 3500) } finally { setSavingItem(false) } }
+  async function shareItem(item) {
+    const groupUrl = item.groupId ? `${window.location.origin}${getGroupOpenPath({ id: item.groupId })}` : window.location.href
+    const text = `${item.title} · ${item.groupName || 'Public clique'}`
+    try {
+      if (navigator.share) await navigator.share({ title: item.title, text, url: groupUrl })
+      else if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(`${text} ${groupUrl}`); flash('Share link copied.') }
+      else flash('Sharing is not available in this browser.', 3000)
+    } catch (error) {
+      if (error?.name !== 'AbortError') flash('Could not share this pick.', 3000)
+    }
+  }
   const groups = board.groups || []
   const topContent = board.topContent || []
   const categoryPiles = useMemo(() => featuredCategories.map((category) => { const items = sortByRank(topContent.filter((item) => item.category === category)).map((item, index) => ({ ...item, categoryRank: index + 1 })); return { category, items } }).filter((pile) => pile.items.length), [topContent])
@@ -143,7 +244,7 @@ function ExploreBoard() {
   if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading Explore...</div>
   if (message && !topContent.length && !groups.length) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
   if (!topContent.length && !groups.length) return <EmptyState />
-  return <>{message ? <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}{categoryPiles.length ? <section className="mb-8 pt-1"><div className="mb-4 flex flex-col gap-3 px-1 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="text-3xl font-black text-white">Top public picks</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Best public picks from cliques for movies, series, games and more.</p></div><div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300"><AppIcon name="explore" size={15} />{topContent.length} public picks</div></div><div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{categoryPiles.map((pile) => <FeaturedPickPile key={pile.category} category={pile.category} items={pile.items} onInfo={setSelectedItem} onOpenLadder={openCategoryLadder} />)}</div></section> : null}{groups.length ? <section><div className="mb-4 flex flex-col gap-2 px-1 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Public discovery</p><h2 className="mt-1 text-3xl font-black text-white">Top Cliques</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Open a public clique to see clique choices and library.</p></div><span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300">{groups.length} public</span></div><div className="grid gap-4 xl:grid-cols-2">{groups.slice(0, 10).map((group) => <GroupSummaryCard key={group.id} group={group} onOpenRubric={openGroupRubric} />)}</div></section> : null}<CategoryLadderModal category={activeLadder?.category} items={activeLadder?.items || []} title={activeLadder?.title} subtitle={activeLadder?.subtitle} saving={savingItem} onInfo={(item) => { setActiveLadder(null); setSelectedItem(item) }} onCopy={copyToLibrary} onClose={() => setActiveLadder(null)} /><DetailModal item={selectedItem} saving={savingItem} onCopy={copyToLibrary} onClose={() => setSelectedItem(null)} /></>
+  return <>{message ? <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}{categoryPiles.length ? <section className="mb-6 pt-1 sm:mb-8"><div className="mb-3 flex flex-col gap-3 px-1 sm:mb-4 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="text-3xl font-black text-white">Top public picks</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Best public picks from cliques for movies, series, games and more.</p></div><div className="hidden w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300 sm:inline-flex"><AppIcon name="explore" size={15} />{topContent.length} public picks</div></div><div className="grid gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">{categoryPiles.map((pile) => <FeaturedPickPile key={pile.category} category={pile.category} items={pile.items} onInfo={setSelectedItem} onOpenLadder={openCategoryLadder} onCopy={copyToLibrary} onShare={shareItem} saving={savingItem} />)}</div></section> : null}{groups.length ? <section><div className="mb-4 flex flex-col gap-2 px-1 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Public discovery</p><h2 className="mt-1 text-3xl font-black text-white">Top Cliques</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Open a public clique to see clique choices and library.</p></div><span className="w-fit rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300">{groups.length} public</span></div><div className="grid gap-4 xl:grid-cols-2">{groups.slice(0, 10).map((group) => <GroupSummaryCard key={group.id} group={group} onOpenRubric={openGroupRubric} />)}</div></section> : null}<CategoryLadderModal category={activeLadder?.category} items={activeLadder?.items || []} title={activeLadder?.title} subtitle={activeLadder?.subtitle} saving={savingItem} onInfo={(item) => { setActiveLadder(null); setSelectedItem(item) }} onCopy={copyToLibrary} onClose={() => setActiveLadder(null)} /><DetailModal item={selectedItem} saving={savingItem} onCopy={copyToLibrary} onClose={() => setSelectedItem(null)} /></>
 }
 
 export default function Leaderboard() { return <PageShell active="explore"><ExploreBoard /></PageShell> }
