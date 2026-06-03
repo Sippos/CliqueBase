@@ -9,6 +9,15 @@ function clean(value) {
   return String(value || '').trim()
 }
 
+function uniquePolls(polls = []) {
+  const seen = new Set()
+  return polls.filter((poll) => {
+    if (!poll?.id || seen.has(poll.id)) return false
+    seen.add(poll.id)
+    return true
+  })
+}
+
 function normalizePoll(row = {}) {
   const options = Array.isArray(row.options) ? row.options : []
   return {
@@ -40,6 +49,25 @@ export async function getCliquePolls(groupId, limit = 10) {
   })
   if (error) throw error
   return (data || []).map(normalizePoll)
+}
+
+export async function getPendingExpiredPollDecisions(groupId, limit = 5) {
+  if (!groupId) return []
+  const client = requireConfiguredSupabase()
+  const { data, error } = await client.rpc('get_pending_expired_poll_decisions', {
+    group_id_input: groupId,
+    limit_input: limit,
+  })
+  if (error) throw error
+  return (data || []).map(normalizePoll)
+}
+
+export async function getCliquePollsWithPendingDecisions(groupId, limit = 10) {
+  const [polls, pendingExpired] = await Promise.all([
+    getCliquePolls(groupId, limit),
+    getPendingExpiredPollDecisions(groupId, 5).catch(() => []),
+  ])
+  return uniquePolls([...pendingExpired, ...polls]).slice(0, limit + 5)
 }
 
 export async function createCliquePoll(groupId, question, options) {
