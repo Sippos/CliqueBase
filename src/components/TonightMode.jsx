@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import AppIcon from './AppIcon.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
 import { closeCliquePoll, createCliquePoll, getCliquePollsWithPendingDecisions, voteCliquePoll } from '../lib/cliquePolls.js'
+import { getDecisionBacklogOptions } from '../lib/decisionBacklog.js'
 import { getCliqueDecisions, markDecisionDone } from '../lib/decisions.js'
 import {
   decisionOptionsOrFallback,
@@ -143,6 +144,7 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
   const [decisions, setDecisions] = useState([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [seeding, setSeeding] = useState(false)
   const [votingKey, setVotingKey] = useState('')
   const [closingKey, setClosingKey] = useState('')
   const [doneKey, setDoneKey] = useState('')
@@ -181,6 +183,28 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
   }
 
   useEffect(() => { refresh() }, [selectedGroup?.id, signedIn])
+
+  async function handleSeedBacklog() {
+    if (!canUse) {
+      onFlash?.('Join or create a clique first.')
+      return
+    }
+    setSeeding(true)
+    try {
+      const backlogOptions = await getDecisionBacklogOptions(selectedGroup.id, 6)
+      if (backlogOptions.length < 2) {
+        onFlash?.('Add at least two unfinished clique picks first.')
+        return
+      }
+      setOptions(backlogOptions.join('\n'))
+      setQuestion(defaultDecisionQuestion(selectedGroup.name))
+      onFlash?.('Loaded top unfinished clique picks.')
+    } catch (error) {
+      onFlash?.(error.message || 'Could not load clique backlog.')
+    } finally {
+      setSeeding(false)
+    }
+  }
 
   async function handleCreate(event) {
     event.preventDefault()
@@ -263,7 +287,12 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
           </select>
           <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={defaultDecisionQuestion(selectedGroup?.name)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
           <textarea value={options} onChange={(event) => setOptions(event.target.value)} rows={3} placeholder={'One option per line\nThe movie pick\nThe game pick'} className="resize-none rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
-          <button disabled={saving || !canUse} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{saving ? 'Creating…' : 'Start poll'}</button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button type="button" disabled={seeding || !canUse} onClick={handleSeedBacklog} className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">
+              {seeding ? 'Loading…' : 'Use top clique backlog'}
+            </button>
+            <button disabled={saving || !canUse} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{saving ? 'Creating…' : 'Start poll'}</button>
+          </div>
         </form>
       ) : null}
 
