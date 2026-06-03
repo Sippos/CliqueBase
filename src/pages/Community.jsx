@@ -53,6 +53,7 @@ function activityVerb(activity) {
   if (activity.type === 'clique_join') return 'joined'
   if (activity.type === 'friend_accept') return 'became friends with'
   if (activity.type === 'rating') return 'rated'
+  if (activity.type === 'vote') return activity.payload?.vote === 'pass' ? 'passed on' : 'voted for'
   if (activity.payload?.kind === 'poll_created') return 'started a poll'
   return 'updated'
 }
@@ -62,6 +63,7 @@ function payloadText(activity) {
   if (activity.type === 'recommendation_note') return payload.note || ''
   if (activity.type === 'media_comment') return payload.body || ''
   if (activity.type === 'rating' && payload.rating) return `${payload.rating}/10`
+  if (activity.type === 'vote') return payload.vote === 'pass' ? 'Passed in their library.' : `Ranked it up${payload.score !== undefined ? ` · score ${payload.score}` : ''}.`
   if (activity.type === 'friend_accept') return payload.friendName ? `Now friends with ${payload.friendName}.` : ''
   if (activity.type === 'library_add') return activity.groupId ? 'Added to the shared clique library.' : 'Saved to personal library.'
   if (activity.type === 'completed') return payload.rating ? `Done · ${payload.rating}/10` : 'Marked done.'
@@ -80,7 +82,7 @@ function normalizeLibraryItems(movies = [], series = [], games = []) {
 
 function shareableType(activity) {
   const type = String(activity?.itemType || activity?.payload?.itemType || '').toLowerCase()
-  return ['movie', 'series', 'game'].includes(type) ? type : ''
+  return ['movie', 'series', 'game', 'video'].includes(type) ? type : ''
 }
 
 function shareItemFromActivity(activity) {
@@ -94,6 +96,7 @@ function shareItemFromActivity(activity) {
     poster: payload.poster || null,
     backdrop: payload.backdrop || null,
     overview: payload.overview || payloadText(activity),
+    url: payload.url || '',
     groupId: activity.groupId || null,
     groupName: activity.groupName || '',
   }
@@ -105,8 +108,8 @@ function EmptyCommunity({ signedIn, filter }) {
     : filter === 'cliques'
       ? 'Join or create a clique to see shared-room activity here.'
       : filter === 'mine'
-        ? 'Your own recommendations, saves, ratings, and shares will show here.'
-        : signedIn ? 'Save, rate, recommend, or add friends to start the feed.' : 'Sign in to see friend activity.'
+        ? 'Your own recommendations, saves, ratings, votes, and shares will show here.'
+        : signedIn ? 'Save, vote, rate, recommend, or add friends to start the feed.' : 'Sign in to see friend activity.'
   return (
     <section className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/[0.025] p-6 text-center">
       <h2 className="text-xl font-black text-white">No posts yet</h2>
@@ -391,7 +394,7 @@ export default function Community() {
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <main className="min-w-0">
           <section className="mb-4 rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 text-white">
-            <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Friend feed</h1><p className="mt-1 text-sm text-neutral-500">{activeGroup?.name ? `${activeGroup.name} and friends` : 'Saves, ratings, recommendations, friendships, and clique updates.'}</p></div><div className="flex gap-2"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div></div>
+            <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Friend feed</h1><p className="mt-1 text-sm text-neutral-500">{activeGroup?.name ? `${activeGroup.name} and friends` : 'Saves, votes, ratings, recommendations, friendships, and clique updates.'}</p></div><div className="flex gap-2"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div></div>
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 text-neutral-400 hover:bg-white hover:text-neutral-950'}`}>{filter.label} <span className="opacity-60">{filterCounts[filter.key] || 0}</span></button>)}</div>
           </section>
           <div className="grid gap-3">{loading ? <p className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">Loading feed…</p> : filteredActivity.length ? filteredActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}</div>
