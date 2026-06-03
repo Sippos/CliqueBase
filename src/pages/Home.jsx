@@ -25,6 +25,7 @@ function itemActionKey(item, prefix = '') { return item ? `${prefix}${item.type}
 function itemText(item) { return item?.overview || item?.description || item?.url || 'No description yet.' }
 function imageFor(item) { return item?.backdrop || item?.poster || null }
 function addPath(category, groupId) { return groupId ? `${TYPE_PATHS[category.title]}?clique=${encodeURIComponent(groupId)}` : TYPE_PATHS[category.title] }
+function itemTypeForShare(item) { return String(item?.type || '').toLowerCase() }
 function itemMetaChips(item) {
   if (!item) return []
   const genres = Array.isArray(item.genres) ? item.genres.filter(Boolean) : []
@@ -33,74 +34,125 @@ function itemMetaChips(item) {
   return [item.year, genres[0], genres[1] || (!genres.length ? fallbackPlatform : '')].filter(Boolean).slice(0, 3)
 }
 
-function SmallIconButton({ icon, label, onClick, disabled = false }) {
+function SmallIconButton({ icon, label, onClick, disabled = false, strong = false }) {
   return (
-    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-black/55 text-white backdrop-blur transition hover:bg-white hover:text-neutral-950 disabled:pointer-events-none disabled:opacity-50">
+    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className={`inline-flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition disabled:pointer-events-none disabled:opacity-50 ${strong ? 'border-white bg-white text-neutral-950 hover:bg-neutral-200' : 'border-white/15 bg-black/55 text-white hover:bg-white hover:text-neutral-950'}`}>
       <AppIcon name={icon} size={14} strokeWidth={2.4} />
     </button>
   )
 }
 
-function AddShortcut({ category, groupId }) {
+function AddMenu({ categories, groupId }) {
+  const [open, setOpen] = useState(false)
   return (
-    <Link to={addPath(category, groupId)} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">
-      <AppIcon name={category.icon} size={14} />
-      Add {category.singular.toLowerCase()}
-    </Link>
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((value) => !value)} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-2.5 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">
+        <span>Add</span>
+        <AppIcon name="chevronDown" size={14} />
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-12 z-30 w-56 overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 p-2 shadow-2xl shadow-black/40">
+          {categories.map((category) => (
+            <Link key={category.title} to={addPath(category, groupId)} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-black text-neutral-200 transition hover:bg-white hover:text-neutral-950">
+              <AppIcon name={category.icon} size={14} />
+              {category.singular}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
-function LibraryCard({ item, isClique, copying, onInfo, onShare, onCopy }) {
+function LibraryReel({ items, loading, onShare, onInfo }) {
+  const [index, setIndex] = useState(0)
+  useEffect(() => { setIndex((current) => items.length ? Math.min(current, items.length - 1) : 0) }, [items.length])
+  useEffect(() => {
+    if (items.length < 2) return undefined
+    const timer = window.setInterval(() => setIndex((current) => (current + 1) % items.length), 4200)
+    return () => window.clearInterval(timer)
+  }, [items.length])
+
+  if (loading) {
+    return <div className="relative flex min-h-[18rem] items-end overflow-hidden rounded-[1.5rem] bg-neutral-950 p-5"><div className="absolute inset-0 animate-pulse bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(0,0,0,0.45))]" /><div className="relative"><p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Library reel</p><h2 className="mt-2 text-2xl font-black text-white">Loading…</h2></div></div>
+  }
+
+  if (!items.length) {
+    return <div className="relative flex min-h-[18rem] items-end overflow-hidden rounded-[1.5rem] bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5"><div><p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Empty library</p><h2 className="mt-2 text-2xl font-black text-white">Add your first pick</h2><p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Use the Add menu to save movies, series, games, or videos.</p></div></div>
+  }
+
+  const item = items[index] || items[0]
+  const image = imageFor(item)
+  return (
+    <div className="relative min-h-[18rem] overflow-hidden rounded-[1.5rem] bg-neutral-950">
+      <button type="button" onClick={() => onInfo?.(item)} className="group absolute inset-0 flex items-end p-5 text-left">
+        {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65 transition duration-700 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))]" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+        <div className="absolute left-5 top-5 right-5 flex items-center justify-between gap-3">
+          <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">Library reel</span>
+          <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-bold text-neutral-200 backdrop-blur">{index + 1}/{items.length}</span>
+        </div>
+        <div className="relative max-w-md pr-20">
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-300">{item.type}</p>
+          <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">{item.title}</h2>
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-300">{itemText(item)}</p>
+        </div>
+      </button>
+      <div className="absolute bottom-5 right-5 z-10 flex gap-2">
+        <SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} />
+        <SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} strong />
+      </div>
+    </div>
+  )
+}
+
+function ShelfCard({ item, isClique, copying, onInfo, onShare, onCopy }) {
   const image = imageFor(item)
   const chips = itemMetaChips(item)
   return (
-    <article className="overflow-hidden rounded-[1.35rem] border border-white/10 bg-neutral-950/80 text-white transition hover:border-white/25">
-      <div className="group relative h-36 overflow-hidden sm:h-44">
+    <article className="w-[15rem] shrink-0 overflow-hidden rounded-[1.25rem] border border-white/10 bg-neutral-950/80 text-white transition hover:border-white/25 sm:w-[17rem]">
+      <div className="group relative h-32 overflow-hidden sm:h-36">
         <button type="button" onClick={() => onInfo?.(item)} className="absolute inset-0 z-10 text-left" aria-label={`Show details for ${item.title}`} />
         {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
-        <span className="absolute left-3 top-3 rounded-full border border-white/15 bg-black/55 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white backdrop-blur">{item.type}</span>
-        <div className="absolute right-3 top-3 z-20 flex gap-2">
+        <span className="absolute left-2 top-2 rounded-full border border-white/15 bg-black/55 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-white backdrop-blur">{item.type}</span>
+        <div className="absolute right-2 top-2 z-20 flex gap-1.5">
           <SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} />
           <SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} />
           {isClique ? <SmallIconButton icon="copy" label={`Copy ${item.title} to My Library`} onClick={() => onCopy?.(item)} disabled={copying} /> : null}
         </div>
         <div className="absolute inset-x-0 bottom-0 p-3">
-          <h3 className="line-clamp-2 text-lg font-black leading-tight text-white">{item.title}</h3>
+          <h3 className="line-clamp-2 text-base font-black leading-tight text-white">{item.title}</h3>
         </div>
       </div>
       <div className="p-3">
-        <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold text-neutral-300">
-          {chips.map((chip) => <span key={chip} className="rounded-full border border-white/10 px-2 py-1">{chip}</span>)}
+        <div className="flex flex-wrap gap-1 text-[10px] font-semibold text-neutral-300">
+          {chips.slice(0, 2).map((chip) => <span key={chip} className="rounded-full border border-white/10 px-2 py-1">{chip}</span>)}
           {item.rating ? <span className="rounded-full border border-white/10 px-2 py-1">★ {Number(item.rating).toFixed(1)}</span> : null}
           {item.classic ? <span className="rounded-full border border-white/10 px-2 py-1">Classic</span> : null}
         </div>
-        <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-500">{itemText(item)}</p>
       </div>
     </article>
   )
 }
 
-function CategorySection({ category, loading, isClique, copyingKey, onInfo, onShare, onCopy }) {
+function CategoryShelf({ category, loading, isClique, copyingKey, onInfo, onShare, onCopy }) {
   const items = category.items || []
   return (
-    <section id={`library-${category.title.toLowerCase()}`} className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4 text-white sm:p-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <section id={`library-${category.title.toLowerCase()}`} className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 text-white sm:rounded-[1.75rem] sm:p-5">
+      <div className="flex items-end justify-between gap-3">
         <div>
           <p className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500"><AppIcon name={category.icon} size={14} />Library</p>
           <h2 className="mt-1 text-2xl font-black">{category.title}</h2>
-          <p className="mt-1 text-sm text-neutral-500">{loading ? 'Loading…' : `${items.length} saved ${items.length === 1 ? category.singular.toLowerCase() : category.title.toLowerCase()}`}</p>
+          <p className="mt-1 text-sm text-neutral-500">{loading ? 'Loading…' : `${items.length} saved`}</p>
         </div>
-        <AddShortcut category={category} groupId={category.groupId} />
       </div>
       {loading ? <p className="mt-4 rounded-2xl border border-white/10 p-4 text-sm text-neutral-400">Loading {category.title.toLowerCase()}…</p> : items.length ? (
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {items.map((item) => <LibraryCard key={`${item.type}-${item.id}`} item={item} isClique={isClique} copying={copyingKey === itemActionKey(item, 'copy-')} onInfo={onInfo} onShare={onShare} onCopy={onCopy} />)}
+        <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+          {items.map((item) => <ShelfCard key={`${item.type}-${item.id}`} item={item} isClique={isClique} copying={copyingKey === itemActionKey(item, 'copy-')} onInfo={onInfo} onShare={onShare} onCopy={onCopy} />)}
         </div>
       ) : (
-        <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-neutral-950/50 p-5 text-sm text-neutral-400">
-          No {category.title.toLowerCase()} saved yet. Use “Add {category.singular.toLowerCase()}” to add the first one.
-        </div>
+        <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-neutral-950/50 p-5 text-sm text-neutral-500">No {category.title.toLowerCase()} saved yet. Use the Add menu above.</div>
       )}
     </section>
   )
@@ -229,21 +281,26 @@ export default function Home() {
 
   return (
     <PageShell active={isClique ? 'cliques' : 'library'}>
-      <section className="rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4 text-white shadow-2xl shadow-black/20 sm:p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <h1 className="max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">{context.name}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">{isClique ? 'Shared movies, series, games, and videos for this clique.' : 'Your saved movies, series, games, and videos.'}</p>
+      <section className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.03] text-white shadow-2xl shadow-black/20">
+        <div className="grid gap-0 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="p-4 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h1 className="max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">{context.name}</h1>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">{isClique ? 'Shared movies, series, games, and videos for this clique.' : 'Your saved movies, series, games, and videos.'}</p>
+              </div>
+              <AddMenu categories={categories} groupId={context.groupId} />
+            </div>
             {status === 'signed-out' ? <p className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and sync your library.</p> : null}
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:max-w-xl">
+              <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Total</p><p className="mt-1 text-2xl font-black">{loading ? '…' : allItems.length}</p></div>
+              <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Rated</p><p className="mt-1 text-2xl font-black">{loading ? '…' : ratedCount}</p></div>
+              <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Picks</p><p className="mt-1 text-2xl font-black">{loading ? '…' : totalPicks}</p></div>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
-            {categories.map((category) => <AddShortcut key={category.title} category={category} groupId={context.groupId} />)}
+          <div className="p-3 pt-0 xl:p-3">
+            <LibraryReel items={loading ? [] : allItems} loading={loading} onShare={openShare} onInfo={setInfoItem} />
           </div>
-        </div>
-        <div className="mt-4 grid grid-cols-3 gap-2 sm:max-w-xl">
-          <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Total</p><p className="mt-1 text-2xl font-black">{loading ? '…' : allItems.length}</p></div>
-          <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Rated</p><p className="mt-1 text-2xl font-black">{loading ? '…' : ratedCount}</p></div>
-          <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Picks</p><p className="mt-1 text-2xl font-black">{loading ? '…' : totalPicks}</p></div>
         </div>
       </section>
 
@@ -251,11 +308,11 @@ export default function Home() {
       {message ? <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-950/30 p-4 text-sm text-rose-100">{message}</div> : null}
 
       <div className="mt-5 grid gap-5">
-        {categories.map((category) => <CategorySection key={category.title} category={category} loading={loading} isClique={isClique} copyingKey={copyingKey} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />)}
+        {categories.map((category) => <CategoryShelf key={category.title} category={category} loading={loading} isClique={isClique} copyingKey={copyingKey} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />)}
       </div>
 
       <ItemInfoModal item={infoItem} onClose={() => setInfoItem(null)} />
-      {sharingItem ? <MemberShareModal item={sharingItem} type={sharingItem?.type?.toLowerCase()} onClose={() => setSharingItem(null)} onMessage={handleShareMessage} /> : null}
+      {sharingItem ? <MemberShareModal item={sharingItem} type={itemTypeForShare(sharingItem)} onClose={() => setSharingItem(null)} onMessage={handleShareMessage} /> : null}
     </PageShell>
   )
 }
