@@ -1,4 +1,10 @@
 const iconSvg = {
+  users: `
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  `,
   explore: `
     <circle cx="12" cy="12" r="9" />
     <path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2Z" />
@@ -9,22 +15,17 @@ const iconSvg = {
     <rect x="14" y="12" width="7" height="9" rx="2" />
     <rect x="3" y="15" width="7" height="6" rx="2" />
   `,
-  users: `
-    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-  `,
 }
 
 const items = [
-  { href: '/explore', label: 'Explore', icon: 'explore', match: (path) => path === '/explore' || path === '/' },
-  { href: '/dashboard', label: 'Library', icon: 'dashboard', match: (path) => path === '/dashboard' || path === '/movies' || path === '/series' || path === '/games' || path === '/videos' || path === '/music' },
+  { href: '/community', label: 'Community', icon: 'users', match: (path) => path === '/' || path === '/community' },
+  { href: '/explore', label: 'Explore', icon: 'explore', match: (path) => path === '/explore' || path === '/leaderboard' },
+  { href: '/dashboard', label: 'Library', icon: 'dashboard', match: (path) => path === '/dashboard' || path === '/library' || path === '/movies' || path === '/series' || path === '/games' || path === '/videos' || path === '/music' || path.startsWith('/library/') },
   { href: '/groups', label: 'Cliques', icon: 'users', match: (path) => path === '/groups' || path === '/cliques' || path.startsWith('/cliques/') || path.startsWith('/g/') },
 ]
 
 function currentPath() {
-  return window.location.pathname || '/explore'
+  return window.location.pathname || '/community'
 }
 
 function setRouteAttributes(path = currentPath()) {
