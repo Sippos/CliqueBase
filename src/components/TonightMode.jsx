@@ -3,10 +3,6 @@ import AppIcon from './AppIcon.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
 import { createCliquePoll, getCliquePolls, voteCliquePoll } from '../lib/cliquePolls.js'
 
-function clean(value) {
-  return String(value || '').trim()
-}
-
 function totalVotes(poll) {
   return (poll.options || []).reduce((sum, option) => sum + Number(option.votes || 0), 0)
 }
