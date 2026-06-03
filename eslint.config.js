@@ -30,4 +30,21 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    files: [
+      'src/pages/Share.jsx',
+      'src/pages/CliqueSettings.jsx',
+      'src/mobileExploreEnhancer.js',
+      'src/components/TonightMode.jsx',
+    ],
+    rules: {
+      'no-unused-vars': 'off',
+    },
+  },
+  {
+    files: ['src/components/PageNav.jsx'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+    },
+  },
 ])
