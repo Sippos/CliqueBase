@@ -41,17 +41,19 @@ function relativeTime(value) {
   if (minutes < 60) return `${minutes}m ago`
   const hours = Math.round(minutes / 60)
   if (hours < 24) return `${hours}h ago`
-  const days = Math.round(hours / 24)
-  return `${days}d ago`
+  return `${Math.round(hours / 24)}d ago`
 }
 
 function activityVerb(activity) {
   if (activity.type === 'recommendation_note') return 'recommended'
   if (activity.type === 'media_comment') return 'commented on'
   if (activity.type === 'media_share') return 'shared'
+  if (activity.type === 'library_add') return activity.groupId ? 'added to a clique' : 'saved'
+  if (activity.type === 'completed') return 'finished'
   if (activity.type === 'clique_join') return 'joined'
-  if (activity.type === 'friend_accept') return 'became friends with someone'
+  if (activity.type === 'friend_accept') return 'became friends with'
   if (activity.type === 'rating') return 'rated'
+  if (activity.payload?.kind === 'poll_created') return 'started a poll'
   return 'updated'
 }
 
@@ -59,6 +61,10 @@ function payloadText(activity) {
   const payload = activity.payload || {}
   if (activity.type === 'recommendation_note') return payload.note || ''
   if (activity.type === 'media_comment') return payload.body || ''
+  if (activity.type === 'rating' && payload.rating) return `${payload.rating}/10`
+  if (activity.type === 'friend_accept') return payload.friendName ? `Now friends with ${payload.friendName}.` : ''
+  if (activity.type === 'library_add') return activity.groupId ? 'Added to the shared clique library.' : 'Saved to personal library.'
+  if (activity.type === 'completed') return payload.rating ? `Done · ${payload.rating}/10` : 'Marked done.'
   return payload.message || ''
 }
 
@@ -79,12 +85,15 @@ function shareableType(activity) {
 
 function shareItemFromActivity(activity) {
   if (!activity) return null
+  const payload = activity.payload || {}
   return {
     id: activity.itemId || activity.id,
     type: shareableType(activity),
     category: shareableType(activity),
     title: activity.title || 'CliqueBase pick',
-    overview: payloadText(activity),
+    poster: payload.poster || null,
+    backdrop: payload.backdrop || null,
+    overview: payload.overview || payloadText(activity),
     groupId: activity.groupId || null,
     groupName: activity.groupName || '',
   }
@@ -96,8 +105,8 @@ function EmptyCommunity({ signedIn, filter }) {
     : filter === 'cliques'
       ? 'Join or create a clique to see shared-room activity here.'
       : filter === 'mine'
-        ? 'Your own recommendations and shares will show here.'
-        : signedIn ? 'Share something from your library or invite friends to start the feed.' : 'Sign in to see friend activity.'
+        ? 'Your own recommendations, saves, ratings, and shares will show here.'
+        : signedIn ? 'Save, rate, recommend, or add friends to start the feed.' : 'Sign in to see friend activity.'
   return (
     <section className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/[0.025] p-6 text-center">
       <h2 className="text-xl font-black text-white">No posts yet</h2>
@@ -214,19 +223,23 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   const tags = Array.isArray(activity.payload?.moodTags) ? activity.payload.moodTags : []
   const canShare = Boolean(shareableType(activity))
   const actor = activity.actorId ? <Link to={`/members/${activity.actorId}`} className="font-black text-white hover:underline">{activity.actorDisplayName}</Link> : <span className="font-black text-white">{activity.actorDisplayName}</span>
+  const friendTarget = activity.type === 'friend_accept' ? activity.title : ''
+
   return (
     <article className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/20 hover:bg-white/[0.045]">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-400">
         {actor}
         <span>{activityVerb(activity)}</span>
+        {friendTarget ? <span className="font-black text-white">{friendTarget}</span> : null}
         {activity.groupName ? <Link to={`/cliques/${encodeURIComponent(activity.groupId)}`} className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-neutral-300 hover:bg-white hover:text-neutral-950">{activity.groupName}</Link> : null}
         <span className="text-xs text-neutral-600">{relativeTime(activity.createdAt)}</span>
       </div>
-      <h3 className="mt-2 text-xl font-black leading-tight text-white">{activity.title}</h3>
+      {activity.type !== 'friend_accept' ? <h3 className="mt-2 text-xl font-black leading-tight text-white">{activity.title}</h3> : null}
       {text ? <p className="mt-2 rounded-2xl border border-white/10 bg-neutral-950/55 p-3 text-sm leading-6 text-neutral-300">{text}</p> : null}
       <div className="mt-3 flex flex-wrap gap-2">
-        {activity.itemType ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-500">{activity.itemType}</span> : null}
+        {activity.itemType && activity.itemType !== 'profile' ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-500">{activity.itemType}</span> : null}
         {activity.payload?.priority ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-500">{activity.payload.priority}</span> : null}
+        {activity.payload?.scope ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-500">{activity.payload.scope}</span> : null}
         {tags.map((tag) => <span key={tag} className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black text-neutral-300">{tag}</span>)}
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -289,10 +302,7 @@ function RecommendationComposer({ groups, libraryItems, signedIn, onCreated, onF
       <div className="mt-4 grid gap-3">
         <select value={selectedLibraryKey} onChange={(event) => handleLibrarySelect(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="">Choose from your library…</option>{libraryItems.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.label}: {item.title}</option>)}</select>
         <input value={title} onChange={(event) => { setTitle(event.target.value); setSelectedLibraryKey('') }} placeholder="Or type a title" className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <select value={itemType} onChange={(event) => setItemType(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="movie">Movie</option><option value="series">Series</option><option value="game">Game</option><option value="video">Video</option><option value="music">Music</option><option value="other">Other</option></select>
-          <select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">{priorities.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
-        </div>
+        <div className="grid gap-3 sm:grid-cols-2"><select value={itemType} onChange={(event) => setItemType(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="movie">Movie</option><option value="series">Series</option><option value="game">Game</option><option value="video">Video</option><option value="music">Music</option><option value="other">Other</option></select><select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">{priorities.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
         <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why is it worth it?" rows={3} className="resize-none rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
         <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Tags: cozy, co-op, tense" className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
         {groups.length ? <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="">Post to feed</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select> : null}
@@ -381,25 +391,16 @@ export default function Community() {
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <main className="min-w-0">
           <section className="mb-4 rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 text-white">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Friend feed</h1><p className="mt-1 text-sm text-neutral-500">{activeGroup?.name ? `${activeGroup.name} and friends` : 'Recommendations, shares, comments, and clique updates.'}</p></div>
-              <div className="flex gap-2"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div>
-            </div>
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-              {feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 text-neutral-400 hover:bg-white hover:text-neutral-950'}`}>{filter.label} <span className="opacity-60">{filterCounts[filter.key] || 0}</span></button>)}
-            </div>
+            <div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Friend feed</h1><p className="mt-1 text-sm text-neutral-500">{activeGroup?.name ? `${activeGroup.name} and friends` : 'Saves, ratings, recommendations, friendships, and clique updates.'}</p></div><div className="flex gap-2"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div></div>
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 text-neutral-400 hover:bg-white hover:text-neutral-950'}`}>{filter.label} <span className="opacity-60">{filterCounts[filter.key] || 0}</span></button>)}</div>
           </section>
-
-          <div className="grid gap-3">
-            {loading ? <p className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">Loading feed…</p> : filteredActivity.length ? filteredActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}
-          </div>
+          <div className="grid gap-3">{loading ? <p className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">Loading feed…</p> : filteredActivity.length ? filteredActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}</div>
           {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
         </main>
-
         <aside className="grid gap-4 lg:sticky lg:top-28">
           <div id="people" className="scroll-mt-24"><BlockedMembersPanel signedIn={signedIn} defaultOpen onFlash={flash} onChanged={() => refresh()} /></div>
           <RecommendationComposer groups={groups} libraryItems={libraryItems} signedIn={signedIn} onCreated={() => refresh()} onFlash={flash} />
-          <div id="tonight" className="scroll-mt-24"><TonightMode groups={groups} signedIn={signedIn} onFlash={flash} /></div>
+          <div id="tonight" className="scroll-mt-24"><TonightMode groups={groups} libraryItems={libraryItems} signedIn={signedIn} onFlash={flash} /></div>
         </aside>
       </div>
       <MemberShareModal item={sharingActivity ? shareItemFromActivity(sharingActivity) : null} type={sharingActivity ? shareableType(sharingActivity) : ''} onClose={() => setSharingActivity(null)} onMessage={flash} />
