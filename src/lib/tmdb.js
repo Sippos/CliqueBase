@@ -1,6 +1,7 @@
 function mapMovie(movie) {
   return {
     id: String(movie.id),
+    type: 'movie',
     title: movie.title || movie.original_title || 'Untitled movie',
     year: movie.release_date ? movie.release_date.split('-')[0] : '',
     released: movie.release_date || null,
@@ -18,6 +19,7 @@ function mapMovie(movie) {
 function mapSeries(series) {
   return {
     id: String(series.id),
+    type: 'series',
     title: series.name || series.original_name || 'Untitled series',
     year: series.first_air_date ? series.first_air_date.split('-')[0] : '',
     released: series.first_air_date || null,
@@ -40,6 +42,7 @@ function mapGame(game) {
 
   return {
     id: String(game.id),
+    type: 'game',
     title: game.name || 'Untitled game',
     year: game.released ? game.released.split('-')[0] : '',
     released: game.released || null,
