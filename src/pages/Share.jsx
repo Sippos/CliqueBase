@@ -6,6 +6,7 @@ import { getSavedHandle } from '../lib/handle.js'
 import { GROUPS_CHANGED_EVENT, getActiveGroupId, setActiveGroup as setActiveGroupContext } from '../lib/groups.js'
 import { mediaTypeLabel, mediaTypePath, normalizeShareType, readSharePayload } from '../lib/share.js'
 import { getCurrentSession, getRemoteGroups, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
+import { saveVideo } from '../lib/videoLibrary.js'
 
 function scopeLabel(scope, groups) {
   if (scope === 'personal') return 'Personal library'
@@ -22,6 +23,7 @@ function fallbackPayload(type, id) {
     poster: null,
     backdrop: null,
     overview: 'This shared item can be saved to your library.',
+    url: '',
     genres: [],
   }
 }
@@ -80,6 +82,7 @@ export default function Share() {
       if (payload.type === 'movie') await saveMovie(payload, nominatedBy, groupId)
       else if (payload.type === 'series') await saveSeries(payload, nominatedBy, groupId)
       else if (payload.type === 'game') await saveGame(payload, nominatedBy, groupId)
+      else if (payload.type === 'video') await saveVideo(payload, nominatedBy, groupId)
       else throw new Error('Unsupported shared item type.')
 
       if (groupId) setActiveGroupContext(groupId)
@@ -109,7 +112,7 @@ export default function Share() {
             <p className="text-xs uppercase tracking-[0.35em] text-neutral-500">Receive share</p>
             <h1 className="mt-3 text-4xl font-black tracking-tight text-white">{payload.title}</h1>
             {year ? <p className="mt-2 text-sm font-semibold text-neutral-400">{year}</p> : null}
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-300">{payload.overview || 'Save this shared pick to your library or a clique.'}</p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-300">{payload.overview || payload.url || 'Save this shared pick to your library or a clique.'}</p>
 
             <div className="mt-5 flex flex-wrap gap-2">
               {payload.platform ? <DetailPill>{payload.platform}</DetailPill> : null}
