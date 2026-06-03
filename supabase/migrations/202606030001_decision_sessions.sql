@@ -54,7 +54,10 @@ as $$
 declare
   current_user_id uuid := auth.uid();
   target_poll public.clique_polls;
-  winning_option public.clique_poll_options;
+  winning_option_id uuid;
+  winning_label text;
+  winning_item_type text := 'other';
+  winning_item_id text;
   winning_votes integer := 0;
   created_decision_id uuid;
 begin
@@ -71,16 +74,26 @@ begin
     raise exception 'Only the creator or a moderator can close this poll.';
   end if;
 
-  select o.*, count(v.voter_id)::integer as vote_count
-  into winning_option, winning_votes
+  select
+    o.id,
+    o.label,
+    coalesce(o.item_type, 'other'),
+    o.item_id,
+    count(v.voter_id)::integer
+  into
+    winning_option_id,
+    winning_label,
+    winning_item_type,
+    winning_item_id,
+    winning_votes
   from public.clique_poll_options o
   left join public.clique_poll_votes v on v.option_id = o.id
   where o.poll_id = poll_id_input
-  group by o.id
+  group by o.id, o.label, o.item_type, o.item_id, o.created_at
   order by count(v.voter_id) desc, o.created_at asc
   limit 1;
 
-  if winning_option.id is null then
+  if winning_option_id is null then
     raise exception 'This poll has no options to select.';
   end if;
 
@@ -100,10 +113,10 @@ begin
   values (
     target_poll.group_id,
     target_poll.id,
-    winning_option.id,
-    winning_option.label,
-    coalesce(winning_option.item_type, 'other'),
-    winning_option.item_id,
+    winning_option_id,
+    winning_label,
+    winning_item_type,
+    winning_item_id,
     current_user_id
   )
   on conflict (poll_id) where poll_id is not null
@@ -121,13 +134,13 @@ begin
     current_user_id,
     target_poll.group_id,
     'system',
-    coalesce(winning_option.item_type, 'other'),
+    winning_item_type,
     created_decision_id::text,
-    winning_option.label,
+    winning_label,
     jsonb_build_object(
       'pollId', target_poll.id,
       'decisionId', created_decision_id,
-      'selectedLabel', winning_option.label,
+      'selectedLabel', winning_label,
       'votes', winning_votes,
       'kind', 'decision_locked'
     )
