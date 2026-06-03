@@ -31,6 +31,15 @@ const reportReasons = [
   { value: 'other', label: 'Other' },
 ]
 
+const contentTypeMeta = {
+  movie: { label: 'Movies', icon: '🎬' },
+  series: { label: 'Series', icon: '📺' },
+  game: { label: 'Games', icon: '🎮' },
+  video: { label: 'Videos', icon: '▶️' },
+  music: { label: 'Music', icon: '🎧' },
+  other: { label: 'Other', icon: '✨' },
+}
+
 function relativeTime(value) {
   if (!value) return ''
   const date = new Date(value)
@@ -112,6 +121,18 @@ function normalizeLibraryItems(movies = [], series = [], games = []) {
     .sort((a, b) => String(a.title).localeCompare(String(b.title)))
 }
 
+function groupedLibraryItems(libraryItems = []) {
+  return ['movie', 'series', 'game'].map((type) => ({
+    type,
+    ...contentTypeMeta[type],
+    items: libraryItems.filter((item) => item.itemType === type),
+  })).filter((group) => group.items.length)
+}
+
+function itemArtwork(item) {
+  return item.poster || item.backdrop || item.image || item.cover || ''
+}
+
 function shareableType(activity) {
   const type = String(activity?.itemType || activity?.payload?.itemType || '').toLowerCase()
   return ['movie', 'series', 'game', 'video'].includes(type) ? type : ''
@@ -148,11 +169,11 @@ function EmptyCommunity({ signedIn, filter }) {
         ? 'Your own recommendations, saves, ratings, votes, and shares will show here.'
         : signedIn ? 'Save, vote, rate, recommend, or add friends to start the feed.' : 'Sign in to see friend activity.'
   return (
-    <section className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/[0.025] p-6 text-center">
-      <h2 className="text-xl font-black text-white">No posts yet</h2>
+    <section className="rounded-[1.25rem] border border-dashed border-white/10 bg-white/[0.025] p-5 text-center">
+      <h2 className="text-lg font-black text-white">No posts yet</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-neutral-500">{copy}</p>
-      <div className="mt-5 flex flex-wrap justify-center gap-2">
-        <a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Write recommendation</a>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend something</a>
         <a href="#people" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white">Find people</a>
         <Link to="/groups" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white">Cliques</Link>
       </div>
@@ -183,9 +204,9 @@ function ActivityCommentForm({ activity, signedIn, onCommented, onFlash }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row">
-      <input value={body} onChange={(event) => setBody(event.target.value)} placeholder={signedIn ? 'Reply…' : 'Sign in to reply'} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-600" />
-      <button disabled={saving || !body.trim() || !signedIn} className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-45">{saving ? 'Posting…' : 'Reply'}</button>
+    <form onSubmit={handleSubmit} className="mt-3 flex gap-2 border-t border-white/10 pt-3">
+      <input value={body} onChange={(event) => setBody(event.target.value)} placeholder={signedIn ? 'Reply…' : 'Sign in to reply'} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-xs text-white outline-none placeholder:text-neutral-600" />
+      <button disabled={saving || !body.trim() || !signedIn} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-45">{saving ? '…' : 'Reply'}</button>
     </form>
   )
 }
@@ -240,8 +261,8 @@ function ActivityReportForm({ activity, signedIn, onFlash, onBlocked }) {
   }
 
   return (
-    <div className="mt-3">
-      <button type="button" onClick={() => setOpen((value) => !value)} className="text-xs font-bold text-neutral-600 transition hover:text-neutral-300">{open ? 'Cancel' : 'Report / block'}</button>
+    <div className="mt-2">
+      <button type="button" onClick={() => setOpen((value) => !value)} className="text-[11px] font-bold text-neutral-600 transition hover:text-neutral-300">{open ? 'Cancel' : 'Report / block'}</button>
       {open ? (
         <div className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-neutral-950/75 p-3">
           <form onSubmit={handleSubmit} className="grid gap-2">
@@ -261,34 +282,27 @@ function ActivityReportForm({ activity, signedIn, onFlash, onBlocked }) {
 function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   const text = payloadText(activity)
   const image = feedImage(activity)
-  const tags = Array.isArray(activity.payload?.moodTags) ? activity.payload.moodTags : []
   const canShare = Boolean(shareableType(activity))
   const actor = activity.actorId ? <Link to={`/members/${activity.actorId}`} className="font-black text-white hover:underline">{activity.actorDisplayName}</Link> : <span className="font-black text-white">{activity.actorDisplayName}</span>
   const friendTarget = activity.type === 'friend_accept' ? activity.title : ''
 
   return (
-    <article className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/20 hover:bg-white/[0.045]">
+    <article className="rounded-[1.15rem] border border-white/10 bg-white/[0.025] p-3 transition hover:border-white/20 hover:bg-white/[0.04]">
       <div className="flex gap-3">
-        {image && activity.type !== 'friend_accept' ? <img src={image} alt="" className="h-28 w-20 shrink-0 rounded-2xl object-cover sm:h-32 sm:w-24" /> : null}
+        {image && activity.type !== 'friend_accept' ? <img src={image} alt="" className="h-20 w-14 shrink-0 rounded-xl object-cover sm:h-24 sm:w-16" /> : null}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-400">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-400">
             {actor}
             <span>{activityVerb(activity)}</span>
             {friendTarget ? <span className="font-black text-white">{friendTarget}</span> : null}
             {activity.groupName ? <Link to={`/cliques/${encodeURIComponent(activity.groupId)}`} className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-neutral-300 hover:bg-white hover:text-neutral-950">{activity.groupName}</Link> : null}
-            <span className="text-xs text-neutral-600">{relativeTime(activity.createdAt)}</span>
+            <span className="text-[11px] text-neutral-600">{relativeTime(activity.createdAt)}</span>
           </div>
-          {activity.type !== 'friend_accept' ? <h3 className="mt-2 text-xl font-black leading-tight text-white">{activity.title}</h3> : null}
-          {text ? <p className="mt-2 rounded-2xl border border-white/10 bg-neutral-950/55 p-3 text-sm leading-6 text-neutral-300">{text}</p> : null}
+          {activity.type !== 'friend_accept' ? <h3 className="mt-1 text-base font-black leading-tight text-white sm:text-lg">{activity.title}</h3> : null}
+          {text ? <p className="mt-2 rounded-xl border border-white/10 bg-neutral-950/45 p-2 text-xs leading-5 text-neutral-300 sm:text-sm">{text}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            {activity.itemType && activity.itemType !== 'profile' ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-500">{activity.itemType}</span> : null}
-            {activity.payload?.priority ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-500">{activity.payload.priority}</span> : null}
-            {activity.payload?.scope ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-500">{activity.payload.scope}</span> : null}
-            {tags.map((tag) => <span key={tag} className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black text-neutral-300">{tag}</span>)}
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {canShare ? <button type="button" onClick={() => onShare(activity)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Share</button> : null}
-            {activity.actorId ? <Link to={`/members/${activity.actorId}`} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Profile</Link> : null}
+            {canShare ? <button type="button" onClick={() => onShare(activity)} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+            {activity.actorId ? <Link to={`/members/${activity.actorId}`} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Profile</Link> : null}
           </div>
         </div>
       </div>
@@ -298,17 +312,18 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   )
 }
 
-function RecommendationComposer({ groups, libraryItems, signedIn, onCreated, onFlash }) {
+function RecommendationComposer({ groups, friends, libraryItems, signedIn, onCreated, onFlash }) {
   const activeGroupId = getActiveGroupId()
+  const [expanded, setExpanded] = useState(false)
   const [selectedLibraryKey, setSelectedLibraryKey] = useState('')
   const [title, setTitle] = useState('')
   const [itemType, setItemType] = useState('movie')
   const [itemId, setItemId] = useState('')
   const [note, setNote] = useState('')
-  const [tags, setTags] = useState('')
   const [priority, setPriority] = useState('maybe')
-  const [groupId, setGroupId] = useState(activeGroupId || '')
+  const [audience, setAudience] = useState(activeGroupId ? `group:${activeGroupId}` : 'feed')
   const [saving, setSaving] = useState(false)
+  const groupsByType = useMemo(() => groupedLibraryItems(libraryItems), [libraryItems])
 
   function handleLibrarySelect(value) {
     setSelectedLibraryKey(value)
@@ -320,6 +335,12 @@ function RecommendationComposer({ groups, libraryItems, signedIn, onCreated, onF
     setItemId(String(item.id))
   }
 
+  function audienceTarget() {
+    if (audience.startsWith('group:')) return { groupId: audience.slice(6), recommendedTo: null }
+    if (audience.startsWith('friend:')) return { groupId: null, recommendedTo: audience.slice(7) }
+    return { groupId: null, recommendedTo: null }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     if (!signedIn) {
@@ -328,12 +349,12 @@ function RecommendationComposer({ groups, libraryItems, signedIn, onCreated, onF
     }
     setSaving(true)
     try {
-      await createRecommendationNote({ title, itemType, itemId, note, moodTags: tags, priority, groupId: groupId || null })
+      const target = audienceTarget()
+      await createRecommendationNote({ title, itemType, itemId, note, moodTags: [], priority, groupId: target.groupId, recommendedTo: target.recommendedTo })
       setSelectedLibraryKey('')
       setTitle('')
       setItemId('')
       setNote('')
-      setTags('')
       onCreated?.()
     } catch (error) {
       onFlash(error.message || 'Could not post recommendation.')
@@ -343,18 +364,58 @@ function RecommendationComposer({ groups, libraryItems, signedIn, onCreated, onF
   }
 
   return (
-    <form id="recommend" onSubmit={handleSubmit} className="scroll-mt-24 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-black text-white">Recommend</h2><span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">Post</span></div>
-      <div className="mt-4 grid gap-3">
-        <select value={selectedLibraryKey} onChange={(event) => handleLibrarySelect(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="">Choose from your library…</option>{libraryItems.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.label}: {item.title}</option>)}</select>
-        <input value={title} onChange={(event) => { setTitle(event.target.value); setSelectedLibraryKey('') }} placeholder="Or type a title" className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
-        <div className="grid gap-3 sm:grid-cols-2"><select value={itemType} onChange={(event) => setItemType(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="movie">Movie</option><option value="series">Series</option><option value="game">Game</option><option value="video">Video</option><option value="music">Music</option><option value="other">Other</option></select><select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">{priorities.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
-        <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why is it worth it?" rows={3} className="resize-none rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
-        <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Tags: cozy, co-op, tense" className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
-        {groups.length ? <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="">Post to feed</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select> : null}
-        <button disabled={saving || !signedIn || !title.trim()} className="rounded-2xl bg-white px-5 py-3 font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Posting…' : signedIn ? 'Post recommendation' : 'Sign in to post'}</button>
-      </div>
-    </form>
+    <section id="recommend" className="scroll-mt-24 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4 text-white">
+      <button type="button" onClick={() => setExpanded((value) => !value)} className="flex w-full items-center justify-between gap-3 text-left">
+        <span>
+          <span className="block text-lg font-black">Recommend</span>
+          <span className="mt-1 block text-xs text-neutral-400">Post to the feed, a clique, or a friend.</span>
+        </span>
+        <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-neutral-100">{expanded ? 'Hide' : 'Open'}</span>
+      </button>
+
+      {expanded ? (
+        <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
+          {groupsByType.length ? (
+            <div className="grid gap-2">
+              <select value={selectedLibraryKey} onChange={(event) => handleLibrarySelect(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none">
+                <option value="">Choose from your library…</option>
+                {groupsByType.map((group) => (
+                  <optgroup key={group.type} label={`${group.icon} ${group.label}`}>
+                    {group.items.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.title}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+              <div className="grid grid-cols-2 gap-2">
+                {groupsByType.flatMap((group) => group.items.slice(0, 3)).slice(0, 6).map((item) => {
+                  const key = `${item.itemType}:${item.id}`
+                  const selected = key === selectedLibraryKey
+                  return (
+                    <button key={key} type="button" onClick={() => handleLibrarySelect(key)} className={`flex items-center gap-2 rounded-2xl border p-2 text-left transition ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-black/20 text-white hover:bg-white/10'}`}>
+                      {itemArtwork(item) ? <img src={itemArtwork(item)} alt="" className="h-12 w-9 shrink-0 rounded-lg object-cover" /> : <span className="grid h-12 w-9 shrink-0 place-items-center rounded-lg bg-white/10 text-lg">{contentTypeMeta[item.itemType]?.icon || '✨'}</span>}
+                      <span className="min-w-0"><span className="block truncate text-xs font-black">{item.title}</span><span className="text-[10px] uppercase tracking-[0.14em] opacity-60">{item.label}</span></span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
+          <input value={title} onChange={(event) => { setTitle(event.target.value); setSelectedLibraryKey('') }} placeholder="Or type a title" className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-600" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <select value={itemType} onChange={(event) => setItemType(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none">
+              {Object.entries(contentTypeMeta).map(([value, meta]) => <option key={value} value={value}>{meta.icon} {meta.label}</option>)}
+            </select>
+            <select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none">{priorities.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+          </div>
+          <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why is it worth it?" rows={3} className="resize-none rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-600" />
+          <select value={audience} onChange={(event) => setAudience(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none">
+            <option value="feed">Post to feed</option>
+            {groups.length ? <optgroup label="Cliques">{groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name}</option>)}</optgroup> : null}
+            {friends.length ? <optgroup label="Friends">{friends.map((friend) => <option key={friend.id} value={`friend:${friend.id}`}>{friend.displayName}</option>)}</optgroup> : null}
+          </select>
+          <button disabled={saving || !signedIn || !title.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Posting…' : signedIn ? 'Post recommendation' : 'Sign in to post'}</button>
+        </form>
+      ) : null}
+    </section>
   )
 }
 
@@ -371,12 +432,10 @@ export default function Community() {
   const [message, setMessage] = useState('')
 
   const signedIn = hasSupabase && Boolean(session?.user)
-  const activeGroupId = getActiveGroupId()
-  const activeGroup = useMemo(() => groups.find((group) => group.id === activeGroupId) || groups[0] || null, [groups, activeGroupId])
   const friendIds = useMemo(() => new Set(friends.map((friend) => friend.id).filter(Boolean)), [friends])
   const currentUserId = session?.user?.id || ''
   const filteredActivity = useMemo(() => activity.filter((item) => {
-    if (feedFilter === 'friends') return friendIds.has(item.actorId)
+    if (feedFilter === 'friends') return friendIds.has(item.actorId) || item.payload?.recommendedTo === currentUserId
     if (feedFilter === 'cliques') return Boolean(item.groupId)
     if (feedFilter === 'mine') return item.actorId && item.actorId === currentUserId
     return true
@@ -429,21 +488,21 @@ export default function Community() {
 
   return (
     <PageShell active="community">
-      <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
         <main className="min-w-0">
-          <section className="mb-4 rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 text-white">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Community</h1><p className="mt-1 text-sm text-neutral-500">{activeGroup?.name ? `${activeGroup.name} and friends` : 'What friends saved, rated, recommended, and shared.'}</p></div>
-              <div className="flex gap-2"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Write</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div>
+          <section className="mb-3 rounded-[1.25rem] border border-white/10 bg-white/[0.025] p-4 text-white">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><p className="text-xl font-black tracking-tight sm:text-2xl">Feed from cliques and friends</p><p className="mt-1 text-sm text-neutral-500">What friends saved, rated, recommended, and shared.</p></div>
+              <button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button>
             </div>
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 text-neutral-400 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}</div>
           </section>
-          <div className="grid gap-3">{loading ? <p className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}</div>
+          <div className="grid gap-2">{loading ? <p className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4 text-sm text-neutral-400">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}</div>
           {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
         </main>
         <aside className="grid gap-4 lg:sticky lg:top-28">
           <div id="people" className="scroll-mt-24"><BlockedMembersPanel signedIn={signedIn} defaultOpen onFlash={flash} onChanged={() => refresh()} /></div>
-          <RecommendationComposer groups={groups} libraryItems={libraryItems} signedIn={signedIn} onCreated={() => refresh()} onFlash={flash} />
+          <RecommendationComposer groups={groups} friends={friends} libraryItems={libraryItems} signedIn={signedIn} onCreated={() => refresh()} onFlash={flash} />
           <div id="tonight" className="scroll-mt-24"><TonightMode groups={groups} libraryItems={libraryItems} signedIn={signedIn} onFlash={flash} /></div>
         </aside>
       </div>
