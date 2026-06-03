@@ -1,5 +1,7 @@
 -- Lightweight clique polls for Tonight Mode / group decisions.
 
+create extension if not exists pgcrypto;
+
 create table if not exists public.clique_polls (
   id uuid primary key default gen_random_uuid(),
   group_id uuid not null references public.groups(id) on delete cascade,
