@@ -1,6 +1,16 @@
 # CliqueBase
 
-CliqueBase is a Vite + React prototype for choosing what to watch with friends. It still works in local demo mode, but it now has the foundation for real Supabase accounts, private groups, group membership, and group-scoped movie piles.
+CliqueBase is a Vite + React prototype for choosing what to watch, play, or try next with friends. It still works in local demo mode, but it now has the foundation for real Supabase accounts, private groups, group membership, social recommendations, and group-scoped media piles.
+
+## Product direction
+
+CliqueBase should focus first on one clear loop:
+
+```text
+Recommend -> discuss -> vote -> choose -> watch/play/try -> mark done -> rate -> remember
+```
+
+The product strategy and phased implementation guide live in [`docs/product-strategy.md`](docs/product-strategy.md). Use that document as the decision filter before adding broad discovery or community features.
 
 ## Local development
 
@@ -41,6 +51,6 @@ After the migration, open the Profile button in the navbar to create an account 
 
 ## Next implementation step
 
-The database and auth/group helpers are ready for the next UI pass: making the Movies page always read/write against the active Supabase group and adding a visible “send movie to another group” form.
+Build the Phase 1 core decision loop from the product strategy guide: recommendation notes, clique voting/selection, TonightMode eligibility, mark-done/rating follow-up, and empty states that push users toward the next action.
 
 <!-- vercel-redeploy: 2026-05-31-0058 -->
