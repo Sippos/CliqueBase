@@ -4,9 +4,11 @@ import {
   decisionOptionsOrFallback,
   defaultDecisionQuestion,
   fallbackDecisionOptions,
+  formatStructuredDecisionOption,
   isPollOpen,
   leadingPollOptions,
   parseDecisionOptions,
+  parseStructuredDecisionOption,
   pollOptionStats,
   totalPollVotes,
 } from './decisionLoop.js'
@@ -16,10 +18,38 @@ test('defaultDecisionQuestion uses the clique name when available', () => {
   assert.equal(defaultDecisionQuestion('   '), 'What should we pick tonight?')
 })
 
+test('formatStructuredDecisionOption creates media-aware options', () => {
+  assert.equal(formatStructuredDecisionOption('movie', '123', 'Dune: Part Two'), '[movie:123] Dune: Part Two')
+  assert.equal(formatStructuredDecisionOption('unknown', 'abc', 'Mystery pick'), '[other:abc] Mystery pick')
+  assert.equal(formatStructuredDecisionOption('game', '', 'Manual pick'), 'Manual pick')
+})
+
+test('parseStructuredDecisionOption reads media-aware options', () => {
+  assert.deepEqual(parseStructuredDecisionOption('[Series:456] Severance'), {
+    itemType: 'series',
+    itemId: '456',
+    label: 'Severance',
+    structured: true,
+  })
+  assert.deepEqual(parseStructuredDecisionOption('Manual pick'), {
+    itemType: 'other',
+    itemId: '',
+    label: 'Manual pick',
+    structured: false,
+  })
+})
+
 test('parseDecisionOptions trims, dedupes, removes blanks, and limits options', () => {
   assert.deepEqual(
     parseDecisionOptions(' Dune \nDune\n  Baldur\'s Gate 3\n\nSeverance ', 3),
     ['Dune', "Baldur's Gate 3", 'Severance'],
+  )
+})
+
+test('parseDecisionOptions dedupes structured options by media identity', () => {
+  assert.deepEqual(
+    parseDecisionOptions('[movie:123] Dune\n[movie:123] Dune: Part Two\n[game:123] Dune Game'),
+    ['[movie:123] Dune', '[game:123] Dune Game'],
   )
 })
 
