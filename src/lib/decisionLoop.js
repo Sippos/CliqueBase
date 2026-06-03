@@ -3,10 +3,32 @@ function clean(value) {
 }
 
 export const fallbackDecisionOptions = ['Movie night', 'Game night', 'One episode only']
+export const structuredDecisionTypes = ['movie', 'series', 'game', 'video', 'music', 'other']
 
 export function defaultDecisionQuestion(groupName) {
   const name = clean(groupName)
   return name ? `What should ${name} pick tonight?` : 'What should we pick tonight?'
+}
+
+export function formatStructuredDecisionOption(type, itemId, label) {
+  const normalizedType = clean(type).toLowerCase()
+  const safeType = structuredDecisionTypes.includes(normalizedType) ? normalizedType : 'other'
+  const safeItemId = clean(itemId)
+  const safeLabel = clean(label)
+  if (!safeItemId || !safeLabel) return safeLabel
+  return `[${safeType}:${safeItemId}] ${safeLabel}`
+}
+
+export function parseStructuredDecisionOption(value) {
+  const option = clean(value)
+  const match = option.match(/^\[(movie|series|game|video|music|other):([^\]]+)\]\s*(.+)$/i)
+  if (!match) return { itemType: 'other', itemId: '', label: option, structured: false }
+  return {
+    itemType: match[1].toLowerCase(),
+    itemId: clean(match[2]),
+    label: clean(match[3]),
+    structured: true,
+  }
 }
 
 export function parseDecisionOptions(value, limit = 8) {
@@ -19,7 +41,8 @@ export function parseDecisionOptions(value, limit = 8) {
     .map(clean)
     .filter(Boolean)
     .filter((option) => {
-      const key = option.toLowerCase()
+      const parsed = parseStructuredDecisionOption(option)
+      const key = parsed.structured ? `${parsed.itemType}:${parsed.itemId}` : parsed.label.toLowerCase()
       if (seen.has(key)) return false
       seen.add(key)
       return true
