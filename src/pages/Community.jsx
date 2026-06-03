@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import AppIcon from '../components/AppIcon.jsx'
 import BlockedMembersPanel from '../components/BlockedMembersPanel.jsx'
 import MemberShareModal from '../components/MemberShareModal.jsx'
 import PageShell from '../components/PageShell.jsx'
@@ -32,12 +33,12 @@ const reportReasons = [
 ]
 
 const contentTypeMeta = {
-  movie: { label: 'Movies', icon: '🎬' },
-  series: { label: 'Series', icon: '📺' },
-  game: { label: 'Games', icon: '🎮' },
-  video: { label: 'Videos', icon: '▶️' },
-  music: { label: 'Music', icon: '🎧' },
-  other: { label: 'Other', icon: '✨' },
+  movie: { label: 'Movies', singular: 'movie', icon: 'movies' },
+  series: { label: 'Series', singular: 'series', icon: 'series' },
+  game: { label: 'Games', singular: 'game', icon: 'games' },
+  video: { label: 'Videos', singular: 'video', icon: 'videos' },
+  music: { label: 'Music', singular: 'song', icon: 'music' },
+  other: { label: 'Other', singular: 'pick', icon: 'explore' },
 }
 
 function relativeTime(value) {
@@ -54,7 +55,7 @@ function relativeTime(value) {
 }
 
 function activityVerb(activity) {
-  if (activity.type === 'recommendation_note') return 'recommended'
+  if (activity.type === 'recommendation_note') return 'suggested'
   if (activity.type === 'media_comment') return 'commented on'
   if (activity.type === 'media_share') return 'shared'
   if (activity.type === 'library_add') return activity.groupId ? 'added to a clique' : 'saved'
@@ -63,7 +64,7 @@ function activityVerb(activity) {
   if (activity.type === 'friend_accept') return 'became friends with'
   if (activity.type === 'rating') return 'rated'
   if (activity.type === 'vote') return activity.payload?.vote === 'pass' ? 'passed on' : 'voted for'
-  if (activity.payload?.kind === 'poll_created') return 'started a poll'
+  if (activity.payload?.kind === 'poll_created') return 'started a vote'
   return 'updated'
 }
 
@@ -138,6 +139,12 @@ function shareableType(activity) {
   return ['movie', 'series', 'game', 'video'].includes(type) ? type : ''
 }
 
+function contentHref(activity) {
+  const type = shareableType(activity)
+  if (!type || !activity?.itemId) return ''
+  return `/share/${encodeURIComponent(type)}/${encodeURIComponent(activity.itemId)}`
+}
+
 function shareItemFromActivity(activity) {
   if (!activity) return null
   const payload = activity.payload || {}
@@ -160,22 +167,30 @@ function feedImage(activity) {
   return payload.poster || payload.backdrop || ''
 }
 
+function IconBadge({ name }) {
+  return (
+    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.08] text-cyan-100 shadow-inner shadow-white/5">
+      <AppIcon name={name} size={17} />
+    </span>
+  )
+}
+
 function EmptyCommunity({ signedIn, filter }) {
   const copy = filter === 'friends'
     ? 'Add friends or accept requests to fill this tab.'
     : filter === 'cliques'
       ? 'Join or create a clique to see shared-room activity here.'
       : filter === 'mine'
-        ? 'Your own recommendations, saves, ratings, votes, and shares will show here.'
-        : signedIn ? 'Save, vote, rate, recommend, or add friends to start the feed.' : 'Sign in to see friend activity.'
+        ? 'Your own suggestions, saves, ratings, votes, and shares will show here.'
+        : signedIn ? 'Save, vote, rate, suggest, or add friends to start the feed.' : 'Sign in to see friend activity.'
   return (
-    <section className="rounded-[1.25rem] border border-dashed border-white/10 bg-white/[0.025] p-5 text-center">
+    <section className="rounded-[1.5rem] border border-dashed border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.04] to-fuchsia-500/10 p-5 text-center shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10">
       <h2 className="text-lg font-black text-white">No posts yet</h2>
-      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-neutral-500">{copy}</p>
+      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-neutral-400">{copy}</p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
-        <a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend something</a>
-        <a href="#people" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white">Find people</a>
-        <Link to="/groups" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white">Cliques</Link>
+        <a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Suggest a pick</a>
+        <a href="#people" className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-white">Find people</a>
+        <Link to="/groups" className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-white">Cliques</Link>
       </div>
     </section>
   )
@@ -205,8 +220,8 @@ function ActivityCommentForm({ activity, signedIn, onCommented, onFlash }) {
 
   return (
     <form onSubmit={handleSubmit} className="mt-3 flex gap-2 border-t border-white/10 pt-3">
-      <input value={body} onChange={(event) => setBody(event.target.value)} placeholder={signedIn ? 'Reply…' : 'Sign in to reply'} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-xs text-white outline-none placeholder:text-neutral-600" />
-      <button disabled={saving || !body.trim() || !signedIn} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-45">{saving ? '…' : 'Reply'}</button>
+      <input value={body} onChange={(event) => setBody(event.target.value)} placeholder={signedIn ? 'Reply…' : 'Sign in to reply'} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-xs text-white outline-none placeholder:text-neutral-500" />
+      <button disabled={saving || !body.trim() || !signedIn} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-45">{saving ? '…' : 'Reply'}</button>
     </form>
   )
 }
@@ -283,26 +298,33 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   const text = payloadText(activity)
   const image = feedImage(activity)
   const canShare = Boolean(shareableType(activity))
+  const href = contentHref(activity)
   const actor = activity.actorId ? <Link to={`/members/${activity.actorId}`} className="font-black text-white hover:underline">{activity.actorDisplayName}</Link> : <span className="font-black text-white">{activity.actorDisplayName}</span>
   const friendTarget = activity.type === 'friend_accept' ? activity.title : ''
+  const titleNode = activity.type !== 'friend_accept' ? (
+    href
+      ? <Link to={href} className="mt-1 block text-base font-black leading-tight text-white transition hover:text-cyan-100 hover:underline sm:text-lg">{activity.title}</Link>
+      : <h3 className="mt-1 text-base font-black leading-tight text-white sm:text-lg">{activity.title}</h3>
+  ) : null
 
   return (
-    <article className="rounded-[1.15rem] border border-white/10 bg-white/[0.025] p-3 transition hover:border-white/20 hover:bg-white/[0.04]">
+    <article className="rounded-[1.35rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.055] to-violet-500/10 p-3 shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10 transition hover:border-cyan-100/25 hover:from-cyan-400/14 hover:to-violet-500/14">
       <div className="flex gap-3">
-        {image && activity.type !== 'friend_accept' ? <img src={image} alt="" className="h-20 w-14 shrink-0 rounded-xl object-cover sm:h-24 sm:w-16" /> : null}
+        {image && activity.type !== 'friend_accept' ? (
+          href ? <Link to={href} className="shrink-0"><img src={image} alt="" className="h-20 w-14 rounded-xl object-cover ring-1 ring-white/15 sm:h-24 sm:w-16" /></Link> : <img src={image} alt="" className="h-20 w-14 shrink-0 rounded-xl object-cover ring-1 ring-white/15 sm:h-24 sm:w-16" />
+        ) : null}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-400">
             {actor}
             <span>{activityVerb(activity)}</span>
             {friendTarget ? <span className="font-black text-white">{friendTarget}</span> : null}
-            {activity.groupName ? <Link to={`/cliques/${encodeURIComponent(activity.groupId)}`} className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-neutral-300 hover:bg-white hover:text-neutral-950">{activity.groupName}</Link> : null}
+            {activity.groupName ? <Link to={`/cliques/${encodeURIComponent(activity.groupId)}`} className="rounded-full border border-cyan-100/15 bg-cyan-100/10 px-2 py-0.5 text-[10px] font-bold text-cyan-100 hover:bg-white hover:text-neutral-950">{activity.groupName}</Link> : null}
             <span className="text-[11px] text-neutral-600">{relativeTime(activity.createdAt)}</span>
           </div>
-          {activity.type !== 'friend_accept' ? <h3 className="mt-1 text-base font-black leading-tight text-white sm:text-lg">{activity.title}</h3> : null}
-          {text ? <p className="mt-2 rounded-xl border border-white/10 bg-neutral-950/45 p-2 text-xs leading-5 text-neutral-300 sm:text-sm">{text}</p> : null}
+          {titleNode}
+          {text ? <p className="mt-2 rounded-xl border border-white/10 bg-black/25 p-2 text-xs leading-5 text-neutral-300 shadow-inner shadow-black/20 sm:text-sm">{text}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            {canShare ? <button type="button" onClick={() => onShare(activity)} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Share</button> : null}
-            {activity.actorId ? <Link to={`/members/${activity.actorId}`} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Profile</Link> : null}
+            {canShare ? <button type="button" onClick={() => onShare(activity)} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Share</button> : null}
           </div>
         </div>
       </div>
@@ -323,7 +345,14 @@ function RecommendationComposer({ groups, friends, libraryItems, signedIn, onCre
   const [priority, setPriority] = useState('maybe')
   const [audience, setAudience] = useState(activeGroupId ? `group:${activeGroupId}` : 'feed')
   const [saving, setSaving] = useState(false)
-  const groupsByType = useMemo(() => groupedLibraryItems(libraryItems), [libraryItems])
+  const availableLibraryItems = useMemo(() => libraryItems.filter((item) => item.itemType === itemType), [libraryItems, itemType])
+  const previewItems = useMemo(() => availableLibraryItems.slice(0, 6), [availableLibraryItems])
+
+  function handleItemTypeChange(value) {
+    setItemType(value)
+    setSelectedLibraryKey('')
+    setItemId('')
+  }
 
   function handleLibrarySelect(value) {
     setSelectedLibraryKey(value)
@@ -344,7 +373,7 @@ function RecommendationComposer({ groups, friends, libraryItems, signedIn, onCre
   async function handleSubmit(event) {
     event.preventDefault()
     if (!signedIn) {
-      onFlash('Sign in to post recommendations.')
+      onFlash('Sign in to post suggestions.')
       return
     }
     setSaving(true)
@@ -357,62 +386,67 @@ function RecommendationComposer({ groups, friends, libraryItems, signedIn, onCre
       setNote('')
       onCreated?.()
     } catch (error) {
-      onFlash(error.message || 'Could not post recommendation.')
+      onFlash(error.message || 'Could not post suggestion.')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <section id="recommend" className="scroll-mt-24 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4 text-white">
+    <section id="recommend" className="scroll-mt-24 rounded-[1.5rem] border border-emerald-200/15 bg-gradient-to-br from-emerald-400/10 via-white/[0.055] to-cyan-500/10 p-4 text-white shadow-2xl shadow-emerald-950/25 backdrop-blur-2xl ring-1 ring-white/10">
       <button type="button" onClick={() => setExpanded((value) => !value)} className="flex w-full items-center justify-between gap-3 text-left">
-        <span>
-          <span className="block text-lg font-black">Recommend</span>
-          <span className="mt-1 block text-xs text-neutral-400">Post to the feed, a clique, or a friend.</span>
+        <span className="flex min-w-0 items-start gap-3">
+          <IconBadge name="share" />
+          <span className="min-w-0">
+            <span className="block text-lg font-black">Suggest a pick</span>
+            <span className="mt-1 block text-xs leading-5 text-neutral-300/85">Choose content, choose who sees it, add a short reason.</span>
+          </span>
         </span>
-        <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-neutral-100">{expanded ? 'Hide' : 'Open'}</span>
+        <span className="rounded-full border border-white/10 bg-white/[0.08] px-3 py-1 text-xs font-black text-neutral-100">{expanded ? 'Hide' : 'Open'}</span>
       </button>
 
       {expanded ? (
         <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
-          {groupsByType.length ? (
+          <div className="grid gap-2">
+            <label className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-400">1. Content type</label>
+            <select value={itemType} onChange={(event) => handleItemTypeChange(event.target.value)} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none">
+              {Object.entries(contentTypeMeta).map(([value, meta]) => <option key={value} value={value}>{meta.label}</option>)}
+            </select>
+          </div>
+
+          {previewItems.length ? (
             <div className="grid gap-2">
-              <select value={selectedLibraryKey} onChange={(event) => handleLibrarySelect(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none">
-                <option value="">Choose from your library…</option>
-                {groupsByType.map((group) => (
-                  <optgroup key={group.type} label={`${group.icon} ${group.label}`}>
-                    {group.items.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.title}</option>)}
-                  </optgroup>
-                ))}
-              </select>
+              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-400">2. Pick from your {contentTypeMeta[itemType]?.singular || 'library'}</label>
               <div className="grid grid-cols-2 gap-2">
-                {groupsByType.flatMap((group) => group.items.slice(0, 3)).slice(0, 6).map((item) => {
+                {previewItems.map((item) => {
                   const key = `${item.itemType}:${item.id}`
                   const selected = key === selectedLibraryKey
                   return (
-                    <button key={key} type="button" onClick={() => handleLibrarySelect(key)} className={`flex items-center gap-2 rounded-2xl border p-2 text-left transition ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-black/20 text-white hover:bg-white/10'}`}>
-                      {itemArtwork(item) ? <img src={itemArtwork(item)} alt="" className="h-12 w-9 shrink-0 rounded-lg object-cover" /> : <span className="grid h-12 w-9 shrink-0 place-items-center rounded-lg bg-white/10 text-lg">{contentTypeMeta[item.itemType]?.icon || '✨'}</span>}
+                    <button key={key} type="button" onClick={() => handleLibrarySelect(key)} className={`flex items-center gap-2 rounded-2xl border p-2 text-left transition ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-black/25 text-white hover:bg-white/10'}`}>
+                      {itemArtwork(item) ? <img src={itemArtwork(item)} alt="" className="h-12 w-9 shrink-0 rounded-lg object-cover" /> : <IconBadge name={contentTypeMeta[item.itemType]?.icon || 'explore'} />}
                       <span className="min-w-0"><span className="block truncate text-xs font-black">{item.title}</span><span className="text-[10px] uppercase tracking-[0.14em] opacity-60">{item.label}</span></span>
                     </button>
                   )
                 })}
               </div>
+              <select value={selectedLibraryKey} onChange={(event) => handleLibrarySelect(event.target.value)} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none">
+                <option value="">More from this library…</option>
+                {availableLibraryItems.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.title}</option>)}
+              </select>
             </div>
           ) : null}
-          <input value={title} onChange={(event) => { setTitle(event.target.value); setSelectedLibraryKey('') }} placeholder="Or type a title" className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-600" />
+
+          <input value={title} onChange={(event) => { setTitle(event.target.value); setSelectedLibraryKey(''); setItemId('') }} placeholder="Or type a title" className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500" />
+          <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why should they try it?" rows={3} className="resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500" />
           <div className="grid gap-3 sm:grid-cols-2">
-            <select value={itemType} onChange={(event) => setItemType(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none">
-              {Object.entries(contentTypeMeta).map(([value, meta]) => <option key={value} value={value}>{meta.icon} {meta.label}</option>)}
+            <select value={audience} onChange={(event) => setAudience(event.target.value)} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none">
+              <option value="feed">Feed: friends and cliques</option>
+              {groups.length ? <optgroup label="Cliques">{groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name}</option>)}</optgroup> : null}
+              {friends.length ? <optgroup label="Friends">{friends.map((friend) => <option key={friend.id} value={`friend:${friend.id}`}>{friend.displayName}</option>)}</optgroup> : null}
             </select>
-            <select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none">{priorities.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+            <select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none">{priorities.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
           </div>
-          <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why is it worth it?" rows={3} className="resize-none rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-600" />
-          <select value={audience} onChange={(event) => setAudience(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none">
-            <option value="feed">Post to feed</option>
-            {groups.length ? <optgroup label="Cliques">{groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name}</option>)}</optgroup> : null}
-            {friends.length ? <optgroup label="Friends">{friends.map((friend) => <option key={friend.id} value={`friend:${friend.id}`}>{friend.displayName}</option>)}</optgroup> : null}
-          </select>
-          <button disabled={saving || !signedIn || !title.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Posting…' : signedIn ? 'Post recommendation' : 'Sign in to post'}</button>
+          <button disabled={saving || !signedIn || !title.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Posting…' : signedIn ? 'Post suggestion' : 'Sign in to post'}</button>
         </form>
       ) : null}
     </section>
@@ -490,15 +524,15 @@ export default function Community() {
     <PageShell active="community">
       <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
         <main className="min-w-0">
-          <section className="mb-3 rounded-[1.25rem] border border-white/10 bg-white/[0.025] p-4 text-white">
+          <section className="mb-3 rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.055] to-fuchsia-500/10 p-4 text-white shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="text-xl font-black tracking-tight sm:text-2xl">Feed from cliques and friends</p><p className="mt-1 text-sm text-neutral-500">What friends saved, rated, recommended, and shared.</p></div>
-              <button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button>
+              <div><p className="text-xl font-black tracking-tight sm:text-2xl">Feed from cliques and friends</p><p className="mt-1 text-sm text-neutral-400">Tap a title to open the pick, or use the side cards to suggest and vote.</p></div>
+              <button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button>
             </div>
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 text-neutral-400 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}</div>
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.04] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}</div>
           </section>
-          <div className="grid gap-2">{loading ? <p className="rounded-[1.25rem] border border-white/10 bg-white/[0.03] p-4 text-sm text-neutral-400">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}</div>
-          {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
+          <div className="grid gap-3">{loading ? <p className="rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.04] to-violet-500/10 p-4 text-sm text-neutral-300 shadow-2xl shadow-cyan-950/20 backdrop-blur-2xl ring-1 ring-white/10">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}</div>
+          {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
         </main>
         <aside className="grid gap-4 lg:sticky lg:top-28">
           <div id="people" className="scroll-mt-24"><BlockedMembersPanel signedIn={signedIn} defaultOpen onFlash={flash} onChanged={() => refresh()} /></div>

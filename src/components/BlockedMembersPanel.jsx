@@ -6,18 +6,18 @@ import { getFriendRequests, respondFriendRequest } from '../lib/socialGovernance
 
 function PersonCard({ person, action, actionLabel, busy, status = '', onClose, friend = false }) {
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.045] p-3 backdrop-blur">
+    <article className="rounded-2xl border border-cyan-200/15 bg-white/[0.06] p-3 shadow-lg shadow-cyan-950/10 backdrop-blur-xl ring-1 ring-white/10">
       <div className="flex items-start justify-between gap-3">
         <Link to={`/members/${person.id}`} onClick={onClose} className="min-w-0 flex-1 transition hover:opacity-80">
           <p className="truncate text-sm font-black text-white">{person.displayName}</p>
           <p className="mt-1 text-xs leading-5 text-neutral-400">{status || `${person.libraryCount || 0} public picks${person.friendSince ? ` · friends since ${new Date(person.friendSince).toLocaleDateString()}` : ''}`}</p>
         </Link>
-        {!friend && action ? <button type="button" disabled={busy} onClick={() => action(person)} className="shrink-0 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black text-neutral-100 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{busy ? '…' : actionLabel}</button> : null}
+        {!friend && action ? <button type="button" disabled={busy} onClick={() => action(person)} className="shrink-0 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-neutral-100 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{busy ? '…' : actionLabel}</button> : null}
       </div>
       {friend ? (
         <div className="mt-3 flex flex-wrap gap-2">
           <Link to={`/members/${person.id}`} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-neutral-100 transition hover:bg-white hover:text-neutral-950">View library</Link>
-          <button type="button" disabled={busy} onClick={() => action?.(person)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-400 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{busy ? 'Removing…' : 'Remove'}</button>
+          <button type="button" disabled={busy} onClick={() => action?.(person)} className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs font-black text-neutral-400 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{busy ? 'Removing…' : 'Remove'}</button>
         </div>
       ) : null}
     </article>
@@ -27,7 +27,7 @@ function PersonCard({ person, action, actionLabel, busy, status = '', onClose, f
 function RequestCard({ request, busy, onRespond }) {
   const incoming = request.direction === 'incoming'
   return (
-    <article className="rounded-2xl border border-white/10 bg-white/[0.045] p-3 backdrop-blur">
+    <article className="rounded-2xl border border-cyan-200/15 bg-white/[0.06] p-3 backdrop-blur-xl ring-1 ring-white/10">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-black text-white">{request.displayName}</p>
@@ -38,7 +38,7 @@ function RequestCard({ request, busy, onRespond }) {
             <button type="button" disabled={busy} onClick={() => onRespond(request, 'accepted')} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-neutral-950 disabled:opacity-50">Accept</button>
             <button type="button" disabled={busy} onClick={() => onRespond(request, 'declined')} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-neutral-100 disabled:opacity-50">No</button>
           </div>
-        ) : <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-300">Pending</span>}
+        ) : <span className="rounded-full border border-white/10 bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-300">Pending</span>}
       </div>
     </article>
   )
@@ -170,13 +170,13 @@ export default function BlockedMembersPanel({ signedIn = false, defaultOpen = fa
   const incomingCount = requests.filter((request) => request.direction === 'incoming').length
 
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4 text-white backdrop-blur-xl">
+    <section className="rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.055] to-blue-500/10 p-4 text-white shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10">
       <button type="button" onClick={() => setOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 text-left">
         <span>
           <span className="block text-lg font-black">Friends</span>
           <span className="mt-1 block text-xs text-neutral-400">{friends.length} friends{incomingCount ? ` · ${incomingCount} request${incomingCount === 1 ? '' : 's'}` : ''}</span>
         </span>
-        <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs font-black text-neutral-100">{loading ? '…' : open ? 'Hide' : friends.length}</span>
+        <span className="rounded-full border border-white/10 bg-white/[0.08] px-3 py-1 text-xs font-black text-neutral-100">{loading ? '…' : open ? 'Hide' : friends.length}</span>
       </button>
 
       {open ? (
@@ -189,9 +189,9 @@ export default function BlockedMembersPanel({ signedIn = false, defaultOpen = fa
           ) : null}
 
           <div>
-            <input value={peopleSearch} onChange={(event) => setPeopleSearch(event.target.value)} placeholder="Search friends or members…" className="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500" />
+            <input value={peopleSearch} onChange={(event) => setPeopleSearch(event.target.value)} placeholder="Search friends or members…" className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500" />
             <div className="mt-3 grid gap-2">
-              {peopleSearching ? <p className="rounded-2xl border border-white/10 bg-white/[0.045] p-3 text-sm text-neutral-300">Searching people…</p> : null}
+              {peopleSearching ? <p className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 text-sm text-neutral-300">Searching people…</p> : null}
               {!peopleSearching && peopleSearch.trim().length >= 2 && !peopleResults.length ? <p className="rounded-2xl border border-dashed border-white/10 bg-black/15 p-3 text-sm text-neutral-400">No people found.</p> : null}
               {peopleResults.map((person) => {
                 const pending = requests.some((request) => request.id === person.id || request.memberId === person.id || request.userId === person.id)
