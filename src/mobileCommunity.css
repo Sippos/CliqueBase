@@ -1,0 +1,164 @@
+/* Mobile-first cleanup for the Community surface. Keeps desktop layout intact. */
+@media (max-width: 767px) {
+  main.min-h-screen {
+    padding-left: 0.7rem !important;
+    padding-right: 0.7rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.78rem !important;
+    max-width: 100% !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main {
+    order: 2 !important;
+    min-width: 0 !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside {
+    order: 1 !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(12.8rem, 1fr)) !important;
+    gap: 0.7rem !important;
+    overflow-x: auto !important;
+    overscroll-behavior-x: contain !important;
+    scroll-snap-type: x proximity !important;
+    padding: 0.1rem 0.1rem 0.55rem !important;
+    margin: 0 -0.2rem 0.15rem !important;
+    position: static !important;
+    scrollbar-width: none;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside::-webkit-scrollbar {
+    display: none;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside > * {
+    scroll-snap-align: start !important;
+    min-width: 12.8rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section {
+    min-height: 8.1rem !important;
+    padding: 0.9rem !important;
+    border-radius: 1.35rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section > button {
+    min-height: 5.9rem !important;
+    align-items: flex-start !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section > button span[class*="block text-lg"] {
+    font-size: 1rem !important;
+    line-height: 1.1 !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section > button span[class*="leading-5"],
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section > button span[class*="text-xs"] {
+    font-size: 0.72rem !important;
+    line-height: 1.35 !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child {
+    padding: 0.95rem !important;
+    border-radius: 1.35rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child > div:first-child {
+    display: grid !important;
+    gap: 0.75rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child p[class*="text-xl"] {
+    font-size: 1.22rem !important;
+    line-height: 1.08 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child p[class*="text-sm"] {
+    max-width: 19rem !important;
+    font-size: 0.78rem !important;
+    line-height: 1.45 !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child button[aria-current],
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child button {
+    touch-action: manipulation;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] {
+    border-radius: 1.28rem !important;
+    padding: 0.75rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] > div:first-child {
+    gap: 0.65rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] img {
+    width: 3.2rem !important;
+    height: 4.65rem !important;
+    border-radius: 0.82rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] a[class*="text-base"],
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] h3[class*="text-base"] {
+    font-size: 1rem !important;
+    line-height: 1.15 !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] p[class*="leading-5"] {
+    max-height: 4.7rem !important;
+    overflow: hidden !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form input,
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form select,
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form textarea,
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form button {
+    min-height: 2.9rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form textarea {
+    min-height: 6.4rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form div[class*="grid-cols-2"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] #people,
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] #recommend,
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] #tonight {
+    scroll-margin-top: 5.75rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] aside section > form,
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] aside section > div:not(:first-child) {
+    width: min(88vw, 23rem) !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] aside section:has(form),
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] aside section:has(div.mt-4) {
+    min-width: min(92vw, 25rem) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside {
+    grid-template-columns: repeat(3, minmax(11.6rem, 1fr)) !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside > * {
+    min-width: 11.6rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] img {
+    width: 2.9rem !important;
+    height: 4.35rem !important;
+  }
+}
