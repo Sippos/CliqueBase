@@ -1,5 +1,7 @@
 -- Trust and safety primitives for a community app: user blocks and content reports.
 
+create extension if not exists pgcrypto;
+
 create table if not exists public.user_blocks (
   blocker_id uuid not null references auth.users(id) on delete cascade,
   blocked_id uuid not null references auth.users(id) on delete cascade,
