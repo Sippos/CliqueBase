@@ -31,8 +31,14 @@ export function totalPollVotes(poll) {
   return (poll?.options || []).reduce((sum, option) => sum + Number(option.votes || 0), 0)
 }
 
+export function isPollExpired(poll) {
+  if (!poll?.closesAt) return false
+  const closesAt = new Date(poll.closesAt).getTime()
+  return Number.isFinite(closesAt) && closesAt <= Date.now()
+}
+
 export function isPollOpen(poll) {
-  return (poll?.status || 'open') === 'open'
+  return (poll?.status || 'open') === 'open' && !isPollExpired(poll)
 }
 
 export function pollOptionStats(poll) {
