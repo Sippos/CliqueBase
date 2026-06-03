@@ -6,6 +6,7 @@
     }
   ],
   "git": {
-    "deploymentEnabled": true
-  }
+    "deploymentEnabled": false
+  },
+  "ignoreCommand": "exit 0"
 }
