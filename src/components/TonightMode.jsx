@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import AppIcon from './AppIcon.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
-import { closeCliquePoll, createCliquePoll, getCliquePolls, voteCliquePoll } from '../lib/cliquePolls.js'
+import { closeCliquePoll, createCliquePoll, getCliquePollsWithPendingDecisions, voteCliquePoll } from '../lib/cliquePolls.js'
 import { getCliqueDecisions, markDecisionDone } from '../lib/decisions.js'
 import {
   decisionOptionsOrFallback,
@@ -168,7 +168,7 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
     setLoading(true)
     try {
       const [nextPolls, nextDecisions] = await Promise.all([
-        getCliquePolls(selectedGroup.id, 5),
+        getCliquePollsWithPendingDecisions(selectedGroup.id, 5),
         getCliqueDecisions(selectedGroup.id, 5),
       ])
       setPolls(nextPolls)
