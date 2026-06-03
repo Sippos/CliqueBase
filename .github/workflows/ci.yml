@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build then lint
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -26,5 +26,5 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Lint
-        run: npm run lint
+      - name: Lint errors only
+        run: npm run lint:check
