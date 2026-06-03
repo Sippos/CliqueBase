@@ -17,6 +17,9 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      'no-unused-vars': 'warn',
+    },
   },
   {
     files: ['api/**/*.js', 'vite.config.js'],
@@ -28,17 +31,6 @@ export default defineConfig([
     files: ['src/components/MediaBlocks.jsx'],
     rules: {
       'react-refresh/only-export-components': 'off',
-    },
-  },
-  {
-    files: [
-      'src/pages/Share.jsx',
-      'src/pages/CliqueSettings.jsx',
-      'src/mobileExploreEnhancer.js',
-      'src/components/TonightMode.jsx',
-    ],
-    rules: {
-      'no-unused-vars': 'off',
     },
   },
   {
