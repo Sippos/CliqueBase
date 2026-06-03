@@ -64,6 +64,21 @@ function AddMenu({ categories, groupId }) {
   )
 }
 
+function StatCard({ icon, label, value, caption }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{label}</p>
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-neutral-300">
+          <AppIcon name={icon} size={15} />
+        </span>
+      </div>
+      <p className="mt-2 text-2xl font-black">{value}</p>
+      {caption ? <p className="mt-1 text-xs text-neutral-500">{caption}</p> : null}
+    </div>
+  )
+}
+
 function LibraryReel({ items, loading, onShare, onInfo }) {
   const [index, setIndex] = useState(0)
   useEffect(() => { setIndex((current) => items.length ? Math.min(current, items.length - 1) : 0) }, [items.length])
@@ -93,7 +108,7 @@ function LibraryReel({ items, loading, onShare, onInfo }) {
           <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-bold text-neutral-200 backdrop-blur">{index + 1}/{items.length}</span>
         </div>
         <div className="relative max-w-md pr-20">
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-300">{item.type}</p>
+          <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-neutral-300"><AppIcon name={TYPE_ICONS[item.type] || 'dashboard'} size={13} />{item.type}</p>
           <h2 className="mt-2 text-2xl font-black text-white sm:text-3xl">{item.title}</h2>
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-neutral-300">{itemText(item)}</p>
         </div>
@@ -106,6 +121,52 @@ function LibraryReel({ items, loading, onShare, onInfo }) {
   )
 }
 
+function BestByCategory({ categories, loading, onInfo }) {
+  if (loading) {
+    return (
+      <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 text-white sm:p-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">Best by category</p>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          {categories.map((category) => <div key={category.title} className="h-28 animate-pulse rounded-2xl bg-neutral-950/80" />)}
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 text-white sm:p-5">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500"><AppIcon name="dashboard" size={14} />Best by category</p>
+          <h2 className="mt-1 text-2xl font-black">Top picks at a glance</h2>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {categories.map((category) => {
+          const item = category.items[0]
+          const image = item ? imageFor(item) : null
+          return (
+            <button key={category.title} type="button" disabled={!item} onClick={() => item && onInfo?.(item)} className="group relative min-h-[9rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 p-3 text-left transition hover:border-white/30 disabled:cursor-default disabled:opacity-70">
+              {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45 transition duration-500 group-hover:scale-105" /> : null}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+              <div className="relative flex h-full flex-col justify-between gap-6">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-200"><AppIcon name={category.icon} size={12} />{category.title}</span>
+                  <span className="text-xs font-black text-neutral-500">#{item ? 1 : '—'}</span>
+                </div>
+                <div>
+                  <h3 className="line-clamp-2 text-lg font-black text-white">{item?.title || `No ${category.title.toLowerCase()} yet`}</h3>
+                  <p className="mt-1 line-clamp-1 text-xs font-semibold text-neutral-400">{item ? itemMetaChips(item).join(' · ') || `${category.items.length} saved` : 'Add something to start ranking.'}</p>
+                </div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function ShelfCard({ item, isClique, copying, onInfo, onShare, onCopy }) {
   const image = imageFor(item)
   const chips = itemMetaChips(item)
@@ -115,7 +176,6 @@ function ShelfCard({ item, isClique, copying, onInfo, onShare, onCopy }) {
         <button type="button" onClick={() => onInfo?.(item)} className="absolute inset-0 z-10 text-left" aria-label={`Show details for ${item.title}`} />
         {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
-        <span className="absolute left-2 top-2 rounded-full border border-white/15 bg-black/55 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-white backdrop-blur">{item.type}</span>
         <div className="absolute right-2 top-2 z-20 flex gap-1.5">
           <SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} />
           <SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} />
@@ -158,27 +218,50 @@ function CategoryShelf({ category, loading, isClique, copyingKey, onInfo, onShar
   )
 }
 
-function ItemInfoModal({ item, onClose }) {
+function ItemInfoModal({ item, onClose, onShare, onCopy, isClique, copying }) {
   if (!item) return null
   const image = imageFor(item)
   const icon = TYPE_ICONS[item.type] || 'explore'
+  const meta = itemMetaChips(item)
+  const genreList = Array.isArray(item.genres) ? item.genres.filter(Boolean) : []
+  const platformList = Array.isArray(item.platforms) ? item.platforms.filter(Boolean) : []
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-5 text-white shadow-2xl shadow-black/40">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0"><p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name={icon} size={14} />{item.type}</p><h2 className="mt-2 text-2xl font-black leading-tight">{item.title}</h2></div>
-          <button type="button" onClick={onClose} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-2xl text-neutral-400 transition hover:bg-white hover:text-neutral-950">×</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 text-white shadow-2xl shadow-black/50">
+        <div className="relative min-h-[16rem] overflow-hidden p-5 sm:p-6">
+          {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+          <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/70 to-black/20" />
+          <button type="button" onClick={onClose} className="absolute right-4 top-4 z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/45 text-2xl text-neutral-300 transition hover:bg-white hover:text-neutral-950">×</button>
+          <div className="relative flex min-h-[13rem] flex-col justify-end pr-12">
+            <p className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-xs font-black uppercase tracking-[0.24em] text-neutral-300"><AppIcon name={icon} size={14} />{item.type}</p>
+            <h2 className="mt-3 max-w-2xl text-3xl font-black leading-tight sm:text-4xl">{item.title}</h2>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-neutral-200">
+              {meta.map((chip) => <span key={chip} className="rounded-full border border-white/10 bg-black/35 px-3 py-1.5">{chip}</span>)}
+              {item.rating ? <span className="rounded-full border border-white/10 bg-black/35 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
+              {item.classic ? <span className="rounded-full border border-white/10 bg-black/35 px-3 py-1.5">Classic</span> : null}
+            </div>
+          </div>
         </div>
-        {image ? <img src={image} alt="" className="mt-5 h-56 w-full rounded-3xl object-cover" /> : null}
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
-          <span className="rounded-full border border-white/10 px-3 py-1.5">Score {item.score || 0}</span>
-          <span className="rounded-full border border-white/10 px-3 py-1.5">{item.picks || 0} picks</span>
-          {item.rating ? <span className="rounded-full border border-white/10 px-3 py-1.5">★ {Number(item.rating).toFixed(1)}</span> : null}
-          {item.classic ? <span className="rounded-full border border-white/10 px-3 py-1.5">Classic</span> : null}
-          {item.platform ? <span className="rounded-full border border-white/10 px-3 py-1.5">{item.platform}</span> : null}
+        <div className="max-h-[calc(90vh-16rem)] overflow-y-auto p-5 sm:p-6">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Year</p><p className="mt-1 font-black">{item.year || 'Unknown'}</p></div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Score</p><p className="mt-1 font-black">{item.score || 0}</p></div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Picks</p><p className="mt-1 font-black">{item.picks || 0}</p></div>
+          </div>
+          <p className="mt-5 break-words text-sm leading-7 text-neutral-300">{itemText(item)}</p>
+          {(genreList.length || platformList.length || item.platform) ? (
+            <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">
+              {genreList.map((genre) => <span key={genre} className="rounded-full border border-white/10 px-3 py-1.5">{genre}</span>)}
+              {platformList.map((platform) => <span key={platform} className="rounded-full border border-white/10 px-3 py-1.5">{platform}</span>)}
+              {!platformList.length && item.platform ? <span className="rounded-full border border-white/10 px-3 py-1.5">{item.platform}</span> : null}
+            </div>
+          ) : null}
+          <div className="mt-6 flex flex-wrap gap-2">
+            <button type="button" onClick={() => onShare?.(item)} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200"><AppIcon name="share" size={15} />Share</button>
+            {isClique ? <button type="button" disabled={copying} onClick={() => onCopy?.(item)} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-50"><AppIcon name="copy" size={15} />{copying ? 'Copying…' : 'Copy to My Library'}</button> : null}
+            {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="link" size={15} />Open video</a> : null}
+          </div>
         </div>
-        <p className="mt-5 break-words text-sm leading-7 text-neutral-300">{itemText(item)}</p>
-        {item.url ? <a href={item.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 hover:bg-neutral-200">Open video</a> : null}
       </div>
     </div>
   )
@@ -217,6 +300,7 @@ export default function Home() {
   ], [context.groupId, movieItems, seriesItems, gameItems, videoItems])
   const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
   const totalPicks = useMemo(() => allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0), [allItems])
+  const filledCategories = useMemo(() => categories.filter((category) => category.items.length).length, [categories])
   const isClique = Boolean(context.groupId)
 
   async function refreshDashboard(preferredGroupId = null) {
@@ -292,10 +376,11 @@ export default function Home() {
               <AddMenu categories={categories} groupId={context.groupId} />
             </div>
             {status === 'signed-out' ? <p className="mt-3 inline-flex rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-sm text-neutral-300">Sign in from Profile to save picks and sync your library.</p> : null}
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:max-w-xl">
-              <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Total</p><p className="mt-1 text-2xl font-black">{loading ? '…' : allItems.length}</p></div>
-              <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Rated</p><p className="mt-1 text-2xl font-black">{loading ? '…' : ratedCount}</p></div>
-              <div className="rounded-2xl border border-white/10 bg-neutral-950/70 p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Picks</p><p className="mt-1 text-2xl font-black">{loading ? '…' : totalPicks}</p></div>
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:max-w-3xl">
+              <StatCard icon="dashboard" label="Total" value={loading ? '…' : allItems.length} caption="saved items" />
+              <StatCard icon="info" label="Rated" value={loading ? '…' : ratedCount} caption="with scores" />
+              <StatCard icon="share" label="Picks" value={loading ? '…' : totalPicks} caption="friend signals" />
+              <StatCard icon="list" label="Types" value={loading ? '…' : `${filledCategories}/4`} caption="categories active" />
             </div>
           </div>
           <div className="p-3 pt-0 xl:p-3">
@@ -304,6 +389,10 @@ export default function Home() {
         </div>
       </section>
 
+      <div className="mt-5">
+        <BestByCategory categories={categories} loading={loading} onInfo={setInfoItem} />
+      </div>
+
       {shareNotice ? <div className="mt-5 rounded-2xl border border-emerald-400/30 bg-emerald-950/30 p-4 text-sm text-emerald-100">{shareNotice}</div> : null}
       {message ? <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-950/30 p-4 text-sm text-rose-100">{message}</div> : null}
 
@@ -311,7 +400,7 @@ export default function Home() {
         {categories.map((category) => <CategoryShelf key={category.title} category={category} loading={loading} isClique={isClique} copyingKey={copyingKey} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />)}
       </div>
 
-      <ItemInfoModal item={infoItem} onClose={() => setInfoItem(null)} />
+      <ItemInfoModal item={infoItem} onClose={() => setInfoItem(null)} onShare={openShare} onCopy={copyToLibrary} isClique={isClique} copying={copyingKey === itemActionKey(infoItem, 'copy-')} />
       {sharingItem ? <MemberShareModal item={sharingItem} type={itemTypeForShare(sharingItem)} onClose={() => setSharingItem(null)} onMessage={handleShareMessage} /> : null}
     </PageShell>
   )
