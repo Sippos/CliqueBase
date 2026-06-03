@@ -5,10 +5,14 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  build:
-    name: Build
+  verify:
+    name: Lint, test, and build
     runs-on: ubuntu-latest
 
     steps:
@@ -19,12 +23,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint:check
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build
-
-      - name: Lint errors only
-        run: npm run lint:check
