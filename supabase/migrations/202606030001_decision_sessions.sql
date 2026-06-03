@@ -45,6 +45,10 @@ on public.decision_sessions for update to authenticated
 using (private.is_group_member(group_id, (select auth.uid())))
 with check (private.is_group_member(group_id, (select auth.uid())));
 
+-- The earlier clique-polls migration created close_clique_poll(uuid) returning void.
+-- Postgres requires dropping a function before changing its return type.
+drop function if exists public.close_clique_poll(uuid);
+
 create or replace function public.close_clique_poll(poll_id_input uuid)
 returns uuid
 language plpgsql
