@@ -73,7 +73,7 @@ export async function voteCliquePoll(pollId, optionId) {
 export async function closeCliquePoll(pollId) {
   const client = requireConfiguredSupabase()
   if (!pollId) throw new Error('Choose a poll first.')
-  const { error } = await client.rpc('close_clique_poll', { poll_id_input: pollId })
+  const { data, error } = await client.rpc('close_clique_poll', { poll_id_input: pollId })
   if (error) throw error
-  return true
+  return data
 }
