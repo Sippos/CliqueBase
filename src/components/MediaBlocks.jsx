@@ -15,10 +15,16 @@ export function displayYear(value) {
 
 function inferShareType(...values) {
   const text = values.filter(Boolean).join(' ').toLowerCase()
-  if (text.includes('movie') || text.includes('watch')) return 'movie'
   if (text.includes('series') || text.includes('binge')) return 'series'
   if (text.includes('game') || text.includes('play')) return 'game'
+  if (text.includes('movie') || text.includes('watch')) return 'movie'
   return ''
+}
+
+function itemShareType(item, fallback = '') {
+  const explicitType = String(item?.type || item?.category || '').toLowerCase()
+  if (explicitType === 'movie' || explicitType === 'series' || explicitType === 'game') return explicitType
+  return fallback
 }
 
 export function PageHero({ eyebrow, title, description, warning, actions = null, children }) {
@@ -56,21 +62,29 @@ export function SearchResultsSection({ title = 'Search results', clearLabel = 'B
   )
 }
 
-export function ResultRow({ item, onInfo, onAdd, onDone, addLabel = 'Add', doneLabel = null, imageClass = 'h-16 w-11', children }) {
+export function ResultRow({ item, onInfo, onAdd, onDone, onShareMessage, addLabel = 'Add', doneLabel = null, imageClass = 'h-16 w-11', shareType = '', children }) {
+  const [sharingItem, setSharingItem] = useState(null)
+  const resolvedShareType = itemShareType(item, shareType)
+  const canShare = Boolean(resolvedShareType)
+
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
-      {item.poster ? (
-        <button type="button" onClick={() => onInfo?.(item)} className="shrink-0 overflow-hidden rounded-xl text-left">
-          <img src={item.poster} alt="" className={`${imageClass} object-cover transition hover:opacity-80`} />
-        </button>
-      ) : null}
-      <div className="min-w-0 flex-1">
-        <button type="button" onClick={() => onInfo?.(item)} className="block max-w-full truncate text-left font-semibold text-white hover:underline">{item.title}</button>
-        <div className="mt-1 text-sm text-neutral-400">{children || item.year || 'Unknown year'}</div>
+    <>
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-neutral-900 p-3">
+        {item.poster ? (
+          <button type="button" onClick={() => onInfo?.(item)} className="shrink-0 overflow-hidden rounded-xl text-left">
+            <img src={item.poster} alt="" className={`${imageClass} object-cover transition hover:opacity-80`} />
+          </button>
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <button type="button" onClick={() => onInfo?.(item)} className="block max-w-full truncate text-left font-semibold text-white hover:underline">{item.title}</button>
+          <div className="mt-1 text-sm text-neutral-400">{children || item.year || 'Unknown year'}</div>
+        </div>
+        {canShare ? <button type="button" onClick={() => setSharingItem(item)} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-neutral-300 transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+        {onAdd ? <button type="button" onClick={() => onAdd(item)} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">{addLabel}</button> : null}
+        {onDone && doneLabel ? <button type="button" onClick={() => onDone(item)} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-neutral-300 transition hover:bg-white hover:text-neutral-950">{doneLabel}</button> : null}
       </div>
-      {onAdd ? <button type="button" onClick={() => onAdd(item)} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">{addLabel}</button> : null}
-      {onDone && doneLabel ? <button type="button" onClick={() => onDone(item)} className="rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-neutral-300 transition hover:bg-white hover:text-neutral-950">{doneLabel}</button> : null}
-    </div>
+      <MemberShareModal item={sharingItem} type={resolvedShareType} onClose={() => setSharingItem(null)} onMessage={onShareMessage} />
+    </>
   )
 }
 
@@ -81,7 +95,7 @@ export function TopRankingSection({ eyebrow = '', title, items, votes = {}, limi
   const canShare = Boolean(inferredShareType || onShare)
 
   function handleShare(item) {
-    if (inferredShareType) {
+    if (itemShareType(item, inferredShareType)) {
       setSharingItem(item)
       return
     }
@@ -121,7 +135,7 @@ export function TopRankingSection({ eyebrow = '', title, items, votes = {}, limi
           </div>
         )}
       </section>
-      <MemberShareModal item={sharingItem} type={inferredShareType} onClose={() => setSharingItem(null)} onMessage={onShareMessage} />
+      <MemberShareModal item={sharingItem} type={sharingItem ? itemShareType(sharingItem, inferredShareType) : inferredShareType} onClose={() => setSharingItem(null)} onMessage={onShareMessage} />
     </>
   )
 }
@@ -132,7 +146,7 @@ export function RatedHistorySection({ eyebrow, title, countText, emptyLabel, ite
   const canShare = Boolean(inferredShareType || onShare)
 
   function handleShare(item) {
-    if (inferredShareType) {
+    if (itemShareType(item, inferredShareType)) {
       setSharingItem(item)
       return
     }
@@ -200,7 +214,7 @@ export function RatedHistorySection({ eyebrow, title, countText, emptyLabel, ite
           </div>
         )}
       </section>
-      <MemberShareModal item={sharingItem} type={inferredShareType} onClose={() => setSharingItem(null)} onMessage={onShareMessage} />
+      <MemberShareModal item={sharingItem} type={sharingItem ? itemShareType(sharingItem, inferredShareType) : inferredShareType} onClose={() => setSharingItem(null)} onMessage={onShareMessage} />
     </>
   )
 }
