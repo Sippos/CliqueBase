@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import BlockedMembersPanel from '../components/BlockedMembersPanel.jsx'
+import MemberShareModal from '../components/MemberShareModal.jsx'
 import PageShell from '../components/PageShell.jsx'
 import TonightMode from '../components/TonightMode.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
 import { addMediaComment, createRecommendationNote, getSocialActivity } from '../lib/communityActivity.js'
+import { getFriendsList } from '../lib/communityShare.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
 import { blockUser, reportContent } from '../lib/safety.js'
 
@@ -12,6 +14,13 @@ const priorities = [
   { value: 'must', label: 'Must try' },
   { value: 'maybe', label: 'Maybe' },
   { value: 'later', label: 'Later' },
+]
+
+const feedFilters = [
+  { key: 'all', label: 'All' },
+  { key: 'friends', label: 'Friends' },
+  { key: 'cliques', label: 'Cliques' },
+  { key: 'mine', label: 'Mine' },
 ]
 
 const reportReasons = [
@@ -63,15 +72,39 @@ function normalizeLibraryItems(movies = [], series = [], games = []) {
     .sort((a, b) => String(a.title).localeCompare(String(b.title)))
 }
 
-function EmptyCommunity({ signedIn }) {
+function shareableType(activity) {
+  const type = String(activity?.itemType || activity?.payload?.itemType || '').toLowerCase()
+  return ['movie', 'series', 'game'].includes(type) ? type : ''
+}
+
+function shareItemFromActivity(activity) {
+  if (!activity) return null
+  return {
+    id: activity.itemId || activity.id,
+    type: shareableType(activity),
+    category: shareableType(activity),
+    title: activity.title || 'CliqueBase pick',
+    overview: payloadText(activity),
+    groupId: activity.groupId || null,
+    groupName: activity.groupName || '',
+  }
+}
+
+function EmptyCommunity({ signedIn, filter }) {
+  const copy = filter === 'friends'
+    ? 'Add friends or accept requests to fill this tab.'
+    : filter === 'cliques'
+      ? 'Join or create a clique to see shared-room activity here.'
+      : filter === 'mine'
+        ? 'Your own recommendations and shares will show here.'
+        : signedIn ? 'Share something from your library or invite friends to start the feed.' : 'Sign in to see friend activity.'
   return (
     <section className="rounded-[1.5rem] border border-dashed border-white/15 bg-white/[0.025] p-6 text-center">
       <h2 className="text-xl font-black text-white">No posts yet</h2>
-      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-neutral-500">
-        {signedIn ? 'Share something from your library or invite friends to start the feed.' : 'Sign in to see friend activity.'}
-      </p>
+      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-neutral-500">{copy}</p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
         <a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a>
+        <a href="#people" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white">Find people</a>
         <Link to="/groups" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white">Cliques</Link>
       </div>
     </section>
@@ -90,13 +123,7 @@ function ActivityCommentForm({ activity, signedIn, onCommented, onFlash }) {
     }
     setSaving(true)
     try {
-      await addMediaComment({
-        itemType: activity.itemType || 'other',
-        itemId: activity.itemId || `${activity.type}:${activity.id}`,
-        title: activity.title,
-        body,
-        groupId: activity.groupId || null,
-      })
+      await addMediaComment({ itemType: activity.itemType || 'other', itemId: activity.itemId || `${activity.type}:${activity.id}`, title: activity.title, body, groupId: activity.groupId || null })
       setBody('')
       onCommented?.()
     } catch (error) {
@@ -109,9 +136,7 @@ function ActivityCommentForm({ activity, signedIn, onCommented, onFlash }) {
   return (
     <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row">
       <input value={body} onChange={(event) => setBody(event.target.value)} placeholder={signedIn ? 'Reply…' : 'Sign in to reply'} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-600" />
-      <button disabled={saving || !body.trim() || !signedIn} className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-45">
-        {saving ? 'Posting…' : 'Reply'}
-      </button>
+      <button disabled={saving || !body.trim() || !signedIn} className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-45">{saving ? 'Posting…' : 'Reply'}</button>
     </form>
   )
 }
@@ -167,16 +192,12 @@ function ActivityReportForm({ activity, signedIn, onFlash, onBlocked }) {
 
   return (
     <div className="mt-3">
-      <button type="button" onClick={() => setOpen((value) => !value)} className="text-xs font-bold text-neutral-600 transition hover:text-neutral-300">
-        {open ? 'Cancel' : 'Report / block'}
-      </button>
+      <button type="button" onClick={() => setOpen((value) => !value)} className="text-xs font-bold text-neutral-600 transition hover:text-neutral-300">{open ? 'Cancel' : 'Report / block'}</button>
       {open ? (
         <div className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-neutral-950/75 p-3">
           <form onSubmit={handleSubmit} className="grid gap-2">
             <div className="grid gap-2 sm:grid-cols-[9rem_1fr]">
-              <select value={reason} onChange={(event) => setReason(event.target.value)} className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none">
-                {reportReasons.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
+              <select value={reason} onChange={(event) => setReason(event.target.value)} className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none">{reportReasons.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
               <input value={details} onChange={(event) => setDetails(event.target.value)} placeholder="Optional note" className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600" />
             </div>
             <button disabled={saving || !signedIn} className="rounded-xl border border-red-300/20 px-3 py-2 text-xs font-black text-red-100 transition hover:bg-red-500 hover:text-white disabled:opacity-50">{saving ? 'Sending…' : 'Submit report'}</button>
@@ -188,15 +209,17 @@ function ActivityReportForm({ activity, signedIn, onFlash, onBlocked }) {
   )
 }
 
-function ActivityCard({ activity, signedIn, onCommented, onFlash }) {
+function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   const text = payloadText(activity)
   const tags = Array.isArray(activity.payload?.moodTags) ? activity.payload.moodTags : []
+  const canShare = Boolean(shareableType(activity))
+  const actor = activity.actorId ? <Link to={`/members/${activity.actorId}`} className="font-black text-white hover:underline">{activity.actorDisplayName}</Link> : <span className="font-black text-white">{activity.actorDisplayName}</span>
   return (
     <article className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/20 hover:bg-white/[0.045]">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-400">
-        <span className="font-black text-white">{activity.actorDisplayName}</span>
+        {actor}
         <span>{activityVerb(activity)}</span>
-        {activity.groupName ? <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-neutral-300">{activity.groupName}</span> : null}
+        {activity.groupName ? <Link to={`/cliques/${encodeURIComponent(activity.groupId)}`} className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-bold text-neutral-300 hover:bg-white hover:text-neutral-950">{activity.groupName}</Link> : null}
         <span className="text-xs text-neutral-600">{relativeTime(activity.createdAt)}</span>
       </div>
       <h3 className="mt-2 text-xl font-black leading-tight text-white">{activity.title}</h3>
@@ -205,6 +228,10 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash }) {
         {activity.itemType ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-500">{activity.itemType}</span> : null}
         {activity.payload?.priority ? <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-500">{activity.payload.priority}</span> : null}
         {tags.map((tag) => <span key={tag} className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-black text-neutral-300">{tag}</span>)}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {canShare ? <button type="button" onClick={() => onShare(activity)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+        {activity.actorId ? <Link to={`/members/${activity.actorId}`} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Profile</Link> : null}
       </div>
       <ActivityCommentForm activity={activity} signedIn={signedIn} onCommented={onCommented} onFlash={onFlash} />
       <ActivityReportForm activity={activity} signedIn={signedIn} onFlash={onFlash} onBlocked={onCommented} />
@@ -258,35 +285,17 @@ function RecommendationComposer({ groups, libraryItems, signedIn, onCreated, onF
 
   return (
     <form id="recommend" onSubmit={handleSubmit} className="scroll-mt-24 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl font-black text-white">Recommend</h2>
-        <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">Post</span>
-      </div>
+      <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-black text-white">Recommend</h2><span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-500">Post</span></div>
       <div className="mt-4 grid gap-3">
-        <select value={selectedLibraryKey} onChange={(event) => handleLibrarySelect(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">
-          <option value="">Choose from your library…</option>
-          {libraryItems.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.label}: {item.title}</option>)}
-        </select>
+        <select value={selectedLibraryKey} onChange={(event) => handleLibrarySelect(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="">Choose from your library…</option>{libraryItems.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.label}: {item.title}</option>)}</select>
         <input value={title} onChange={(event) => { setTitle(event.target.value); setSelectedLibraryKey('') }} placeholder="Or type a title" className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
         <div className="grid gap-3 sm:grid-cols-2">
-          <select value={itemType} onChange={(event) => setItemType(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">
-            <option value="movie">Movie</option>
-            <option value="series">Series</option>
-            <option value="game">Game</option>
-            <option value="video">Video</option>
-            <option value="music">Music</option>
-            <option value="other">Other</option>
-          </select>
+          <select value={itemType} onChange={(event) => setItemType(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="movie">Movie</option><option value="series">Series</option><option value="game">Game</option><option value="video">Video</option><option value="music">Music</option><option value="other">Other</option></select>
           <select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">{priorities.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
         </div>
         <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why is it worth it?" rows={3} className="resize-none rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
         <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Tags: cozy, co-op, tense" className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
-        {groups.length ? (
-          <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">
-            <option value="">Post to feed</option>
-            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
-          </select>
-        ) : null}
+        {groups.length ? <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none"><option value="">Post to feed</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select> : null}
         <button disabled={saving || !signedIn || !title.trim()} className="rounded-2xl bg-white px-5 py-3 font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Posting…' : signedIn ? 'Post recommendation' : 'Sign in to post'}</button>
       </div>
     </form>
@@ -297,20 +306,38 @@ export default function Community() {
   const [session, setSession] = useState(null)
   const [groups, setGroups] = useState([])
   const [activity, setActivity] = useState([])
+  const [friends, setFriends] = useState([])
   const [libraryItems, setLibraryItems] = useState([])
+  const [feedFilter, setFeedFilter] = useState('all')
+  const [feedLimit, setFeedLimit] = useState(80)
+  const [sharingActivity, setSharingActivity] = useState(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
 
   const signedIn = hasSupabase && Boolean(session?.user)
   const activeGroupId = getActiveGroupId()
   const activeGroup = useMemo(() => groups.find((group) => group.id === activeGroupId) || groups[0] || null, [groups, activeGroupId])
+  const friendIds = useMemo(() => new Set(friends.map((friend) => friend.id).filter(Boolean)), [friends])
+  const currentUserId = session?.user?.id || ''
+  const filteredActivity = useMemo(() => activity.filter((item) => {
+    if (feedFilter === 'friends') return friendIds.has(item.actorId)
+    if (feedFilter === 'cliques') return Boolean(item.groupId)
+    if (feedFilter === 'mine') return item.actorId && item.actorId === currentUserId
+    return true
+  }), [activity, feedFilter, friendIds, currentUserId])
+  const filterCounts = useMemo(() => ({
+    all: activity.length,
+    friends: activity.filter((item) => friendIds.has(item.actorId)).length,
+    cliques: activity.filter((item) => item.groupId).length,
+    mine: activity.filter((item) => item.actorId && item.actorId === currentUserId).length,
+  }), [activity, friendIds, currentUserId])
 
   function flash(text) {
     setMessage(text)
     setTimeout(() => setMessage(''), 2600)
   }
 
-  async function refresh() {
+  async function refresh(limit = feedLimit) {
     setLoading(true)
     try {
       const nextSession = hasSupabase ? await getCurrentSession().catch(() => null) : null
@@ -318,18 +345,21 @@ export default function Community() {
       if (!nextSession?.user) {
         setActivity([])
         setGroups([])
+        setFriends([])
         setLibraryItems([])
         return
       }
-      const [nextGroups, nextActivity, movies, series, games] = await Promise.all([
+      const [nextGroups, nextActivity, nextFriends, movies, series, games] = await Promise.all([
         getRemoteGroups().catch(() => []),
-        getSocialActivity({ limit: 80, includePublic: true }).catch(() => []),
+        getSocialActivity({ limit, includePublic: true }).catch(() => []),
+        getFriendsList().catch(() => []),
         getMovies(null).catch(() => []),
         getSeries(null).catch(() => []),
         getGames(null).catch(() => []),
       ])
       setGroups(nextGroups)
       setActivity(nextActivity)
+      setFriends(nextFriends)
       setLibraryItems(normalizeLibraryItems(movies, series, games))
     } catch (error) {
       flash(error.message || 'Could not load feed.')
@@ -338,34 +368,41 @@ export default function Community() {
     }
   }
 
+  function loadMore() {
+    const nextLimit = feedLimit + 40
+    setFeedLimit(nextLimit)
+    refresh(nextLimit)
+  }
+
   useEffect(() => { refresh() }, [])
 
   return (
     <PageShell active="community">
       <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <main className="min-w-0">
-          <section className="mb-4 flex flex-wrap items-end justify-between gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 text-white">
-            <div>
-              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Friend feed</h1>
-              <p className="mt-1 text-sm text-neutral-500">{activeGroup?.name ? `Showing ${activeGroup.name} and friend activity.` : 'Recommendations, shares, comments, and clique updates.'}</p>
+          <section className="mb-4 rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 text-white">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Friend feed</h1><p className="mt-1 text-sm text-neutral-500">{activeGroup?.name ? `${activeGroup.name} and friends` : 'Recommendations, shares, comments, and clique updates.'}</p></div>
+              <div className="flex gap-2"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div>
             </div>
-            <div className="flex gap-2">
-              <a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a>
-              <button type="button" onClick={refresh} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button>
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+              {feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 text-neutral-400 hover:bg-white hover:text-neutral-950'}`}>{filter.label} <span className="opacity-60">{filterCounts[filter.key] || 0}</span></button>)}
             </div>
           </section>
 
           <div className="grid gap-3">
-            {loading ? <p className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">Loading feed…</p> : activity.length ? activity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={refresh} onFlash={flash} />) : <EmptyCommunity signedIn={signedIn} />}
+            {loading ? <p className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5 text-sm text-neutral-400">Loading feed…</p> : filteredActivity.length ? filteredActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}
           </div>
+          {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
         </main>
 
         <aside className="grid gap-4 lg:sticky lg:top-28">
-          <RecommendationComposer groups={groups} libraryItems={libraryItems} signedIn={signedIn} onCreated={refresh} onFlash={flash} />
-          <div id="friends" className="scroll-mt-24"><BlockedMembersPanel signedIn={signedIn} onFlash={flash} onChanged={refresh} /></div>
+          <div id="people" className="scroll-mt-24"><BlockedMembersPanel signedIn={signedIn} defaultOpen onFlash={flash} onChanged={() => refresh()} /></div>
+          <RecommendationComposer groups={groups} libraryItems={libraryItems} signedIn={signedIn} onCreated={() => refresh()} onFlash={flash} />
           <div id="tonight" className="scroll-mt-24"><TonightMode groups={groups} signedIn={signedIn} onFlash={flash} /></div>
         </aside>
       </div>
+      <MemberShareModal item={sharingActivity ? shareItemFromActivity(sharingActivity) : null} type={sharingActivity ? shareableType(sharingActivity) : ''} onClose={() => setSharingActivity(null)} onMessage={flash} />
       {message ? <div className="fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}
     </PageShell>
   )
