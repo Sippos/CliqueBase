@@ -182,6 +182,39 @@ main article[class*="bg-neutral-950"] {
   border-color: rgba(255, 255, 255, 0.13) !important;
 }
 
+/* Explore desktop parity: the mobile flip/action card now works on larger screens too. */
+@media (min-width: 768px) {
+  main section[class*="mb-6"] > div[class*="mb-3"] > div[class*="sm:inline-flex"] {
+    display: none !important;
+  }
+
+  main article.group div[class*="z-30"][class*="backdrop-blur-sm"][class*="sm:hidden"] {
+    display: flex !important;
+    background: rgba(0, 0, 0, 0.76) !important;
+  }
+
+  main article.group div[class*="z-30"][class*="backdrop-blur-sm"][class*="sm:hidden"] p:last-child {
+    display: none !important;
+  }
+
+  main section[class*="sm:contents"] div[class*="-mt-"] h3[class*="sm:block"] {
+    display: none !important;
+  }
+
+  main section[class*="sm:contents"] div[aria-label="Pick position"] {
+    display: flex !important;
+    justify-content: center;
+    gap: 0.42rem;
+    padding-top: 0.15rem;
+  }
+
+  main section[class*="sm:contents"] div[aria-label="Pick position"] button {
+    min-width: 0.42rem;
+    height: 0.42rem !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  }
+}
+
 @media (max-width: 640px) {
   body {
     -webkit-text-size-adjust: 100%;
