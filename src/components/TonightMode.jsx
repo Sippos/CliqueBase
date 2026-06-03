@@ -45,19 +45,19 @@ function PollCard({ poll, onVote, onClose, voting, closing, lockedDecision = fal
   const statusLabel = lockedDecision ? 'locked' : expired ? 'closed' : poll.status
 
   return (
-    <article className="rounded-[1.5rem] border border-white/10 bg-neutral-950/70 p-3">
+    <article className="rounded-[1.5rem] border border-white/15 bg-white/8 p-3 shadow-lg shadow-black/10 backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Tonight poll</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300/70">Group poll</p>
           <h3 className="mt-1 text-lg font-black leading-tight text-white">{poll.question}</h3>
-          <p className="mt-1 text-xs font-semibold text-neutral-500">{votes ? `${leaderLabel} leading with ${votes} total vote${votes === 1 ? '' : 's'}.` : 'No votes yet. Rally the clique.'}</p>
-          {timingLabel ? <p className="mt-1 text-[11px] font-semibold text-neutral-600">{timingLabel}</p> : null}
+          <p className="mt-1 text-xs font-semibold text-neutral-300/75">{votes ? `${leaderLabel} leading with ${votes} total vote${votes === 1 ? '' : 's'}.` : 'No votes yet.'}</p>
+          {timingLabel ? <p className="mt-1 text-[11px] font-semibold text-neutral-400/80">{timingLabel}</p> : null}
         </div>
-        <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">{statusLabel}</span>
+        <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-200">{statusLabel}</span>
       </div>
       <div className="mt-3 grid gap-2">
         {optionStats.map((option) => (
-          <button type="button" disabled={voting || !open} key={option.id} onClick={() => onVote(poll, option)} className={`rounded-2xl border p-3 text-left transition disabled:opacity-60 ${option.selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-white hover:bg-white/10'}`}>
+          <button type="button" disabled={voting || !open} key={option.id} onClick={() => onVote(poll, option)} className={`rounded-2xl border p-3 text-left transition disabled:opacity-60 ${option.selected ? 'border-white bg-white text-neutral-950' : 'border-white/15 bg-black/20 text-white hover:bg-white/10'}`}>
             <div className="flex items-center justify-between gap-3">
               <span className="font-black">{option.label}{option.leading ? <span className="ml-2 text-[10px] uppercase tracking-[0.14em] opacity-60">Leading</span> : null}</span>
               <span className="text-xs font-black opacity-70">{option.votes} · {option.percent}%</span>
@@ -68,7 +68,7 @@ function PollCard({ poll, onVote, onClose, voting, closing, lockedDecision = fal
           </button>
         ))}
       </div>
-      {canLock ? <button type="button" disabled={closing} onClick={() => onClose(poll)} className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{closing ? 'Closing…' : expired && !open ? 'Lock expired result' : 'Lock decision'}</button> : null}
+      {canLock ? <button type="button" disabled={closing} onClick={() => onClose(poll)} className="mt-3 w-full rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-100 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{closing ? 'Closing…' : expired && !open ? 'Lock expired result' : 'Lock decision'}</button> : null}
     </article>
   )
 }
@@ -84,27 +84,27 @@ function DecisionCard({ decision, onDone, saving }) {
   }
 
   return (
-    <article className="rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-3">
+    <article className="rounded-[1.5rem] border border-white/15 bg-white/8 p-3 backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Locked decision</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-300/70">Locked decision</p>
           <h3 className="mt-1 text-lg font-black text-white">{decision.selectedLabel}</h3>
-          <p className="mt-1 text-xs text-neutral-500">Selected by {decision.selectedByDisplayName}</p>
+          <p className="mt-1 text-xs text-neutral-300/75">Selected by {decision.selectedByDisplayName}</p>
         </div>
-        <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">{decision.status}</span>
+        <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-200">{decision.status}</span>
       </div>
 
       {done ? (
-        <div className="mt-3 rounded-2xl border border-white/10 bg-neutral-950/70 p-3 text-sm text-neutral-300">
+        <div className="mt-3 rounded-2xl border border-white/15 bg-black/20 p-3 text-sm text-neutral-200">
           <p className="font-bold text-white">Done{decision.rating !== null ? ` · ${decision.rating}/10` : ''}</p>
-          {decision.notes ? <p className="mt-1 text-neutral-400">{decision.notes}</p> : null}
-          {decision.completedByDisplayName ? <p className="mt-2 text-xs text-neutral-600">Marked by {decision.completedByDisplayName}</p> : null}
+          {decision.notes ? <p className="mt-1 text-neutral-300/80">{decision.notes}</p> : null}
+          {decision.completedByDisplayName ? <p className="mt-2 text-xs text-neutral-400">Marked by {decision.completedByDisplayName}</p> : null}
         </div>
       ) : (
         <form onSubmit={submit} className="mt-3 grid gap-2">
           <div className="grid gap-2 sm:grid-cols-[8rem_1fr]">
-            <input value={rating} onChange={(event) => setRating(event.target.value)} inputMode="decimal" placeholder="0-10" className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600" />
-            <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional verdict after watching/playing" className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600" />
+            <input value={rating} onChange={(event) => setRating(event.target.value)} inputMode="decimal" placeholder="0-10" className="rounded-2xl border border-white/15 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-400" />
+            <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional verdict after watching/playing" className="rounded-2xl border border-white/15 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-400" />
           </div>
           <button disabled={saving} className="rounded-2xl bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Saving…' : 'Mark done'}</button>
         </form>
@@ -115,6 +115,7 @@ function DecisionCard({ decision, onDone, saving }) {
 
 export default function TonightMode({ groups = [], libraryItems = [], signedIn = false, onFlash }) {
   const activeGroupId = getActiveGroupId()
+  const [expanded, setExpanded] = useState(false)
   const [groupId, setGroupId] = useState(activeGroupId || groups[0]?.id || '')
   const [question, setQuestion] = useState('')
   const [options, setOptions] = useState('')
@@ -132,6 +133,7 @@ export default function TonightMode({ groups = [], libraryItems = [], signedIn =
   const canUse = signedIn && Boolean(selectedGroup?.id)
   const lockedPollIds = useMemo(() => new Set(decisions.map((decision) => decision.pollId).filter(Boolean)), [decisions])
   const pollOptions = useMemo(() => options.split('\n').map((line) => line.trim()).filter(Boolean), [options])
+  const activeCount = polls.length + decisions.length
 
   useEffect(() => {
     if (!groupId && groups[0]?.id) setGroupId(groups[0].id)
@@ -156,7 +158,7 @@ export default function TonightMode({ groups = [], libraryItems = [], signedIn =
       setPolls(nextPolls)
       setDecisions(nextDecisions)
     } catch (error) {
-      onFlash?.(error.message || 'Could not load Tonight Mode.')
+      onFlash?.(error.message || 'Could not load group polls.')
     } finally {
       setLoading(false)
     }
@@ -213,7 +215,7 @@ export default function TonightMode({ groups = [], libraryItems = [], signedIn =
       await createCliquePoll(selectedGroup.id, question || defaultDecisionQuestion(selectedGroup.name), decisionOptionsOrFallback(options))
       setQuestion(defaultDecisionQuestion(selectedGroup.name))
       setOptions('')
-      onFlash?.('Tonight poll created.')
+      onFlash?.('Group poll created.')
       refresh()
     } catch (error) {
       onFlash?.(error.message || 'Could not create poll.')
@@ -264,46 +266,50 @@ export default function TonightMode({ groups = [], libraryItems = [], signedIn =
   }
 
   return (
-    <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/20">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name="users" size={14} />Tonight Mode</p>
-          <h2 className="mt-1 text-2xl font-black text-white">Let the clique decide</h2>
-          <p className="mt-2 text-sm leading-6 text-neutral-400">Pick from your library, add clique backlog items, or type options manually.</p>
-        </div>
-      </div>
+    <section className="rounded-[1.75rem] border border-white/15 bg-gradient-to-br from-amber-300/12 via-white/[0.055] to-orange-500/8 p-4 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
+      <button type="button" onClick={() => setExpanded((value) => !value)} className="flex w-full items-start justify-between gap-3 text-left">
+        <span>
+          <span className="block text-xl font-black">Group decision poll</span>
+          <span className="mt-1 block text-xs leading-5 text-neutral-300/80">Use this when a clique cannot choose what to watch or play next.</span>
+        </span>
+        <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-100">{expanded ? 'Close' : activeCount ? `${activeCount} active` : 'Open'}</span>
+      </button>
 
-      {!signedIn ? <p className="mt-4 rounded-2xl border border-white/10 bg-neutral-950 p-3 text-sm text-neutral-400">Sign in to create and vote on clique polls.</p> : null}
-      {signedIn && !groups.length ? <p className="mt-4 rounded-2xl border border-white/10 bg-neutral-950 p-3 text-sm text-neutral-400">Create or join a clique to unlock Tonight Mode.</p> : null}
+      {expanded ? (
+        <>
+          {!signedIn ? <p className="mt-4 rounded-2xl border border-white/15 bg-black/20 p-3 text-sm text-neutral-300">Sign in to create and vote on group polls.</p> : null}
+          {signedIn && !groups.length ? <p className="mt-4 rounded-2xl border border-white/15 bg-black/20 p-3 text-sm text-neutral-300">Create or join a clique to unlock group decision polls.</p> : null}
 
-      {signedIn && groups.length ? (
-        <form onSubmit={handleCreate} className="mt-4 grid gap-3">
-          <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">
-            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
-          </select>
-          <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={defaultDecisionQuestion(selectedGroup?.name)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
-          <select value={libraryPick} onChange={(event) => handleLibraryPick(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">
-            <option value="">Add from your library…</option>
-            {libraryItems.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.label}: {item.title}</option>)}
-          </select>
-          <textarea value={options} onChange={(event) => setOptions(event.target.value)} rows={4} placeholder={'Poll options appear here\nAdd at least two'} className="resize-none rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
-          {pollOptions.length ? <p className="text-xs font-semibold text-neutral-500">{pollOptions.length}/8 options ready</p> : null}
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button type="button" disabled={seeding || !canUse} onClick={handleSeedBacklog} className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{seeding ? 'Loading…' : 'Use clique backlog'}</button>
-            <button disabled={saving || !canUse} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{saving ? 'Creating…' : 'Start poll'}</button>
+          {signedIn && groups.length ? (
+            <form onSubmit={handleCreate} className="mt-4 grid gap-3">
+              <select value={groupId} onChange={(event) => setGroupId(event.target.value)} className="rounded-2xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none">
+                {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+              </select>
+              <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={defaultDecisionQuestion(selectedGroup?.name)} className="rounded-2xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none placeholder:text-neutral-400" />
+              <select value={libraryPick} onChange={(event) => handleLibraryPick(event.target.value)} className="rounded-2xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none">
+                <option value="">Add from your library…</option>
+                {libraryItems.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.label}: {item.title}</option>)}
+              </select>
+              <textarea value={options} onChange={(event) => setOptions(event.target.value)} rows={4} placeholder={'Poll options appear here\nAdd at least two'} className="resize-none rounded-2xl border border-white/15 bg-black/25 px-4 py-3 text-white outline-none placeholder:text-neutral-400" />
+              {pollOptions.length ? <p className="text-xs font-semibold text-neutral-300/75">{pollOptions.length}/8 options ready</p> : null}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button type="button" disabled={seeding || !canUse} onClick={handleSeedBacklog} className="rounded-2xl border border-white/15 bg-white/8 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-100 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{seeding ? 'Loading…' : 'Use clique backlog'}</button>
+                <button disabled={saving || !canUse} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Creating…' : 'Start poll'}</button>
+              </div>
+            </form>
+          ) : null}
+
+          <div className="mt-4 grid gap-3">
+            {loading ? <p className="rounded-2xl border border-white/15 bg-black/20 p-3 text-sm text-neutral-300">Loading polls…</p> : polls.length ? polls.map((poll) => <PollCard key={poll.id} poll={poll} onVote={handleVote} onClose={handleClose} voting={Boolean(votingKey)} closing={closingKey === poll.id} lockedDecision={lockedPollIds.has(poll.id)} />) : canUse ? <p className="rounded-2xl border border-dashed border-white/15 bg-black/15 p-4 text-sm text-neutral-300/75">No polls yet. Start one when the group cannot decide.</p> : null}
           </div>
-        </form>
-      ) : null}
 
-      <div className="mt-4 grid gap-3">
-        {loading ? <p className="rounded-2xl border border-white/10 bg-neutral-950 p-3 text-sm text-neutral-400">Loading Tonight Mode…</p> : polls.length ? polls.map((poll) => <PollCard key={poll.id} poll={poll} onVote={handleVote} onClose={handleClose} voting={Boolean(votingKey)} closing={closingKey === poll.id} lockedDecision={lockedPollIds.has(poll.id)} />) : canUse ? <p className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/60 p-4 text-sm text-neutral-500">No polls yet. Start one for your clique.</p> : null}
-      </div>
-
-      {canUse && decisions.length ? (
-        <div className="mt-5 grid gap-3">
-          <div className="flex items-center justify-between gap-3 px-1"><h3 className="text-sm font-black uppercase tracking-[0.18em] text-neutral-500">Recent decisions</h3></div>
-          {decisions.map((decision) => <DecisionCard key={decision.id} decision={decision} onDone={handleDone} saving={doneKey === decision.id} />)}
-        </div>
+          {canUse && decisions.length ? (
+            <div className="mt-5 grid gap-3">
+              <div className="flex items-center justify-between gap-3 px-1"><h3 className="text-sm font-black uppercase tracking-[0.18em] text-neutral-300/70">Recent decisions</h3></div>
+              {decisions.map((decision) => <DecisionCard key={decision.id} decision={decision} onDone={handleDone} saving={doneKey === decision.id} />)}
+            </div>
+          ) : null}
+        </>
       ) : null}
     </section>
   )
