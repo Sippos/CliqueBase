@@ -74,15 +74,63 @@ function payloadText(activity) {
 
 function EmptyCommunity({ signedIn }) {
   return (
-    <section className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-8 text-center">
-      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-white text-neutral-950"><AppIcon name="users" size={28} /></div>
-      <h2 className="mt-5 text-3xl font-black text-white">Your community feed starts here</h2>
+    <section className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.03] p-6 text-center">
+      <h2 className="text-2xl font-black text-white">Your community feed starts here</h2>
       <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-neutral-400">
-        {signedIn ? 'Create the first recommendation note, join a clique, or share a pick with a friend to start the activity stream.' : 'Sign in to see friend requests, recommendations, clique updates, and shared picks from people you trust.'}
+        {signedIn ? 'Create the first recommendation note, start a Tonight poll, or share a pick with a friend to start the activity stream.' : 'Sign in from the profile button to see friend requests, recommendations, clique updates, and shared picks from people you trust.'}
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Link to="/groups" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950">Create or join a clique</Link>
         <Link to="/dashboard" className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-white">Build my library</Link>
+      </div>
+    </section>
+  )
+}
+
+function CommunityLaunchpad({ signedIn, groups, stats }) {
+  const activeGroupId = getActiveGroupId()
+  const activeGroup = groups.find((group) => group.id === activeGroupId) || groups[0] || null
+  const actions = [
+    { label: 'Post recommendation', href: '#recommend', detail: 'Writes to recommendation notes + feed activity.' },
+    { label: 'Start Tonight poll', href: '#tonight', detail: 'Uses clique polls, voting, decisions, and done ratings.' },
+    { label: 'Open cliques', href: '/groups', detail: 'Create, join, invite, or switch shared spaces.' },
+    { label: 'Find friends', href: '#friends', detail: 'Open your profile menu to search people and handle requests.' },
+  ]
+
+  return (
+    <section className="mt-5 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
+      <div className="rounded-[2rem] border border-white/10 bg-white/[0.035] p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Social backend is live</p>
+            <h2 className="mt-1 text-2xl font-black text-white">Community controls</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">
+              Use the panels below to create feed posts, run clique polls, vote on decisions, review safety actions, and open shared libraries.
+            </p>
+          </div>
+          <span className={`w-fit rounded-full border px-3 py-1 text-xs font-black ${signedIn ? 'border-emerald-300/25 bg-emerald-300/10 text-emerald-100' : 'border-yellow-300/25 bg-yellow-300/10 text-yellow-100'}`}>
+            {signedIn ? 'Signed in' : 'Sign in needed'}
+          </span>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {actions.map((action) => {
+            const external = action.href.startsWith('/')
+            const className = "rounded-2xl border border-white/10 bg-neutral-950/65 p-3 text-left transition hover:border-white/25 hover:bg-white/[0.06]"
+            const content = <><span className="text-sm font-black text-white">{action.label}</span><span className="mt-1 block text-xs leading-5 text-neutral-500">{action.detail}</span></>
+            return external ? <Link key={action.label} to={action.href} className={className}>{content}</Link> : <a key={action.label} href={action.href} className={className}>{content}</a>
+          })}
+        </div>
+      </div>
+
+      <div className="rounded-[2rem] border border-white/10 bg-neutral-950/70 p-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Current scope</p>
+        <h3 className="mt-1 truncate text-xl font-black text-white">{activeGroup?.name || 'Personal community'}</h3>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xl font-black text-white">{stats.posts}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500">Posts</p></div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xl font-black text-white">{stats.cliques}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500">Cliques</p></div>
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3"><p className="text-xl font-black text-white">{stats.recommenders}</p><p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-neutral-500">People</p></div>
+        </div>
+        {activeGroup ? <Link to={`/cliques/${encodeURIComponent(activeGroup.id)}`} className="mt-4 inline-flex rounded-2xl border border-white/10 px-4 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Open active clique</Link> : null}
       </div>
     </section>
   )
@@ -221,7 +269,7 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash }) {
   return (
     <article className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-4 shadow-xl shadow-black/15 transition hover:border-white/20 hover:bg-white/[0.05]">
       <div className="flex items-start gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-neutral-950"><AppIcon name={typeIcon(activity.itemType)} size={22} /></div>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] text-neutral-200"><AppIcon name={typeIcon(activity.itemType)} size={18} /></div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-neutral-400">
             <span className="font-black text-white">{activity.actorDisplayName}</span>
@@ -286,13 +334,13 @@ function RecommendationComposer({ groups, signedIn, onCreated, onFlash }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/20">
+    <form id="recommend" onSubmit={handleSubmit} className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/20">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Outsource taste</p>
           <h2 className="mt-1 text-2xl font-black text-white">Recommend something</h2>
         </div>
-        <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-400">Beta</span>
+        <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-400">Feed</span>
       </div>
       <div className="mt-4 grid gap-3">
         <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title, game, song, video, or anything worth trying" className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
@@ -363,27 +411,33 @@ export default function Community() {
 
   return (
     <PageShell active="community">
-      <section className="overflow-hidden rounded-[2.4rem] border border-white/10 bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.16),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.02))] p-5 shadow-2xl shadow-black/20 sm:p-8">
+      <section className="overflow-hidden rounded-[2.2rem] border border-white/10 bg-[radial-gradient(circle_at_20%_0%,rgba(255,255,255,0.12),transparent_30%),linear-gradient(135deg,rgba(255,255,255,0.055),rgba(255,255,255,0.018))] p-5 shadow-2xl shadow-black/20 sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-neutral-300"><AppIcon name="users" size={14} />Community home</p>
-            <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[0.95] text-white sm:text-6xl">Let friends outsource your next obsession.</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-300 sm:text-base">CliqueBase now centers on social recommendations: notes, mood tags, clique context, notifications, and a feed of what your people think is worth watching, playing, or sharing.</p>
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.22em] text-neutral-300"><AppIcon name="users" size={13} />Community home</p>
+            <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[0.98] text-white sm:text-5xl">Friends, cliques, polls, and recommendations.</h1>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-neutral-300 sm:text-base">The SQL social layer now has a visible home: activity feed, recommendation notes, friend requests, shared picks, Tonight Mode decisions, and safety controls.</p>
             <div className="mt-6 flex flex-wrap gap-3"><Link to="/groups" className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950">Find or create cliques</Link><Link to="/explore" className="rounded-2xl border border-white/10 px-5 py-3 text-sm font-black text-white">Explore rankings</Link></div>
           </div>
-          <div className="grid grid-cols-3 gap-2 rounded-[2rem] border border-white/10 bg-neutral-950/60 p-3">
-            <div className="rounded-[1.3rem] border border-white/10 bg-white/[0.04] p-3"><p className="text-2xl font-black text-white">{loading ? '…' : stats.posts}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Feed posts</p></div>
-            <div className="rounded-[1.3rem] border border-white/10 bg-white/[0.04] p-3"><p className="text-2xl font-black text-white">{loading ? '…' : stats.cliques}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Cliques</p></div>
-            <div className="rounded-[1.3rem] border border-white/10 bg-white/[0.04] p-3"><p className="text-2xl font-black text-white">{loading ? '…' : stats.recommenders}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">People</p></div>
+          <div className="rounded-[2rem] border border-white/10 bg-neutral-950/60 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">What is connected</p>
+            <div className="mt-3 grid gap-2 text-sm text-neutral-300">
+              <span>✓ Recommendation notes and comments</span>
+              <span>✓ Clique polls, votes, and locked decisions</span>
+              <span>✓ Notifications and friend requests</span>
+              <span>✓ Reports, blocks, and moderation inbox</span>
+            </div>
           </div>
         </div>
       </section>
 
+      <CommunityLaunchpad signedIn={signedIn} groups={groups} stats={stats} />
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <div className="grid gap-6">
           <RecommendationComposer groups={groups} signedIn={signedIn} onCreated={refresh} onFlash={flash} />
-          <TonightMode groups={groups} signedIn={signedIn} onFlash={flash} />
-          <BlockedMembersPanel signedIn={signedIn} onFlash={flash} onChanged={refresh} />
+          <div id="tonight" className="scroll-mt-28"><TonightMode groups={groups} signedIn={signedIn} onFlash={flash} /></div>
+          <div id="friends" className="scroll-mt-28"><BlockedMembersPanel signedIn={signedIn} onFlash={flash} onChanged={refresh} /></div>
         </div>
         <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-4">
           <div className="mb-4 flex items-center justify-between gap-3 px-1">
