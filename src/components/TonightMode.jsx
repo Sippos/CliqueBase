@@ -6,11 +6,25 @@ import { getCliqueDecisions, markDecisionDone } from '../lib/decisions.js'
 import {
   decisionOptionsOrFallback,
   defaultDecisionQuestion,
+  isPollExpired,
   isPollOpen,
   leadingPollOptions,
   pollOptionStats,
   totalPollVotes,
 } from '../lib/decisionLoop.js'
+
+function formatPollTiming(poll) {
+  if (!poll?.closesAt) return ''
+  const closesAt = new Date(poll.closesAt).getTime()
+  if (!Number.isFinite(closesAt)) return ''
+  const remainingMs = closesAt - Date.now()
+  if (remainingMs <= 0) return 'Closed automatically'
+  const minutes = Math.ceil(remainingMs / 60000)
+  if (minutes < 60) return `${minutes}m left`
+  const hours = Math.ceil(minutes / 60)
+  if (hours < 24) return `${hours}h left`
+  return `${Math.ceil(hours / 24)}d left`
+}
 
 function PollCard({ poll, onVote, onClose, voting, closing }) {
   const votes = totalPollVotes(poll)
@@ -18,6 +32,9 @@ function PollCard({ poll, onVote, onClose, voting, closing }) {
   const leaders = leadingPollOptions(poll)
   const leaderLabel = leaders.length === 1 ? leaders[0].label : leaders.length > 1 ? 'Tie' : 'Waiting for votes'
   const open = isPollOpen(poll)
+  const expired = isPollExpired(poll)
+  const timingLabel = formatPollTiming(poll)
+  const statusLabel = expired ? 'closed' : poll.status
 
   return (
     <article className="rounded-[1.5rem] border border-white/10 bg-neutral-950/70 p-3">
@@ -26,8 +43,9 @@ function PollCard({ poll, onVote, onClose, voting, closing }) {
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Tonight poll</p>
           <h3 className="mt-1 text-lg font-black leading-tight text-white">{poll.question}</h3>
           <p className="mt-1 text-xs font-semibold text-neutral-500">{votes ? `${leaderLabel} leading with ${votes} total vote${votes === 1 ? '' : 's'}.` : 'No votes yet. Rally the clique.'}</p>
+          {timingLabel ? <p className="mt-1 text-[11px] font-semibold text-neutral-600">{timingLabel}</p> : null}
         </div>
-        <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">{poll.status}</span>
+        <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">{statusLabel}</span>
       </div>
       <div className="mt-3 grid gap-2">
         {optionStats.map((option) => (
