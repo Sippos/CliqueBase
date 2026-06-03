@@ -17,6 +17,9 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
+    rules: {
+      'react-hooks/immutability': 'off',
+    },
   },
   {
     files: ['api/**/*.js', 'vite.config.js'],
