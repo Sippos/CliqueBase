@@ -4,14 +4,23 @@ import { addFriend, getFriendsList, removeFriend, searchMembersByProfileName } f
 import { getBlockedUsers, unblockUser } from '../lib/safety.js'
 import { getFriendRequests, respondFriendRequest } from '../lib/socialGovernance.js'
 
-function PersonCard({ person, action, actionLabel, busy, status = '', onClose }) {
+function PersonCard({ person, action, actionLabel, busy, status = '', onClose, friend = false }) {
   return (
-    <article className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-neutral-950/75 p-3">
-      <Link to={`/members/${person.id}`} onClick={onClose} className="min-w-0 flex-1 transition hover:opacity-80">
-        <p className="truncate text-sm font-black text-white">{person.displayName}</p>
-        <p className="mt-1 text-xs text-neutral-500">{status || `${person.libraryCount || 0} public picks${person.friendSince ? ` · Friends since ${new Date(person.friendSince).toLocaleDateString()}` : ''}`}</p>
-      </Link>
-      {action ? <button type="button" disabled={busy} onClick={() => action(person)} className="shrink-0 rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{busy ? 'Working…' : actionLabel}</button> : null}
+    <article className="rounded-2xl border border-white/15 bg-white/8 p-3 shadow-lg shadow-black/10 backdrop-blur">
+      <div className="flex items-start justify-between gap-3">
+        <Link to={`/members/${person.id}`} onClick={onClose} className="min-w-0 flex-1 transition hover:opacity-80">
+          <p className="truncate text-sm font-black text-white">{person.displayName}</p>
+          <p className="mt-1 text-xs leading-5 text-neutral-300/75">{status || `${person.libraryCount || 0} public picks${person.friendSince ? ` · friends since ${new Date(person.friendSince).toLocaleDateString()}` : ''}`}</p>
+        </Link>
+        {action ? <button type="button" disabled={busy} onClick={() => action(person)} className="shrink-0 rounded-xl border border-white/15 bg-black/20 px-3 py-2 text-xs font-black text-neutral-100 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{busy ? '…' : actionLabel}</button> : null}
+      </div>
+      {friend ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link to={`/members/${person.id}`} className="rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-black text-neutral-100 transition hover:bg-white hover:text-neutral-950">View library</Link>
+          <a href="#recommend" className="rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-black text-neutral-100 transition hover:bg-white hover:text-neutral-950">Recommend</a>
+          <button type="button" disabled={busy} onClick={() => action?.(person)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-400 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">Remove</button>
+        </div>
+      ) : null}
     </article>
   )
 }
@@ -19,18 +28,18 @@ function PersonCard({ person, action, actionLabel, busy, status = '', onClose })
 function RequestCard({ request, busy, onRespond }) {
   const incoming = request.direction === 'incoming'
   return (
-    <article className="rounded-2xl border border-white/10 bg-neutral-950/75 p-3">
+    <article className="rounded-2xl border border-white/15 bg-white/8 p-3 backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-black text-white">{request.displayName}</p>
-          <p className="mt-1 text-xs text-neutral-500">{incoming ? 'Wants to be friends' : 'Request sent'}</p>
+          <p className="mt-1 text-xs text-neutral-300/75">{incoming ? 'Wants to be friends' : 'Request sent'}</p>
         </div>
         {incoming ? (
           <div className="flex shrink-0 gap-2">
             <button type="button" disabled={busy} onClick={() => onRespond(request, 'accepted')} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-neutral-950 disabled:opacity-50">Accept</button>
-            <button type="button" disabled={busy} onClick={() => onRespond(request, 'declined')} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 disabled:opacity-50">No</button>
+            <button type="button" disabled={busy} onClick={() => onRespond(request, 'declined')} className="rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-black text-neutral-100 disabled:opacity-50">No</button>
           </div>
-        ) : <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-500">Pending</span>}
+        ) : <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-300">Pending</span>}
       </div>
     </article>
   )
@@ -59,7 +68,7 @@ export default function BlockedMembersPanel({ signedIn = false, defaultOpen = fa
     setLoading(true)
     try {
       const [nextBlocked, nextFriends, nextRequests] = await Promise.all([
-        getBlockedUsers().catch((error) => { onFlash?.(error.message || 'Could not load blocked members.'); return [] }),
+        getBlockedUsers().catch(() => []),
         getFriendsList().catch((error) => { onFlash?.(error.message || 'Could not load friends.'); return [] }),
         getFriendRequests('pending').catch((error) => { onFlash?.(error.message || 'Could not load friend requests.'); return [] }),
       ])
@@ -162,13 +171,13 @@ export default function BlockedMembersPanel({ signedIn = false, defaultOpen = fa
   const incomingCount = requests.filter((request) => request.direction === 'incoming').length
 
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 text-white">
+    <section className="rounded-[1.75rem] border border-white/15 bg-gradient-to-br from-emerald-400/12 via-white/[0.055] to-cyan-500/8 p-4 text-white shadow-2xl shadow-black/20 backdrop-blur-xl">
       <button type="button" onClick={() => setOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 text-left">
         <span>
-          <span className="block text-xl font-black">People</span>
-          <span className="mt-1 block text-xs text-neutral-500">{friends.length} friends{incomingCount ? ` · ${incomingCount} request${incomingCount === 1 ? '' : 's'}` : ''}</span>
+          <span className="block text-xl font-black">Friends</span>
+          <span className="mt-1 block text-xs text-neutral-300/75">{friends.length} friends{incomingCount ? ` · ${incomingCount} request${incomingCount === 1 ? '' : 's'}` : ''}</span>
         </span>
-        <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-black text-neutral-300">{loading ? '…' : friends.length}</span>
+        <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-black text-neutral-100">{loading ? '…' : friends.length}</span>
       </button>
 
       {open ? (
@@ -181,11 +190,11 @@ export default function BlockedMembersPanel({ signedIn = false, defaultOpen = fa
           ) : null}
 
           <div>
-            <input value={peopleSearch} onChange={(event) => setPeopleSearch(event.target.value)} placeholder="Search people…" className="w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-600" />
+            <input value={peopleSearch} onChange={(event) => setPeopleSearch(event.target.value)} placeholder="Search people…" className="w-full rounded-2xl border border-white/15 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-300/65" />
             <div className="mt-3 grid gap-2">
-              {peopleSearching ? <p className="rounded-2xl border border-white/10 bg-neutral-950 p-3 text-sm text-neutral-400">Searching people…</p> : null}
-              {!peopleSearching && peopleSearch.trim().length < 2 ? <p className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/60 p-3 text-sm text-neutral-500">Type 2 letters to find members.</p> : null}
-              {!peopleSearching && peopleSearch.trim().length >= 2 && !peopleResults.length ? <p className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/60 p-3 text-sm text-neutral-500">No people found.</p> : null}
+              {peopleSearching ? <p className="rounded-2xl border border-white/15 bg-white/8 p-3 text-sm text-neutral-300">Searching people…</p> : null}
+              {!peopleSearching && peopleSearch.trim().length < 2 ? <p className="rounded-2xl border border-dashed border-white/15 bg-black/15 p-3 text-sm text-neutral-300/70">Type 2 letters to find members.</p> : null}
+              {!peopleSearching && peopleSearch.trim().length >= 2 && !peopleResults.length ? <p className="rounded-2xl border border-dashed border-white/15 bg-black/15 p-3 text-sm text-neutral-300/70">No people found.</p> : null}
               {peopleResults.map((person) => {
                 const pending = requests.some((request) => request.id === person.id || request.memberId === person.id || request.userId === person.id)
                 return <PersonCard key={person.id} person={person} action={person.isFriend ? handleRemoveFriend : pending ? null : handleAddFriend} actionLabel={person.isFriend ? 'Remove' : 'Add'} status={pending ? 'Request pending' : ''} busy={busyKey === `add:${person.id}` || busyKey === `remove:${person.id}`} />
@@ -195,18 +204,18 @@ export default function BlockedMembersPanel({ signedIn = false, defaultOpen = fa
 
           <div className="grid gap-2">
             <h3 className="text-sm font-black text-white">Friends</h3>
-            {friends.length ? friends.map((friend) => <PersonCard key={friend.id} person={friend} action={handleRemoveFriend} actionLabel="Remove" busy={busyKey === `remove:${friend.id}`} />) : <p className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/60 p-3 text-sm text-neutral-500">No friends yet.</p>}
+            {friends.length ? friends.map((friend) => <PersonCard key={friend.id} person={friend} action={handleRemoveFriend} actionLabel="Remove" busy={busyKey === `remove:${friend.id}`} friend />) : <p className="rounded-2xl border border-dashed border-white/15 bg-black/15 p-3 text-sm text-neutral-300/70">No friends yet.</p>}
           </div>
 
-          <button type="button" onClick={() => setShowSafety((value) => !value)} className="text-left text-xs font-black uppercase tracking-[0.16em] text-neutral-600 hover:text-neutral-300">{showSafety ? 'Hide blocked users' : `Blocked users (${blockedMembers.length})`}</button>
+          <button type="button" onClick={() => setShowSafety((value) => !value)} className="text-left text-xs font-black uppercase tracking-[0.16em] text-neutral-300/55 hover:text-neutral-100">{showSafety ? 'Hide blocked users' : `Blocked users (${blockedMembers.length})`}</button>
           {showSafety ? (
             <div className="grid gap-2">
               {blockedMembers.length ? blockedMembers.map((member) => (
-                <article key={member.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-neutral-950/75 p-3">
-                  <div className="min-w-0"><p className="truncate text-sm font-black text-white">{member.displayName}</p>{member.blockedAt ? <p className="mt-1 text-xs text-neutral-500">Blocked {new Date(member.blockedAt).toLocaleDateString()}</p> : null}</div>
-                  <button type="button" disabled={busyKey === `unblock:${member.id}`} onClick={() => handleUnblock(member)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{busyKey === `unblock:${member.id}` ? 'Unblocking…' : 'Unblock'}</button>
+                <article key={member.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/15 bg-black/20 p-3">
+                  <div className="min-w-0"><p className="truncate text-sm font-black text-white">{member.displayName}</p>{member.blockedAt ? <p className="mt-1 text-xs text-neutral-300/65">Blocked {new Date(member.blockedAt).toLocaleDateString()}</p> : null}</div>
+                  <button type="button" disabled={busyKey === `unblock:${member.id}`} onClick={() => handleUnblock(member)} className="rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-black text-neutral-100 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{busyKey === `unblock:${member.id}` ? 'Unblocking…' : 'Unblock'}</button>
                 </article>
-              )) : <p className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/60 p-3 text-sm text-neutral-500">No blocked members.</p>}
+              )) : <p className="rounded-2xl border border-dashed border-white/15 bg-black/15 p-3 text-sm text-neutral-300/70">No blocked members.</p>}
             </div>
           ) : null}
         </div>
