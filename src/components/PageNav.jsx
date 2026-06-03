@@ -33,6 +33,7 @@ import {
 } from '../lib/supabaseClient.js'
 
 const primaryLinks = [
+  { key: 'community', to: '/community', label: 'Community', icon: 'users', description: 'Feed, friends, polls' },
   { key: 'explore', to: '/explore', label: 'Explore', icon: 'explore', description: 'Global rankings' },
   { key: 'library', to: '/dashboard', label: 'My Library', icon: 'dashboard', description: 'Your private picks' },
   { key: 'groups', to: '/groups', label: 'Cliques', icon: 'users', description: 'Shared spaces' },
@@ -48,7 +49,16 @@ const mediaLinks = [
 
 const allMediaOption = { key: 'all', label: 'All media', icon: 'explore' }
 const mediaKeys = mediaLinks.map((link) => link.key)
-const activeMap = { home: 'library', dashboard: 'library', library: 'library', cliques: 'groups', groups: 'groups', leaderboard: 'explore', explore: 'explore' }
+const activeMap = {
+  home: 'library',
+  dashboard: 'library',
+  library: 'library',
+  cliques: 'groups',
+  groups: 'groups',
+  leaderboard: 'explore',
+  explore: 'explore',
+  community: 'community',
+}
 
 function normalizeActiveKey(active) {
   return activeMap[active] || active || 'library'
@@ -85,8 +95,8 @@ function sessionName(session, profile, fallback = '') {
 
 function LogoMark() {
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true" className="h-10 w-10 shrink-0 text-white sm:h-11 sm:w-11">
+    <div className="flex min-w-0 items-center gap-2.5">
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true" className="h-9 w-9 shrink-0 text-white sm:h-10 sm:w-10">
         <path d="M13 29c0-9.5 7.7-17.2 17.2-17.2h18.6" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
         <path d="M13 35v8c0 8 6.5 14.5 14.5 14.5h13.2c8 0 14.5-6.5 14.5-14.5 0-7.4-5.6-13.5-12.8-14.4" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M17 36c8.7-3.5 18.7-3.5 30 0 5.2 1.6 7.9 4.2 7.9 7.4 0 4.8-6.6 8.8-20.2 8.8-14.3 0-21.7-4-21.7-10.8V29" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
@@ -95,7 +105,7 @@ function LogoMark() {
         <circle cx="45" cy="25" r="4" fill="currentColor" />
         <path d="M33 37l2.2 5.2L40 44l-4.8 1.8L33 51l-2.2-5.2L26 44l4.8-1.8L33 37Z" fill="currentColor" />
       </svg>
-      <span className="block text-2xl font-black tracking-tight text-white sm:text-3xl">CliqueBase</span>
+      <span className="block text-xl font-black tracking-tight text-white sm:text-2xl">CliqueBase</span>
     </div>
   )
 }
@@ -150,7 +160,7 @@ export default function PageNav({ active = 'library' }) {
   const queryParams = new URLSearchParams(location.search)
   const queryMedia = queryParams.get('media')
   const scopedCliqueId = queryParams.get('clique') || activeGroup?.id || getActiveGroupId()
-  const activePrimary = primaryLinks.find((link) => isPrimaryActive(link.key, activeKey, scopedCliqueId)) || primaryLinks[1]
+  const activePrimary = primaryLinks.find((link) => isPrimaryActive(link.key, activeKey, scopedCliqueId)) || primaryLinks[2]
   const activeMedia = mediaLinks.find((link) => link.key === activeKey) || mediaLinks.find((link) => link.key === queryMedia)
   const activeMediaKey = activeMedia?.key || null
   const profileName = cleanName(handle)
@@ -192,6 +202,7 @@ export default function PageNav({ active = 'library' }) {
   }
 
   function sectionRoot() {
+    if (activePrimary.key === 'community') return '/community'
     if (activePrimary.key === 'explore') return '/explore'
     if (activePrimary.key === 'groups') return '/groups'
     return '/dashboard'
@@ -525,25 +536,25 @@ export default function PageNav({ active = 'library' }) {
   return (
     <>
       <header className="sticky top-3 z-40 mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur sm:px-4">
-        <div className="grid gap-3 lg:grid-cols-[auto_1fr_auto] lg:items-center">
-          <Link to="/explore" aria-label="CliqueBase Explore" className="w-fit rounded-[1.4rem] px-2 py-1 transition hover:opacity-80" onClick={closeMenus}><LogoMark /></Link>
-          <div className="flex min-w-0 flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
-            <nav aria-label="Primary navigation" className="flex min-w-0 rounded-full border border-white/10 bg-white/[0.035] p-1">
+        <div className="grid gap-3 xl:grid-cols-[auto_1fr_auto] xl:items-center">
+          <Link to="/community" aria-label="CliqueBase Community" className="w-fit rounded-[1.4rem] px-2 py-1 transition hover:opacity-80" onClick={closeMenus}><LogoMark /></Link>
+          <div className="flex min-w-0 flex-col items-stretch justify-center gap-2 lg:flex-row lg:items-center">
+            <nav aria-label="Primary navigation" className="grid min-w-0 grid-cols-2 gap-1 rounded-[1.6rem] border border-white/10 bg-white/[0.035] p-1 sm:flex sm:rounded-full">
               {primaryLinks.map((link) => {
                 const selected = isPrimaryActive(link.key, activeKey, scopedCliqueId)
-                return <Link key={link.key} to={link.to} onClick={() => handlePrimaryClick(link)} aria-current={selected ? 'page' : undefined} title={link.description} className={`inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-black transition sm:flex-none ${selected ? 'bg-white text-neutral-950 shadow-lg shadow-white/5' : 'text-neutral-300 hover:bg-white/10 hover:text-white'}`}><AppIcon name={link.icon} size={17} /><span className="truncate">{link.label}</span></Link>
+                return <Link key={link.key} to={link.to} onClick={() => handlePrimaryClick(link)} aria-current={selected ? 'page' : undefined} title={link.description} className={`inline-flex min-w-0 items-center justify-center gap-2 rounded-full px-3 py-2.5 text-xs font-black transition sm:flex-1 xl:flex-none ${selected ? 'bg-white text-neutral-950 shadow-lg shadow-white/5' : 'text-neutral-300 hover:bg-white/10 hover:text-white'}`}><AppIcon name={link.icon} size={15} /><span className="truncate">{link.label}</span></Link>
               })}
             </nav>
             <div className="relative">
-              <button type="button" onClick={() => setMediaOpen((value) => !value)} className="flex w-full min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-5 py-3 text-sm font-bold text-neutral-200 transition hover:bg-white/10 hover:text-white sm:w-auto">
-                <AppIcon name={activeMedia?.icon || allMediaOption.icon} size={18} /><span className="truncate">{activeMedia?.label || allMediaOption.label}</span><AppIcon name="chevronDown" size={16} className="text-neutral-500" />
+              <button type="button" onClick={() => setMediaOpen((value) => !value)} className="flex w-full min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-bold text-neutral-200 transition hover:bg-white/10 hover:text-white lg:w-auto">
+                <AppIcon name={activeMedia?.icon || allMediaOption.icon} size={17} /><span className="truncate">{activeMedia?.label || allMediaOption.label}</span><AppIcon name="chevronDown" size={15} className="text-neutral-500" />
               </button>
               {mediaOpen ? (
                 <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,22rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
                   <div className="grid gap-2">
                     {[allMediaOption, ...mediaLinks].map((link) => {
                       const selected = link.key === 'all' ? !activeMediaKey : activeMediaKey === link.key
-                      return <Link key={link.key} to={mediaHref(link.key)} onClick={closeMenus} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${selected ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}><AppIcon name={link.icon} size={18} /><span>{link.label}</span></Link>
+                      return <Link key={link.key} to={mediaHref(link.key)} onClick={closeMenus} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${selected ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}><AppIcon name={link.icon} size={17} /><span>{link.label}</span></Link>
                     })}
                   </div>
                 </div>
@@ -551,7 +562,7 @@ export default function PageNav({ active = 'library' }) {
             </div>
           </div>
           <div className="flex justify-end">
-            <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="inline-flex h-11 max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black"><AppIcon name="user" size={17} /><span className="hidden min-w-0 truncate sm:inline">{navProfileLabel}</span></button>
+            <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="inline-flex h-11 max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black"><AppIcon name="user" size={16} /><span className="hidden min-w-0 truncate sm:inline">{navProfileLabel}</span></button>
           </div>
         </div>
       </header>
@@ -564,14 +575,14 @@ export default function PageNav({ active = 'library' }) {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0"><div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile settings</div><h2 className="mt-1 truncate text-2xl font-black text-white">{navProfileLabel}</h2></div>
               <div className="flex shrink-0 items-center gap-2">
-                <button type="button" aria-label="Edit profile details" onClick={() => setProfileToolsOpen((value) => !value)} className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/10 transition ${profileToolsOpen ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white hover:bg-white hover:text-neutral-950'}`}><AppIcon name="settings" size={19} /></button>
+                <button type="button" aria-label="Edit profile details" onClick={() => setProfileToolsOpen((value) => !value)} className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/10 transition ${profileToolsOpen ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white hover:bg-white hover:text-neutral-950'}`}><AppIcon name="settings" size={18} /></button>
                 <button type="button" aria-label="Close profile" onClick={closeProfileModal} className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 text-2xl text-neutral-400 transition hover:bg-white hover:text-neutral-950">×</button>
               </div>
             </div>
 
             <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex min-w-0 items-center gap-4"><div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.5rem] bg-white text-neutral-950"><AppIcon name="user" size={30} strokeWidth={1.7} /></div><div className="min-w-0"><div className="text-xs uppercase tracking-[0.25em] text-neutral-500">{accountStatus}</div><h3 className="mt-1 truncate text-2xl font-black text-white">{profileLabel}</h3><p className="mt-1 truncate text-sm text-neutral-400">{session?.user?.email || (hasSupabase ? 'Not signed in yet' : 'Stored on this device')}</p></div></div>
+                <div className="flex min-w-0 items-center gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.2rem] border border-white/10 bg-white/[0.06] text-white"><AppIcon name="user" size={21} strokeWidth={1.8} /></div><div className="min-w-0"><div className="text-xs uppercase tracking-[0.25em] text-neutral-500">{accountStatus}</div><h3 className="mt-1 truncate text-2xl font-black text-white">{profileLabel}</h3><p className="mt-1 truncate text-sm text-neutral-400">{session?.user?.email || (hasSupabase ? 'Not signed in yet' : 'Stored on this device')}</p></div></div>
                 {session?.user ? <button type="button" disabled={loading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Sign out</button> : null}
               </div>
               {profileToolsOpen ? (
@@ -601,7 +612,7 @@ export default function PageNav({ active = 'library' }) {
               </div>
             </section>
 
-            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Library settings</p><h3 className="mt-1 text-xl font-black text-white">Current space: {spaceLabel}</h3></div><span className="w-fit rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-neutral-300">{groups.length} cliques</span></div><div className="mt-4 grid gap-3 md:grid-cols-2"><Link to="/dashboard" onClick={() => { usePersonalLibrary(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${!activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}><div className="flex items-center gap-3"><span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${!activeGroup ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}><AppIcon name="dashboard" size={18} /></span><div><div className="text-sm font-black">My Library</div><div className="text-xs opacity-60">Private picks only you can see</div></div></div></Link><Link to="/groups" onClick={() => { closeMenus(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}><div className="flex items-center gap-3"><span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${activeGroup ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}><AppIcon name="users" size={18} /></span><div><div className="text-sm font-black">Cliques</div><div className="text-xs opacity-60">Shared spaces with invite links</div></div></div></Link></div></section>
+            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Library settings</p><h3 className="mt-1 text-xl font-black text-white">Current space: {spaceLabel}</h3></div><span className="w-fit rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-neutral-300">{groups.length} cliques</span></div><div className="mt-4 grid gap-3 md:grid-cols-2"><Link to="/dashboard" onClick={() => { usePersonalLibrary(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${!activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}><div className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${!activeGroup ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}><AppIcon name="dashboard" size={17} /></span><div><div className="text-sm font-black">My Library</div><div className="text-xs opacity-60">Private picks only you can see</div></div></div></Link><Link to="/groups" onClick={() => { closeMenus(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}><div className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${activeGroup ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}><AppIcon name="users" size={17} /></span><div><div className="text-sm font-black">Cliques</div><div className="text-xs opacity-60">Shared spaces with invite links</div></div></div></Link></div></section>
 
             <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Your cliques</p><h3 className="mt-1 text-xl font-black text-white">Manage shared libraries</h3></div><Link to="/groups" onClick={closeProfileModal} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Open all</Link></div><input value={cliqueSearch} onChange={(event) => setCliqueSearch(event.target.value)} placeholder="Search your cliques..." className="mt-4 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />{visibleGroups.length ? <div className="mt-4 grid gap-2">{visibleGroups.map((group) => { const selected = activeGroup?.id === group.id; return <div key={group.id} className={`rounded-3xl border p-3 ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white'}`}><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="truncate font-black">{group.name}</div><div className="text-xs opacity-60">{group.members?.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private clique'}</div></div><div className="flex flex-wrap gap-2"><Link to={getGroupOpenPath(group)} onClick={() => { activateGroup(group); closeProfileModal() }} className={`rounded-xl px-3 py-2 text-xs font-semibold ${selected ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{selected ? 'Active' : 'Use'}</Link>{usingRemoteGroups ? <button type="button" onClick={() => togglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Hide' : 'Make public'}</button> : null}<button type="button" onClick={() => copyInvite(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">Invite</button></div></div></div> })}</div> : <p className="mt-4 rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm leading-6 text-neutral-400">No matching cliques.</p>}</section>
 
