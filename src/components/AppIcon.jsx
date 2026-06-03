@@ -121,12 +121,14 @@ const icons = {
 }
 
 export default function AppIcon({ name, size = 20, className = '', strokeWidth = 2 }) {
+  const safeSize = Math.min(Number(size) || 20, 48)
   return (
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
-      width={size}
-      height={size}
+      width={safeSize}
+      height={safeSize}
+      style={{ width: safeSize, height: safeSize, maxWidth: safeSize, maxHeight: safeSize }}
       className={className}
       fill="none"
       stroke="currentColor"
