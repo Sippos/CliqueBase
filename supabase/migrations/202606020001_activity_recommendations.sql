@@ -345,10 +345,12 @@ as $$
   limit greatest(1, least(coalesce(limit_input, 40), 100));
 $$;
 
+drop trigger if exists set_recommendation_notes_updated_at on public.recommendation_notes;
 create trigger set_recommendation_notes_updated_at
 before update on public.recommendation_notes
 for each row execute function public.set_updated_at();
 
+drop trigger if exists set_media_comments_updated_at on public.media_comments;
 create trigger set_media_comments_updated_at
 before update on public.media_comments
 for each row execute function public.set_updated_at();
