@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import PageShell from '../components/PageShell.jsx'
 import { DetailPill, displayYear } from '../components/MediaBlocks.jsx'
 import { getSavedHandle } from '../lib/handle.js'
@@ -27,7 +27,6 @@ function fallbackPayload(type, id) {
 }
 
 export default function Share() {
-  const navigate = useNavigate()
   const { type: routeType, id } = useParams()
   const [searchParams] = useSearchParams()
   const type = normalizeShareType(routeType)
