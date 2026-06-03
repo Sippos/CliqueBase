@@ -22,6 +22,7 @@ export function mediaTypeLabel(type) {
   if (type === 'movie') return 'Movie'
   if (type === 'series') return 'Series'
   if (type === 'game') return 'Game'
+  if (type === 'video') return 'Video'
   return 'Pick'
 }
 
@@ -29,6 +30,7 @@ export function mediaTypePath(type) {
   if (type === 'movie') return '/movies'
   if (type === 'series') return '/series'
   if (type === 'game') return '/games'
+  if (type === 'video') return '/videos'
   return '/library'
 }
 
@@ -37,6 +39,7 @@ export function normalizeShareType(type) {
   if (['movie', 'movies'].includes(value)) return 'movie'
   if (['series', 'show', 'tv'].includes(value)) return 'series'
   if (['game', 'games'].includes(value)) return 'game'
+  if (['video', 'videos', 'link'].includes(value)) return 'video'
   return ''
 }
 
@@ -50,7 +53,8 @@ export function sharePayload(type, item) {
     released: item?.released || null,
     poster: item?.poster || null,
     backdrop: item?.backdrop || null,
-    overview: item?.overview || item?.description || '',
+    overview: item?.overview || item?.description || item?.url || '',
+    url: item?.url || '',
     tmdbRating: item?.tmdbRating ?? null,
     rawgRating: item?.rawgRating ?? null,
     runtime: item?.runtime ?? null,
