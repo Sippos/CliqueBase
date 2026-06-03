@@ -4,6 +4,7 @@ import AppIcon from '../components/AppIcon.jsx'
 import PageShell from '../components/PageShell.jsx'
 import { StatusMessage } from '../components/MediaBlocks.jsx'
 import ModerationInbox from '../components/ModerationInbox.jsx'
+import { getGroupInviteUrl } from '../lib/groups.js'
 import { getCurrentSession, getRemoteGroups, hasSupabase } from '../lib/supabaseClient.js'
 import {
   deleteGroup,
@@ -17,6 +18,19 @@ import {
 
 const roleOptions = ['admin', 'moderator', 'member']
 const roleRank = { owner: 100, admin: 80, moderator: 60, member: 10 }
+
+async function copyToClipboard(value) {
+  if (!value) return false
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value)
+      return true
+    } catch {
+      return false
+    }
+  }
+  return false
+}
 
 function roleLabel(role = 'member') {
   return role.charAt(0).toUpperCase() + role.slice(1)
@@ -76,10 +90,20 @@ function MemberCard({ member, permissions, busyKey, onRole, onRemove, onTransfer
   )
 }
 
+function ShortcutCard({ href, label, detail }) {
+  return (
+    <a href={href} className="rounded-2xl border border-white/10 bg-neutral-950/65 p-3 text-left transition hover:border-white/25 hover:bg-white/[0.06]">
+      <span className="text-sm font-black text-white">{label}</span>
+      <span className="mt-1 block text-xs leading-5 text-neutral-500">{detail}</span>
+    </a>
+  )
+}
+
 export default function CliqueSettings() {
   const { groupId = '' } = useParams()
   const navigate = useNavigate()
   const [summary, setSummary] = useState({ permissions: {}, members: [] })
+  const [currentGroup, setCurrentGroup] = useState(null)
   const [nameDraft, setNameDraft] = useState('')
   const [publicDraft, setPublicDraft] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -110,10 +134,11 @@ export default function CliqueSettings() {
         getRemoteGroups().catch(() => []),
         getGroupManagementSummary(groupId),
       ])
-      const currentGroup = groups.find((item) => item.id === groupId) || null
+      const nextCurrentGroup = groups.find((item) => item.id === groupId) || null
       setSummary(nextSummary)
-      setNameDraft(currentGroup?.name || '')
-      setPublicDraft(Boolean(currentGroup?.isPublic))
+      setCurrentGroup(nextCurrentGroup)
+      setNameDraft(nextCurrentGroup?.name || '')
+      setPublicDraft(Boolean(nextCurrentGroup?.isPublic))
     } catch (error) {
       showMessage(error.message || 'Could not load clique settings.', 'error')
     } finally {
@@ -122,6 +147,16 @@ export default function CliqueSettings() {
   }
 
   useEffect(() => { refresh() }, [groupId])
+
+  async function copyInvite() {
+    if (!currentGroup?.inviteCode) {
+      showMessage('Invite link is not available for this clique yet.', 'error')
+      return
+    }
+    const inviteUrl = getGroupInviteUrl(currentGroup)
+    const copied = await copyToClipboard(inviteUrl)
+    showMessage(copied ? 'Invite link copied.' : `Invite link: ${inviteUrl}`)
+  }
 
   async function saveSettings(event) {
     event.preventDefault()
@@ -211,7 +246,11 @@ export default function CliqueSettings() {
             <h1 className="mt-2 text-4xl font-black tracking-tight">Members & permissions</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400">Manage who can change settings, moderate content, invite people, or own this clique. Permissions are enforced by Supabase, not only hidden in the UI.</p>
           </div>
-          <Link to={`/cliques/${encodeURIComponent(groupId)}`} className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="chevronLeft" size={16} />Back to clique</Link>
+          <div className="flex w-fit flex-wrap gap-2">
+            <button type="button" onClick={copyInvite} disabled={!currentGroup?.inviteCode} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50"><AppIcon name="users" size={15} />Copy invite</button>
+            <Link to="/community" className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="explore" size={15} />Community</Link>
+            <Link to={`/cliques/${encodeURIComponent(groupId)}`} className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950"><AppIcon name="chevronLeft" size={15} />Back to clique</Link>
+          </div>
         </div>
       </section>
 
@@ -221,9 +260,24 @@ export default function CliqueSettings() {
         {[["Owners", owners], ["Admins", admins], ["Moderators", moderators], ["Members", regularMembers]].map(([label, value]) => <div key={label} className="rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4 text-white"><div className="text-3xl font-black">{value}</div><div className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-neutral-500">{label}</div></div>)}
       </section>
 
+      <section className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 text-white">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500">Admin shortcuts</p>
+            <h2 className="mt-1 text-xl font-black">Backend controls</h2>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <ShortcutCard href="#settings" label="Settings" detail="Name and discovery." />
+            <ShortcutCard href="#access" label="Access" detail="Your permissions." />
+            <ShortcutCard href="#moderation" label="Moderation" detail="Reports and review." />
+            <ShortcutCard href="#members" label="Members" detail="Roles and ownership." />
+          </div>
+        </div>
+      </section>
+
       <section className="mt-5 grid gap-5 lg:grid-cols-[0.88fr_1.12fr]">
         <div className="space-y-5">
-          <form onSubmit={saveSettings} className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 text-white">
+          <form id="settings" onSubmit={saveSettings} className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 text-white">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Settings</p>
             <h2 className="mt-1 text-2xl font-black">Clique details</h2>
             <label className="mt-5 block text-sm font-bold text-neutral-300">Name</label>
@@ -235,7 +289,7 @@ export default function CliqueSettings() {
             <button disabled={!permissions.canUpdateSettings || busyKey === 'settings'} className="mt-4 w-full rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{busyKey === 'settings' ? 'Saving...' : 'Save settings'}</button>
           </form>
 
-          <section className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 text-white">
+          <section id="access" className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 text-white">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Your access</p>
             <h2 className="mt-1 text-2xl font-black">{roleLabel(permissions.role || 'member')}</h2>
             <p className="mt-2 text-sm leading-6 text-neutral-400">{roleDescription(permissions.role || 'member')}</p>
@@ -247,7 +301,9 @@ export default function CliqueSettings() {
             </div>
           </section>
 
-          <ModerationInbox groupId={groupId} canModerate={Boolean(permissions.canModerateContent)} onMessage={showMessage} />
+          <div id="moderation" className="scroll-mt-28">
+            <ModerationInbox groupId={groupId} canModerate={Boolean(permissions.canModerateContent)} onMessage={showMessage} />
+          </div>
 
           <section className="rounded-[2rem] border border-red-300/20 bg-red-500/5 p-5 text-white">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-red-200/70">Danger zone</p>
@@ -258,7 +314,7 @@ export default function CliqueSettings() {
           </section>
         </div>
 
-        <section className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 text-white">
+        <section id="members" className="scroll-mt-28 rounded-[2rem] border border-white/10 bg-white/[0.03] p-5 text-white">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div><p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Members</p><h2 className="mt-1 text-2xl font-black">Role ladder</h2></div>
             <span className="w-fit rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{members.length} total</span>
