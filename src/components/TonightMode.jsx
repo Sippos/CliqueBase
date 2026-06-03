@@ -27,6 +27,12 @@ function formatPollTiming(poll) {
   return `${Math.ceil(hours / 24)}d left`
 }
 
+function pollOptionLine(item) {
+  if (!item?.id || !item?.title) return ''
+  const type = item.itemType || item.type || 'other'
+  return `[${type}:${item.id}] ${item.title}`
+}
+
 function PollCard({ poll, onVote, onClose, voting, closing, lockedDecision = false }) {
   const votes = totalPollVotes(poll)
   const optionStats = pollOptionStats(poll)
@@ -51,13 +57,7 @@ function PollCard({ poll, onVote, onClose, voting, closing, lockedDecision = fal
       </div>
       <div className="mt-3 grid gap-2">
         {optionStats.map((option) => (
-          <button
-            type="button"
-            disabled={voting || !open}
-            key={option.id}
-            onClick={() => onVote(poll, option)}
-            className={`rounded-2xl border p-3 text-left transition disabled:opacity-60 ${option.selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-white hover:bg-white/10'}`}
-          >
+          <button type="button" disabled={voting || !open} key={option.id} onClick={() => onVote(poll, option)} className={`rounded-2xl border p-3 text-left transition disabled:opacity-60 ${option.selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-white hover:bg-white/10'}`}>
             <div className="flex items-center justify-between gap-3">
               <span className="font-black">{option.label}{option.leading ? <span className="ml-2 text-[10px] uppercase tracking-[0.14em] opacity-60">Leading</span> : null}</span>
               <span className="text-xs font-black opacity-70">{option.votes} · {option.percent}%</span>
@@ -68,16 +68,7 @@ function PollCard({ poll, onVote, onClose, voting, closing, lockedDecision = fal
           </button>
         ))}
       </div>
-      {canLock ? (
-        <button
-          type="button"
-          disabled={closing}
-          onClick={() => onClose(poll)}
-          className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50"
-        >
-          {closing ? 'Closing…' : expired && !open ? 'Lock expired result' : 'Lock decision'}
-        </button>
-      ) : null}
+      {canLock ? <button type="button" disabled={closing} onClick={() => onClose(poll)} className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{closing ? 'Closing…' : expired && !open ? 'Lock expired result' : 'Lock decision'}</button> : null}
     </article>
   )
 }
@@ -112,34 +103,22 @@ function DecisionCard({ decision, onDone, saving }) {
       ) : (
         <form onSubmit={submit} className="mt-3 grid gap-2">
           <div className="grid gap-2 sm:grid-cols-[8rem_1fr]">
-            <input
-              value={rating}
-              onChange={(event) => setRating(event.target.value)}
-              inputMode="decimal"
-              placeholder="0-10"
-              className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600"
-            />
-            <input
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder="Optional verdict after watching/playing"
-              className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600"
-            />
+            <input value={rating} onChange={(event) => setRating(event.target.value)} inputMode="decimal" placeholder="0-10" className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600" />
+            <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional verdict after watching/playing" className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600" />
           </div>
-          <button disabled={saving} className="rounded-2xl bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">
-            {saving ? 'Saving…' : 'Mark done'}
-          </button>
+          <button disabled={saving} className="rounded-2xl bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Saving…' : 'Mark done'}</button>
         </form>
       )}
     </article>
   )
 }
 
-export default function TonightMode({ groups = [], signedIn = false, onFlash }) {
+export default function TonightMode({ groups = [], libraryItems = [], signedIn = false, onFlash }) {
   const activeGroupId = getActiveGroupId()
   const [groupId, setGroupId] = useState(activeGroupId || groups[0]?.id || '')
   const [question, setQuestion] = useState('')
   const [options, setOptions] = useState('')
+  const [libraryPick, setLibraryPick] = useState('')
   const [polls, setPolls] = useState([])
   const [decisions, setDecisions] = useState([])
   const [loading, setLoading] = useState(false)
@@ -152,6 +131,7 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
   const selectedGroup = useMemo(() => groups.find((group) => group.id === groupId) || groups[0] || null, [groups, groupId])
   const canUse = signedIn && Boolean(selectedGroup?.id)
   const lockedPollIds = useMemo(() => new Set(decisions.map((decision) => decision.pollId).filter(Boolean)), [decisions])
+  const pollOptions = useMemo(() => options.split('\n').map((line) => line.trim()).filter(Boolean), [options])
 
   useEffect(() => {
     if (!groupId && groups[0]?.id) setGroupId(groups[0].id)
@@ -183,6 +163,22 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
   }
 
   useEffect(() => { refresh() }, [selectedGroup?.id, signedIn])
+
+  function addOptionLine(line) {
+    const cleanLine = String(line || '').trim()
+    if (!cleanLine) return
+    const current = options.split('\n').map((item) => item.trim()).filter(Boolean)
+    if (current.some((item) => item === cleanLine)) return
+    setOptions([...current, cleanLine].slice(0, 8).join('\n'))
+  }
+
+  function handleLibraryPick(value) {
+    setLibraryPick(value)
+    const item = libraryItems.find((entry) => `${entry.itemType}:${entry.id}` === value)
+    if (!item) return
+    addOptionLine(pollOptionLine(item))
+    setLibraryPick('')
+  }
 
   async function handleSeedBacklog() {
     if (!canUse) {
@@ -273,7 +269,7 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
         <div>
           <p className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name="users" size={14} />Tonight Mode</p>
           <h2 className="mt-1 text-2xl font-black text-white">Let the clique decide</h2>
-          <p className="mt-2 text-sm leading-6 text-neutral-400">Create a fast poll, lock the winner, then mark the decision done after the group tries it.</p>
+          <p className="mt-2 text-sm leading-6 text-neutral-400">Pick from your library, add clique backlog items, or type options manually.</p>
         </div>
       </div>
 
@@ -286,11 +282,14 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
             {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </select>
           <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={defaultDecisionQuestion(selectedGroup?.name)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
-          <textarea value={options} onChange={(event) => setOptions(event.target.value)} rows={3} placeholder={'One option per line\nThe movie pick\nThe game pick'} className="resize-none rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
+          <select value={libraryPick} onChange={(event) => handleLibraryPick(event.target.value)} className="rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none">
+            <option value="">Add from your library…</option>
+            {libraryItems.map((item) => <option key={`${item.itemType}:${item.id}`} value={`${item.itemType}:${item.id}`}>{item.label}: {item.title}</option>)}
+          </select>
+          <textarea value={options} onChange={(event) => setOptions(event.target.value)} rows={4} placeholder={'Poll options appear here\nAdd at least two'} className="resize-none rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600" />
+          {pollOptions.length ? <p className="text-xs font-semibold text-neutral-500">{pollOptions.length}/8 options ready</p> : null}
           <div className="grid gap-2 sm:grid-cols-2">
-            <button type="button" disabled={seeding || !canUse} onClick={handleSeedBacklog} className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">
-              {seeding ? 'Loading…' : 'Use top clique backlog'}
-            </button>
+            <button type="button" disabled={seeding || !canUse} onClick={handleSeedBacklog} className="rounded-2xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{seeding ? 'Loading…' : 'Use clique backlog'}</button>
             <button disabled={saving || !canUse} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-50">{saving ? 'Creating…' : 'Start poll'}</button>
           </div>
         </form>
@@ -302,9 +301,7 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
 
       {canUse && decisions.length ? (
         <div className="mt-5 grid gap-3">
-          <div className="flex items-center justify-between gap-3 px-1">
-            <h3 className="text-sm font-black uppercase tracking-[0.18em] text-neutral-500">Recent decisions</h3>
-          </div>
+          <div className="flex items-center justify-between gap-3 px-1"><h3 className="text-sm font-black uppercase tracking-[0.18em] text-neutral-500">Recent decisions</h3></div>
           {decisions.map((decision) => <DecisionCard key={decision.id} decision={decision} onDone={handleDone} saving={doneKey === decision.id} />)}
         </div>
       ) : null}
