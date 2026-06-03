@@ -26,7 +26,7 @@ function formatPollTiming(poll) {
   return `${Math.ceil(hours / 24)}d left`
 }
 
-function PollCard({ poll, onVote, onClose, voting, closing }) {
+function PollCard({ poll, onVote, onClose, voting, closing, lockedDecision = false }) {
   const votes = totalPollVotes(poll)
   const optionStats = pollOptionStats(poll)
   const leaders = leadingPollOptions(poll)
@@ -34,7 +34,8 @@ function PollCard({ poll, onVote, onClose, voting, closing }) {
   const open = isPollOpen(poll)
   const expired = isPollExpired(poll)
   const timingLabel = formatPollTiming(poll)
-  const statusLabel = expired ? 'closed' : poll.status
+  const canLock = !lockedDecision && (open || expired) && optionStats.length > 0
+  const statusLabel = lockedDecision ? 'locked' : expired ? 'closed' : poll.status
 
   return (
     <article className="rounded-[1.5rem] border border-white/10 bg-neutral-950/70 p-3">
@@ -66,14 +67,14 @@ function PollCard({ poll, onVote, onClose, voting, closing }) {
           </button>
         ))}
       </div>
-      {open ? (
+      {canLock ? (
         <button
           type="button"
           disabled={closing}
           onClick={() => onClose(poll)}
           className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-50"
         >
-          {closing ? 'Closing…' : 'Lock decision'}
+          {closing ? 'Closing…' : expired && !open ? 'Lock expired result' : 'Lock decision'}
         </button>
       ) : null}
     </article>
@@ -148,6 +149,7 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
 
   const selectedGroup = useMemo(() => groups.find((group) => group.id === groupId) || groups[0] || null, [groups, groupId])
   const canUse = signedIn && Boolean(selectedGroup?.id)
+  const lockedPollIds = useMemo(() => new Set(decisions.map((decision) => decision.pollId).filter(Boolean)), [decisions])
 
   useEffect(() => {
     if (!groupId && groups[0]?.id) setGroupId(groups[0].id)
@@ -266,7 +268,7 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
       ) : null}
 
       <div className="mt-4 grid gap-3">
-        {loading ? <p className="rounded-2xl border border-white/10 bg-neutral-950 p-3 text-sm text-neutral-400">Loading Tonight Mode…</p> : polls.length ? polls.map((poll) => <PollCard key={poll.id} poll={poll} onVote={handleVote} onClose={handleClose} voting={Boolean(votingKey)} closing={closingKey === poll.id} />) : canUse ? <p className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/60 p-4 text-sm text-neutral-500">No polls yet. Start one for your clique.</p> : null}
+        {loading ? <p className="rounded-2xl border border-white/10 bg-neutral-950 p-3 text-sm text-neutral-400">Loading Tonight Mode…</p> : polls.length ? polls.map((poll) => <PollCard key={poll.id} poll={poll} onVote={handleVote} onClose={handleClose} voting={Boolean(votingKey)} closing={closingKey === poll.id} lockedDecision={lockedPollIds.has(poll.id)} />) : canUse ? <p className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/60 p-4 text-sm text-neutral-500">No polls yet. Start one for your clique.</p> : null}
       </div>
 
       {canUse && decisions.length ? (
