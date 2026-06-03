@@ -8,8 +8,6 @@ import './detailNoteEnhancer.js'
 import './cliqueMediaRouter.js'
 import './mobileBottomNav.css'
 import './mobileExploreOverrides.css'
-import './mobileNavInjector.js'
-import './mobileExploreEnhancer.js'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
