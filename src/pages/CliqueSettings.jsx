@@ -79,8 +79,6 @@ function MemberCard({ member, permissions, busyKey, onRole, onRemove, onTransfer
 export default function CliqueSettings() {
   const { groupId = '' } = useParams()
   const navigate = useNavigate()
-  const [session, setSession] = useState(null)
-  const [group, setGroup] = useState(null)
   const [summary, setSummary] = useState({ permissions: {}, members: [] })
   const [nameDraft, setNameDraft] = useState('')
   const [publicDraft, setPublicDraft] = useState(false)
@@ -107,14 +105,12 @@ export default function CliqueSettings() {
     try {
       if (!hasSupabase) throw new Error('Clique roles need Supabase enabled.')
       const nextSession = await getCurrentSession().catch(() => null)
-      setSession(nextSession)
       if (!nextSession?.user) throw new Error('Sign in to manage clique roles.')
       const [groups, nextSummary] = await Promise.all([
         getRemoteGroups().catch(() => []),
         getGroupManagementSummary(groupId),
       ])
       const currentGroup = groups.find((item) => item.id === groupId) || null
-      setGroup(currentGroup)
       setSummary(nextSummary)
       setNameDraft(currentGroup?.name || '')
       setPublicDraft(Boolean(currentGroup?.isPublic))
