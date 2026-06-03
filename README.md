@@ -34,15 +34,17 @@ TMDB_API_KEY=your-tmdb-api-key
 
 ## Supabase setup
 
-Run `supabase/migrations/202605300001_auth_groups_movies.sql` in the Supabase SQL editor or through the Supabase CLI. It creates:
+Run the files in `supabase/migrations/` in filename order. The core migrations create:
 
 - `profiles` for display names tied to Supabase Auth users.
 - `groups` and `group_members` for private cliques and invite codes.
-- group-scoped `movies`, so each clique can have a separate movie pile.
-- RLS policies that only allow members to see and edit their group data.
-- RPC helpers for creating groups, joining by invite, and voting.
+- group-scoped and personal movies, series, and games.
+- RLS policies that only allow owners or members to see and edit scoped data.
+- RPC helpers for creating groups, joining by invite, voting, social activity, polls, decisions, and mark-done/rating follow-up.
 
-After the migration, open the Profile button in the navbar to create an account or sign in. From there, you can create or join Supabase-backed groups.
+Decision-loop migrations add `decision_sessions`. When a Tonight Mode poll is locked, the winning option is persisted as a decision. When that decision is marked done, matching movie, series, or game rows are marked watched/finished/played if the decision has `item_type` and `item_id`. Media table ratings are integer `1–10`, so a `0/10` decision rating is preserved on the decision session but not written into the media row.
+
+After the migrations, open the Profile button in the navbar to create an account or sign in. From there, you can create or join Supabase-backed groups.
 
 ## Current modes
 
