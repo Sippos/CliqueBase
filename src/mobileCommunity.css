@@ -1,68 +1,57 @@
-/* Mobile-first cleanup for the Community surface. Keeps desktop layout intact. */
+/* Mobile Community: keep the phone view feed-first and avoid cramped action rails. */
 @media (max-width: 767px) {
+  html,
+  body {
+    overflow-x: hidden !important;
+  }
+
   main.min-h-screen {
-    padding-left: 0.7rem !important;
-    padding-right: 0.7rem !important;
+    padding-left: 0.72rem !important;
+    padding-right: 0.72rem !important;
+    padding-bottom: 6.75rem !important;
+    overflow-x: hidden !important;
+  }
+
+  main.min-h-screen > div {
+    max-width: 100% !important;
+    overflow-x: clip !important;
+  }
+
+  /* Bell sits beside the profile button instead of floating over it. */
+  main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] {
+    top: 1rem !important;
+    right: 3.95rem !important;
+    z-index: 92 !important;
+  }
+
+  main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] button {
+    width: 2.35rem !important;
+    height: 2.35rem !important;
+    min-height: 2.35rem !important;
+    border-radius: 9999px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    backdrop-filter: blur(18px) saturate(145%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.78rem !important;
+    display: block !important;
     max-width: 100% !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main {
-    order: 2 !important;
     min-width: 0 !important;
+    width: 100% !important;
   }
 
+  /* Mobile is feed-only for now. Friends/Suggest/Votes stay available on tablet/desktop. */
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside {
-    order: 1 !important;
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(12.8rem, 1fr)) !important;
-    gap: 0.7rem !important;
-    overflow-x: auto !important;
-    overscroll-behavior-x: contain !important;
-    scroll-snap-type: x proximity !important;
-    padding: 0.1rem 0.1rem 0.55rem !important;
-    margin: 0 -0.2rem 0.15rem !important;
-    position: static !important;
-    scrollbar-width: none;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside::-webkit-scrollbar {
-    display: none;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside > * {
-    scroll-snap-align: start !important;
-    min-width: 12.8rem !important;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section {
-    min-height: 8.1rem !important;
-    padding: 0.9rem !important;
-    border-radius: 1.35rem !important;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section > button {
-    min-height: 5.9rem !important;
-    align-items: flex-start !important;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section > button span[class*="block text-lg"] {
-    font-size: 1rem !important;
-    line-height: 1.1 !important;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section > button span[class*="leading-5"],
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside section > button span[class*="text-xs"] {
-    font-size: 0.72rem !important;
-    line-height: 1.35 !important;
+    display: none !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child {
+    margin-bottom: 0.75rem !important;
     padding: 0.95rem !important;
     border-radius: 1.35rem !important;
   }
@@ -73,20 +62,40 @@
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child p[class*="text-xl"] {
-    font-size: 1.22rem !important;
-    line-height: 1.08 !important;
-    letter-spacing: -0.04em !important;
+    font-size: 1.18rem !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.035em !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child p[class*="text-sm"] {
-    max-width: 19rem !important;
     font-size: 0.78rem !important;
     line-height: 1.45 !important;
   }
 
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child button[aria-current],
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child button {
+    min-height: 2.7rem !important;
     touch-action: manipulation;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child > div:first-child > button {
+    width: 100% !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child > div:last-child {
+    display: flex !important;
+    gap: 0.45rem !important;
+    overflow-x: auto !important;
+    padding-bottom: 0.1rem !important;
+    scrollbar-width: none;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child > div:last-child::-webkit-scrollbar {
+    display: none;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > section:first-child > div:last-child button {
+    padding: 0.68rem 0.95rem !important;
+    white-space: nowrap !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] {
@@ -99,66 +108,42 @@
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] img {
-    width: 3.2rem !important;
-    height: 4.65rem !important;
+    width: 3.15rem !important;
+    height: 4.55rem !important;
     border-radius: 0.82rem !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] a[class*="text-base"],
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] h3[class*="text-base"] {
-    font-size: 1rem !important;
+    font-size: 0.98rem !important;
     line-height: 1.15 !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] p[class*="leading-5"] {
-    max-height: 4.7rem !important;
+    max-height: 4.6rem !important;
     overflow: hidden !important;
   }
 
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form input,
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form select,
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form textarea,
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form button {
-    min-height: 2.9rem !important;
-    font-size: 0.9rem !important;
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article form {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 0.45rem !important;
   }
 
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form textarea {
-    min-height: 6.4rem !important;
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article form input,
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article form button {
+    min-height: 2.45rem !important;
   }
 
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] form div[class*="grid-cols-2"] {
-    grid-template-columns: 1fr !important;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] #people,
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] #recommend,
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] #tonight {
-    scroll-margin-top: 5.75rem !important;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] aside section > form,
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] aside section > div:not(:first-child) {
-    width: min(88vw, 23rem) !important;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] aside section:has(form),
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] aside section:has(div.mt-4) {
-    min-width: min(92vw, 25rem) !important;
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article form button {
+    padding-left: 0.78rem !important;
+    padding-right: 0.78rem !important;
   }
 }
 
 @media (max-width: 420px) {
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside {
-    grid-template-columns: repeat(3, minmax(11.6rem, 1fr)) !important;
-  }
-
-  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > aside > * {
-    min-width: 11.6rem !important;
-  }
-
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] img {
     width: 2.9rem !important;
-    height: 4.35rem !important;
+    height: 4.25rem !important;
   }
 }
