@@ -1,6 +1,6 @@
 import { searchMembersByProfileName, shareMediaWithMember } from './lib/communityShare.js'
 
-function getItemType(title = '') {
+function getItemType() {
   const heading = [...document.querySelectorAll('button[aria-label], h1, h2, h3')]
     .map((node) => node.textContent || '')
     .find((text) => /movies|series|games/i.test(text)) || ''
@@ -14,7 +14,7 @@ function currentSharePayload(article) {
   return {
     id: title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || title,
     title,
-    category: getItemType(title),
+    category: getItemType(),
   }
 }
 
@@ -138,5 +138,4 @@ if (typeof window !== 'undefined') {
   const observer = new MutationObserver(enhance)
   observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true })
   window.addEventListener('popstate', ensureNavVisible)
-  window.setInterval(ensureNavVisible, 750)
 }
