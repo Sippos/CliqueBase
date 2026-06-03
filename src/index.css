@@ -137,6 +137,51 @@ article[class*="bg-white/"] span[class*="bg-white/"] {
   border-color: rgba(255, 255, 255, 0.16) !important;
 }
 
+/* Quiet tinted glass for social/community surfaces. */
+main section[class*="bg-white/[0.03]"],
+main section[class*="bg-white/[0.025]"],
+main article[class*="bg-white/[0.03]"] {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(110, 231, 255, 0.08), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.035)) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 22px 64px rgba(0, 0, 0, 0.42) !important;
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+}
+
+main section[class*="bg-white/[0.03]"]:nth-of-type(3n + 1),
+main article[class*="bg-white/[0.03]"]:nth-of-type(3n + 1) {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(167, 139, 250, 0.12), transparent 30%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.105), rgba(95, 70, 170, 0.075)) !important;
+}
+
+main section[class*="bg-white/[0.03]"]:nth-of-type(3n + 2),
+main article[class*="bg-white/[0.03]"]:nth-of-type(3n + 2) {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(52, 211, 153, 0.12), transparent 30%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.105), rgba(22, 101, 52, 0.075)) !important;
+}
+
+main section[class*="bg-white/[0.03]"]:nth-of-type(3n),
+main article[class*="bg-white/[0.03]"]:nth-of-type(3n) {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(251, 191, 36, 0.11), transparent 30%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.105), rgba(146, 64, 14, 0.075)) !important;
+}
+
+main input[class*="bg-neutral-950"],
+main textarea[class*="bg-neutral-950"],
+main select[class*="bg-neutral-950"],
+main div[class*="bg-neutral-950"],
+main article[class*="bg-neutral-950"] {
+  background-color: rgba(0, 0, 0, 0.26) !important;
+  border-color: rgba(255, 255, 255, 0.13) !important;
+}
+
 @media (max-width: 640px) {
   body {
     -webkit-text-size-adjust: 100%;
