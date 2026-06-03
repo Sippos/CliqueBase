@@ -527,7 +527,7 @@ export default function Community() {
           <section className="mb-3 rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.055] to-fuchsia-500/10 p-4 text-white shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><p className="text-xl font-black tracking-tight sm:text-2xl">Feed from cliques and friends</p><p className="mt-1 text-sm text-neutral-400">Tap a title to open the pick, or use the side cards to suggest and vote.</p></div>
-              <button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button>
+              <button type="button" onClick={() => refresh()} className="community-refresh rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950" aria-label="Refresh feed"><span className="community-refresh-label">Refresh</span><AppIcon name="refresh" size={16} className="community-refresh-icon hidden" /></button>
             </div>
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.04] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}</div>
           </section>
