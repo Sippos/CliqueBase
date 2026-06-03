@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import AppIcon from './AppIcon.jsx'
 import { getActiveGroupId } from '../lib/groups.js'
 import { closeCliquePoll, createCliquePoll, getCliquePolls, voteCliquePoll } from '../lib/cliquePolls.js'
+import { getCliqueDecisions, markDecisionDone } from '../lib/decisions.js'
 import {
   decisionOptionsOrFallback,
   defaultDecisionQuestion,
@@ -61,16 +62,71 @@ function PollCard({ poll, onVote, onClose, voting, closing }) {
   )
 }
 
+function DecisionCard({ decision, onDone, saving }) {
+  const [rating, setRating] = useState(decision.rating ?? '')
+  const [notes, setNotes] = useState(decision.notes || '')
+  const done = decision.status === 'done' || decision.status === 'rated'
+
+  function submit(event) {
+    event.preventDefault()
+    onDone(decision, rating, notes)
+  }
+
+  return (
+    <article className="rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">Locked decision</p>
+          <h3 className="mt-1 text-lg font-black text-white">{decision.selectedLabel}</h3>
+          <p className="mt-1 text-xs text-neutral-500">Selected by {decision.selectedByDisplayName}</p>
+        </div>
+        <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-400">{decision.status}</span>
+      </div>
+
+      {done ? (
+        <div className="mt-3 rounded-2xl border border-white/10 bg-neutral-950/70 p-3 text-sm text-neutral-300">
+          <p className="font-bold text-white">Done{decision.rating !== null ? ` · ${decision.rating}/10` : ''}</p>
+          {decision.notes ? <p className="mt-1 text-neutral-400">{decision.notes}</p> : null}
+          {decision.completedByDisplayName ? <p className="mt-2 text-xs text-neutral-600">Marked by {decision.completedByDisplayName}</p> : null}
+        </div>
+      ) : (
+        <form onSubmit={submit} className="mt-3 grid gap-2">
+          <div className="grid gap-2 sm:grid-cols-[8rem_1fr]">
+            <input
+              value={rating}
+              onChange={(event) => setRating(event.target.value)}
+              inputMode="decimal"
+              placeholder="0-10"
+              className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600"
+            />
+            <input
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder="Optional verdict after watching/playing"
+              className="rounded-2xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none placeholder:text-neutral-600"
+            />
+          </div>
+          <button disabled={saving} className="rounded-2xl bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.14em] text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">
+            {saving ? 'Saving…' : 'Mark done'}
+          </button>
+        </form>
+      )}
+    </article>
+  )
+}
+
 export default function TonightMode({ groups = [], signedIn = false, onFlash }) {
   const activeGroupId = getActiveGroupId()
   const [groupId, setGroupId] = useState(activeGroupId || groups[0]?.id || '')
   const [question, setQuestion] = useState('')
   const [options, setOptions] = useState('')
   const [polls, setPolls] = useState([])
+  const [decisions, setDecisions] = useState([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [votingKey, setVotingKey] = useState('')
   const [closingKey, setClosingKey] = useState('')
+  const [doneKey, setDoneKey] = useState('')
 
   const selectedGroup = useMemo(() => groups.find((group) => group.id === groupId) || groups[0] || null, [groups, groupId])
   const canUse = signedIn && Boolean(selectedGroup?.id)
@@ -86,13 +142,19 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
   async function refresh() {
     if (!canUse) {
       setPolls([])
+      setDecisions([])
       return
     }
     setLoading(true)
     try {
-      setPolls(await getCliquePolls(selectedGroup.id, 5))
+      const [nextPolls, nextDecisions] = await Promise.all([
+        getCliquePolls(selectedGroup.id, 5),
+        getCliqueDecisions(selectedGroup.id, 5),
+      ])
+      setPolls(nextPolls)
+      setDecisions(nextDecisions)
     } catch (error) {
-      onFlash?.(error.message || 'Could not load clique polls.')
+      onFlash?.(error.message || 'Could not load Tonight Mode.')
     } finally {
       setLoading(false)
     }
@@ -148,13 +210,26 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
     }
   }
 
+  async function handleDone(decision, rating, notes) {
+    setDoneKey(decision.id)
+    try {
+      await markDecisionDone(decision.id, rating, notes)
+      onFlash?.('Decision marked done.')
+      refresh()
+    } catch (error) {
+      onFlash?.(error.message || 'Could not mark decision done.')
+    } finally {
+      setDoneKey('')
+    }
+  }
+
   return (
     <section className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/20">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500"><AppIcon name="users" size={14} />Tonight Mode</p>
           <h2 className="mt-1 text-2xl font-black text-white">Let the clique decide</h2>
-          <p className="mt-2 text-sm leading-6 text-neutral-400">Create a fast poll, spot the leading option, and lock the decision when the group is ready.</p>
+          <p className="mt-2 text-sm leading-6 text-neutral-400">Create a fast poll, lock the winner, then mark the decision done after the group tries it.</p>
         </div>
       </div>
 
@@ -173,8 +248,17 @@ export default function TonightMode({ groups = [], signedIn = false, onFlash }) 
       ) : null}
 
       <div className="mt-4 grid gap-3">
-        {loading ? <p className="rounded-2xl border border-white/10 bg-neutral-950 p-3 text-sm text-neutral-400">Loading polls…</p> : polls.length ? polls.map((poll) => <PollCard key={poll.id} poll={poll} onVote={handleVote} onClose={handleClose} voting={Boolean(votingKey)} closing={closingKey === poll.id} />) : canUse ? <p className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/60 p-4 text-sm text-neutral-500">No polls yet. Start one for your clique.</p> : null}
+        {loading ? <p className="rounded-2xl border border-white/10 bg-neutral-950 p-3 text-sm text-neutral-400">Loading Tonight Mode…</p> : polls.length ? polls.map((poll) => <PollCard key={poll.id} poll={poll} onVote={handleVote} onClose={handleClose} voting={Boolean(votingKey)} closing={closingKey === poll.id} />) : canUse ? <p className="rounded-2xl border border-dashed border-white/10 bg-neutral-950/60 p-4 text-sm text-neutral-500">No polls yet. Start one for your clique.</p> : null}
       </div>
+
+      {canUse && decisions.length ? (
+        <div className="mt-5 grid gap-3">
+          <div className="flex items-center justify-between gap-3 px-1">
+            <h3 className="text-sm font-black uppercase tracking-[0.18em] text-neutral-500">Recent decisions</h3>
+          </div>
+          {decisions.map((decision) => <DecisionCard key={decision.id} decision={decision} onDone={handleDone} saving={doneKey === decision.id} />)}
+        </div>
+      ) : null}
     </section>
   )
 }
