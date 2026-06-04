@@ -4,6 +4,14 @@
 
 create extension if not exists pg_trgm;
 
+create table if not exists public.user_friends (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  friend_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, friend_id),
+  check (user_id <> friend_id)
+);
+
 create table if not exists public.media_shares (
   id uuid primary key default gen_random_uuid(),
   sender_id uuid not null references auth.users(id) on delete cascade,
@@ -37,21 +45,50 @@ for update to authenticated
 using (recipient_id = (select auth.uid()))
 with check (recipient_id = (select auth.uid()));
 
-create or replace function public.search_members_by_profile_name(search_input text, limit_input integer default 10)
-returns table(id uuid, display_name text)
+-- Existing installs may already have this function with a different OUT parameter shape.
+-- PostgreSQL requires dropping it before changing the return table columns.
+drop function if exists public.search_members_by_profile_name(text, integer);
+
+create function public.search_members_by_profile_name(search_input text, limit_input integer default 10)
+returns table(id uuid, display_name text, is_friend boolean, library_count integer)
 language sql
 stable
 security definer
 set search_path = public
 as $$
-  select p.id, p.display_name
+  with personal_counts as (
+    select owner_id as member_id, count(*)::integer as item_count
+    from (
+      select owner_id from public.movies where owner_id is not null and group_id is null
+      union all
+      select owner_id from public.series where owner_id is not null and group_id is null
+      union all
+      select owner_id from public.games where owner_id is not null and group_id is null
+    ) media
+    group by owner_id
+  )
+  select
+    p.id,
+    p.display_name,
+    exists (
+      select 1 from public.user_friends uf
+      where uf.user_id = auth.uid()
+        and uf.friend_id = p.id
+    ) as is_friend,
+    coalesce(pc.item_count, 0)::integer as library_count
   from public.profiles p
+  left join personal_counts pc on pc.member_id = p.id
   where auth.uid() is not null
     and p.id <> auth.uid()
     and length(trim(coalesce(search_input, ''))) >= 2
     and p.display_name ilike '%' || trim(search_input) || '%'
   order by
     case when lower(p.display_name) = lower(trim(search_input)) then 0 else 1 end,
+    exists (
+      select 1 from public.user_friends uf
+      where uf.user_id = auth.uid()
+        and uf.friend_id = p.id
+    ) desc,
     p.display_name asc
   limit greatest(1, least(coalesce(limit_input, 10), 25));
 $$;
