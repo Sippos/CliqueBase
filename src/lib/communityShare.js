@@ -23,6 +23,8 @@ function platformSearchError(error) {
     'share_media_with_clique',
     'get_member_public_library',
     'get_my_friends',
+    'get_media_share_inbox',
+    'respond_media_share',
     'send_friend_request',
     'add_friend',
     'remove_friend',
@@ -39,6 +41,27 @@ function normalizeMember(member, fallbackId = '') {
     isFriend: Boolean(member?.is_friend ?? member?.isFriend),
     libraryCount: Number(member?.library_count ?? member?.libraryCount ?? 0),
     friendSince: member?.created_at || member?.friendSince || null,
+  }
+}
+
+function normalizeInboxShare(row = {}) {
+  const payload = row.item_payload || row.itemPayload || {}
+  return {
+    id: row.id,
+    senderId: row.sender_id || row.senderId || null,
+    senderDisplayName: clean(row.sender_display_name || row.senderDisplayName) || 'CliqueBase member',
+    itemType: normalizeShareType(row.item_type || row.itemType || payload.type) || 'movie',
+    item: {
+      ...payload,
+      id: String(payload.id || row.id || ''),
+      title: payload.title || 'Untitled pick',
+      poster: payload.poster || null,
+      backdrop: payload.backdrop || null,
+      overview: payload.overview || payload.description || '',
+    },
+    response: row.response || null,
+    readAt: row.read_at || row.readAt || null,
+    createdAt: row.created_at || row.createdAt || null,
   }
 }
 
@@ -141,6 +164,30 @@ export async function getMemberPublicLibrary(memberId) {
     })),
     totals: payload.totals || {},
   }
+}
+
+export async function getMediaShareInbox({ limit = 20, includeAnswered = false } = {}) {
+  const client = requireConfiguredSupabase()
+  const { data, error } = await client.rpc('get_media_share_inbox', {
+    limit_input: limit,
+    include_answered_input: includeAnswered,
+  })
+  if (error) throw platformSearchError(error)
+  return (data || []).map(normalizeInboxShare)
+}
+
+export async function respondMediaShare(shareId, response) {
+  const client = requireConfiguredSupabase()
+  if (!shareId) throw new Error('Choose a card first.')
+  const cleanResponse = clean(response).toLowerCase()
+  if (!['want', 'pass'].includes(cleanResponse)) throw new Error('Swipe cards need Want or Pass.')
+  const { data, error } = await client.rpc('respond_media_share', {
+    share_id_input: shareId,
+    response_input: cleanResponse,
+  })
+  if (error) throw platformSearchError(error)
+  const row = Array.isArray(data) ? data[0] : data
+  return normalizeInboxShare(row || {})
 }
 
 export async function shareMediaWithMember(type, item, recipientId) {
