@@ -18,11 +18,11 @@
     overflow-x: clip !important;
   }
 
-  /* Bell sits in the top bar beside the profile button. */
+  /* Bell stays in the top bar layer, but panels/sheets must appear above it. */
   main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] {
     top: 1rem !important;
     right: 3.95rem !important;
-    z-index: 92 !important;
+    z-index: 42 !important;
   }
 
   main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] button {
@@ -34,6 +34,17 @@
     border-color: rgba(255, 255, 255, 0.16) !important;
     backdrop-filter: blur(18px) saturate(145%) !important;
     -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+  }
+
+  .notification-panel {
+    position: fixed !important;
+    inset: 5.25rem 0.72rem auto 0.72rem !important;
+    z-index: 125 !important;
+    width: auto !important;
+    max-height: calc(100dvh - 7rem) !important;
+    overflow-y: auto !important;
+    margin-top: 0 !important;
+    border-radius: 1.65rem !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] {
