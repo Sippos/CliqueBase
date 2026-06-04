@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import BlockedMembersPanel from '../components/BlockedMembersPanel.jsx'
@@ -52,6 +52,11 @@ function relativeTime(value) {
   const hours = Math.round(minutes / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.round(hours / 24)}d ago`
+}
+
+function getScrollTop() {
+  if (typeof window === 'undefined') return 0
+  return window.scrollY || document.documentElement?.scrollTop || document.body?.scrollTop || 0
 }
 
 function activityVerb(activity) {
@@ -122,14 +127,6 @@ function normalizeLibraryItems(movies = [], series = [], games = []) {
     .sort((a, b) => String(a.title).localeCompare(String(b.title)))
 }
 
-function groupedLibraryItems(libraryItems = []) {
-  return ['movie', 'series', 'game'].map((type) => ({
-    type,
-    ...contentTypeMeta[type],
-    items: libraryItems.filter((item) => item.itemType === type),
-  })).filter((group) => group.items.length)
-}
-
 function itemArtwork(item) {
   return item.poster || item.backdrop || item.image || item.cover || ''
 }
@@ -175,7 +172,7 @@ function IconBadge({ name }) {
   )
 }
 
-function EmptyCommunity({ signedIn, filter }) {
+function EmptyCommunity({ signedIn, filter, onSuggest }) {
   const copy = filter === 'friends'
     ? 'Add friends or accept requests to fill this tab.'
     : filter === 'cliques'
@@ -188,7 +185,7 @@ function EmptyCommunity({ signedIn, filter }) {
       <h2 className="text-lg font-black text-white">No posts yet</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-neutral-400">{copy}</p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
-        <a href="#recommend-mobile" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 lg:hidden">Suggest a pick</a>
+        <button type="button" onClick={onSuggest} className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 lg:hidden">Send a card</button>
         <a href="#recommend" className="hidden rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 lg:inline-flex">Suggest a pick</a>
         <a href="#people" className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-white">Find people</a>
         <Link to="/groups" className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-white">Cliques</Link>
@@ -335,9 +332,9 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   )
 }
 
-function RecommendationComposer({ sectionId = 'recommend', groups, friends, libraryItems, signedIn, onCreated, onFlash }) {
+function RecommendationComposer({ sectionId = 'recommend', defaultExpanded = false, groups, friends, libraryItems, signedIn, onCreated, onFlash }) {
   const activeGroupId = getActiveGroupId()
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(defaultExpanded)
   const [selectedLibraryKey, setSelectedLibraryKey] = useState('')
   const [title, setTitle] = useState('')
   const [itemType, setItemType] = useState('movie')
@@ -454,6 +451,27 @@ function RecommendationComposer({ sectionId = 'recommend', groups, friends, libr
   )
 }
 
+function MobileSwipeSheet({ open, onClose, groups, friends, libraryItems, signedIn, onCreated, onFlash }) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-[120] bg-black/70 p-3 text-white backdrop-blur-md lg:hidden" role="dialog" aria-modal="true" aria-label="Swipe game actions">
+      <div className="absolute inset-x-3 bottom-3 max-h-[84vh] overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-4 shadow-2xl shadow-black/60 ring-1 ring-white/10">
+        <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-center justify-between gap-3 border-b border-white/10 bg-neutral-950/95 px-4 py-3 backdrop-blur-xl">
+          <div>
+            <p className="text-lg font-black tracking-tight">Swipe game</p>
+            <p className="mt-0.5 text-xs text-neutral-400">Send cards or start a pile.</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 text-2xl text-neutral-300 transition hover:bg-white hover:text-neutral-950">×</button>
+        </div>
+        <div className="grid gap-3">
+          <RecommendationComposer sectionId="recommend-mobile" defaultExpanded groups={groups} friends={friends} libraryItems={libraryItems} signedIn={signedIn} onCreated={onCreated} onFlash={onFlash} />
+          <TonightMode groups={groups} libraryItems={libraryItems} signedIn={signedIn} onFlash={onFlash} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Community() {
   const [session, setSession] = useState(null)
   const [groups, setGroups] = useState([])
@@ -463,8 +481,12 @@ export default function Community() {
   const [feedFilter, setFeedFilter] = useState('all')
   const [feedLimit, setFeedLimit] = useState(80)
   const [sharingActivity, setSharingActivity] = useState(null)
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false)
+  const [pullDistance, setPullDistance] = useState(0)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const touchStartY = useRef(0)
+  const pullActive = useRef(false)
 
   const signedIn = hasSupabase && Boolean(session?.user)
   const friendIds = useMemo(() => new Set(friends.map((friend) => friend.id).filter(Boolean)), [friends])
@@ -519,31 +541,58 @@ export default function Community() {
     refresh(nextLimit)
   }
 
+  function handleTouchStart(event) {
+    if (loading || getScrollTop() > 2) {
+      pullActive.current = false
+      return
+    }
+    pullActive.current = true
+    touchStartY.current = event.touches?.[0]?.clientY || 0
+  }
+
+  function handleTouchMove(event) {
+    if (!pullActive.current) return
+    const currentY = event.touches?.[0]?.clientY || 0
+    const delta = currentY - touchStartY.current
+    if (delta <= 0) {
+      setPullDistance(0)
+      return
+    }
+    setPullDistance(Math.min(86, Math.round(delta * 0.55)))
+  }
+
+  function handleTouchEnd() {
+    const shouldRefresh = pullActive.current && pullDistance > 62 && !loading
+    pullActive.current = false
+    setPullDistance(0)
+    if (shouldRefresh) refresh().then(() => flash('Feed refreshed.'))
+  }
+
   useEffect(() => { refresh() }, [])
 
   return (
     <PageShell active="community">
       <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
-        <main className="min-w-0">
-          <section className="mb-3 rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.055] to-fuchsia-500/10 p-4 text-white shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xl font-black tracking-tight sm:text-2xl">Feed from cliques and friends</p>
-                <p className="mt-1 text-sm text-neutral-400">Send movies, series, or games as swipe cards. If both people want it, it becomes the next thing to watch or play.</p>
+        <main className="min-w-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+          {pullDistance > 4 ? (
+            <div className="community-pull-indicator" style={{ opacity: Math.min(1, pullDistance / 44), transform: `translateY(${Math.min(48, pullDistance)}px)` }}>
+              {pullDistance > 62 ? 'Release to refresh' : 'Pull to refresh'}
+            </div>
+          ) : null}
+          <section className="community-feed-hero mb-3 rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.055] to-fuchsia-500/10 p-4 text-white shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xl font-black tracking-tight sm:text-2xl">Feed</p>
+                <p className="community-feed-copy mt-1 text-sm text-neutral-400">Friends and cliques are sharing what to watch, play, and try.</p>
               </div>
-              <button type="button" onClick={() => refresh()} className="community-refresh rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950" aria-label="Refresh feed"><span className="community-refresh-label">Refresh</span><AppIcon name="refresh" size={16} className="community-refresh-icon hidden" /></button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button type="button" onClick={() => setMobileActionsOpen(true)} className="community-swipe-action rounded-2xl bg-white px-3 py-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200 lg:hidden" aria-label="Open swipe game"><AppIcon name="share" size={15} /><span>Swipe</span></button>
+                <button type="button" onClick={() => refresh()} className="community-refresh hidden rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 lg:inline-flex" aria-label="Refresh feed"><span className="community-refresh-label">Refresh</span><AppIcon name="refresh" size={16} className="community-refresh-icon hidden" /></button>
+              </div>
             </div>
-            <div className="mt-3 flex gap-2 lg:hidden">
-              <a href="#recommend-mobile" className="rounded-2xl bg-white px-4 py-2 text-xs font-black text-neutral-950">Suggest a pick</a>
-              <a href="#tonight-mobile" className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-black text-white">Match pile</a>
-            </div>
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.04] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}</div>
+            <div className="community-feed-tabs mt-3 flex gap-2 overflow-x-auto pb-1">{feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.04] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}</div>
           </section>
-          <div className="mb-3 grid gap-3 lg:hidden">
-            <RecommendationComposer sectionId="recommend-mobile" groups={groups} friends={friends} libraryItems={libraryItems} signedIn={signedIn} onCreated={() => refresh()} onFlash={flash} />
-            <div id="tonight-mobile" className="scroll-mt-24"><TonightMode groups={groups} libraryItems={libraryItems} signedIn={signedIn} onFlash={flash} /></div>
-          </div>
-          <div className="grid gap-3">{loading ? <p className="rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.04] to-violet-500/10 p-4 text-sm text-neutral-300 shadow-2xl shadow-cyan-950/20 backdrop-blur-2xl ring-1 ring-white/10">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}</div>
+          <div className="grid gap-3">{loading ? <p className="rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.04] to-violet-500/10 p-4 text-sm text-neutral-300 shadow-2xl shadow-cyan-950/20 backdrop-blur-2xl ring-1 ring-white/10">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} onSuggest={() => setMobileActionsOpen(true)} />}</div>
           {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
         </main>
         <aside className="hidden gap-4 lg:sticky lg:top-28 lg:grid">
@@ -552,6 +601,7 @@ export default function Community() {
           <div id="tonight" className="scroll-mt-24"><TonightMode groups={groups} libraryItems={libraryItems} signedIn={signedIn} onFlash={flash} /></div>
         </aside>
       </div>
+      <MobileSwipeSheet open={mobileActionsOpen} onClose={() => setMobileActionsOpen(false)} groups={groups} friends={friends} libraryItems={libraryItems} signedIn={signedIn} onCreated={() => { refresh(); setMobileActionsOpen(false) }} onFlash={flash} />
       <MemberShareModal item={sharingActivity ? shareItemFromActivity(sharingActivity) : null} type={sharingActivity ? shareableType(sharingActivity) : ''} onClose={() => setSharingActivity(null)} onMessage={flash} />
       {message ? <div className="fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}
     </PageShell>
