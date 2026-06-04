@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import AppIcon from './AppIcon.jsx'
 import { buildShareUrl, mediaTypeLabel } from '../lib/share.js'
 import { getCurrentSession, hasSupabase } from '../lib/supabaseClient.js'
@@ -204,6 +205,7 @@ export default function NotificationCenter() {
               <h2 className="mt-1 text-xl font-black text-white">Cards & updates</h2>
             </div>
             <div className="flex gap-2">
+              <Link to="/library/inbox" onClick={() => setOpen(false)} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-neutral-950">Open library</Link>
               {notifications.length ? <button type="button" disabled={busyKey === 'all'} onClick={handleMarkAll} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-neutral-300 disabled:opacity-60">Clear</button> : null}
               <button type="button" onClick={() => setOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-xl text-neutral-400 hover:bg-white hover:text-neutral-950">×</button>
             </div>
@@ -214,7 +216,7 @@ export default function NotificationCenter() {
 
           {session?.user ? (
             <div className="mt-4 grid max-h-[28rem] gap-3 overflow-y-auto pr-1">
-              {shareCards.length ? <div className="grid gap-2"><p className="px-1 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">Swipe cards</p>{shareCards.map((share) => <SwipeCard key={share.id} share={share} busy={busyKey === share.id} onRespond={handleShareResponse} />)}</div> : null}
+              {shareCards.length ? <div className="grid gap-2"><div className="flex items-center justify-between gap-2 px-1"><p className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">Swipe cards</p><Link to="/library/inbox" onClick={() => setOpen(false)} className="text-xs font-black text-cyan-100 hover:underline">View pile</Link></div>{shareCards.slice(0, 2).map((share) => <SwipeCard key={share.id} share={share} busy={busyKey === share.id} onRespond={handleShareResponse} />)}</div> : null}
               {requests.length ? <div className="grid gap-2"><p className="px-1 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">Friend requests</p>{requests.map((request) => <RequestCard key={request.id} request={request} onRespond={handleRespond} busy={busyKey === request.id} />)}</div> : null}
               {notifications.length ? <div className="grid gap-2"><p className="px-1 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">Updates</p>{notifications.map((notification) => <article key={notification.id} className="rounded-3xl border border-white/10 bg-neutral-900/80 p-3"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-sm font-bold leading-5 text-white">{notificationText(notification)}</p><p className="mt-1 text-xs text-neutral-500">{relativeTime(notification.createdAt)}</p></div><button type="button" disabled={busyKey === notification.id} onClick={() => handleMarkRead(notification)} className="shrink-0 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-neutral-300 disabled:opacity-60">Read</button></div></article>)}</div> : null}
               {!shareCards.length && !requests.length && !notifications.length && !loading ? <p className="rounded-3xl border border-dashed border-white/10 bg-neutral-900/60 p-5 text-center text-sm text-neutral-500">No new cards or updates yet.</p> : null}
