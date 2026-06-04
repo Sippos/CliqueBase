@@ -13,6 +13,7 @@ import CliqueSettings from './pages/CliqueSettings.jsx'
 import Leaderboard from './pages/Leaderboard.jsx'
 import Share from './pages/Share.jsx'
 import MemberLibrary from './pages/MemberLibrary.jsx'
+import SwipeInbox from './pages/SwipeInbox.jsx'
 import {
   ACTIVE_GROUP_STORAGE_KEY,
   PENDING_GROUP_INVITE_STORAGE_KEY,
@@ -62,7 +63,7 @@ function syncPendingInviteFromUrl() {
   }
   const pendingInvite = getPendingInvite()
   if (!pendingInvite) return
-  const resumablePaths = ['/', '/community', '/explore', '/leaderboard', '/dashboard', '/library']
+  const resumablePaths = ['/', '/community', '/explore', '/leaderboard', '/dashboard', '/library', '/library/inbox']
   if (!resumablePaths.includes(pathname)) return
   const base = getAppBasePath()
   const nextPath = `${base}invite/${encodeURIComponent(pendingInvite)}${window.location.search || ''}${window.location.hash || ''}`
@@ -70,7 +71,7 @@ function syncPendingInviteFromUrl() {
 }
 
 function isPersonalLibraryPath(pathname) {
-  return ['/dashboard', '/library', '/library/movies', '/library/series', '/library/games', '/movies', '/series', '/games', '/videos', '/music'].includes(pathname)
+  return ['/dashboard', '/library', '/library/inbox', '/library/movies', '/library/series', '/library/games', '/movies', '/series', '/games', '/videos', '/music'].includes(pathname)
 }
 
 function syncCliqueScopeFromUrl() {
@@ -122,6 +123,8 @@ export default function App() {
       <Route path="/leaderboard" element={<Leaderboard />} />
       <Route path="/dashboard" element={<Home scope="personal" />} />
       <Route path="/library" element={<Home scope="personal" />} />
+      <Route path="/library/inbox" element={<SwipeInbox />} />
+      <Route path="/library/swipe" element={<SwipeInbox />} />
       <Route path="/library/movies" element={<Movies />} />
       <Route path="/library/series" element={<Series />} />
       <Route path="/library/games" element={<Games />} />
