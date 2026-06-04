@@ -55,4 +55,4 @@ After the migrations, open the Profile button in the navbar to create an account
 
 Build the Phase 1 core decision loop from the product strategy guide: recommendation notes, clique voting/selection, TonightMode eligibility, mark-done/rating follow-up, and empty states that push users toward the next action.
 
-<!-- vercel-redeploy: 2026-05-31-0058 -->
+<!-- vercel-redeploy: 2026-06-04-berlin -->
