@@ -188,7 +188,8 @@ function EmptyCommunity({ signedIn, filter }) {
       <h2 className="text-lg font-black text-white">No posts yet</h2>
       <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-neutral-400">{copy}</p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
-        <a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Suggest a pick</a>
+        <a href="#recommend-mobile" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 lg:hidden">Suggest a pick</a>
+        <a href="#recommend" className="hidden rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 lg:inline-flex">Suggest a pick</a>
         <a href="#people" className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-white">Find people</a>
         <Link to="/groups" className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-white">Cliques</Link>
       </div>
@@ -324,7 +325,7 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
           {titleNode}
           {text ? <p className="mt-2 rounded-xl border border-white/10 bg-black/25 p-2 text-xs leading-5 text-neutral-300 shadow-inner shadow-black/20 sm:text-sm">{text}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
-            {canShare ? <button type="button" onClick={() => onShare(activity)} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Share</button> : null}
+            {canShare ? <button type="button" onClick={() => onShare(activity)} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Send card</button> : null}
           </div>
         </div>
       </div>
@@ -334,7 +335,7 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   )
 }
 
-function RecommendationComposer({ groups, friends, libraryItems, signedIn, onCreated, onFlash }) {
+function RecommendationComposer({ sectionId = 'recommend', groups, friends, libraryItems, signedIn, onCreated, onFlash }) {
   const activeGroupId = getActiveGroupId()
   const [expanded, setExpanded] = useState(false)
   const [selectedLibraryKey, setSelectedLibraryKey] = useState('')
@@ -393,13 +394,13 @@ function RecommendationComposer({ groups, friends, libraryItems, signedIn, onCre
   }
 
   return (
-    <section id="recommend" className="scroll-mt-24 rounded-[1.5rem] border border-emerald-200/15 bg-gradient-to-br from-emerald-400/10 via-white/[0.055] to-cyan-500/10 p-4 text-white shadow-2xl shadow-emerald-950/25 backdrop-blur-2xl ring-1 ring-white/10">
+    <section id={sectionId} className="scroll-mt-24 rounded-[1.5rem] border border-emerald-200/15 bg-gradient-to-br from-emerald-400/10 via-white/[0.055] to-cyan-500/10 p-4 text-white shadow-2xl shadow-emerald-950/25 backdrop-blur-2xl ring-1 ring-white/10">
       <button type="button" onClick={() => setExpanded((value) => !value)} className="flex w-full items-center justify-between gap-3 text-left">
         <span className="flex min-w-0 items-start gap-3">
           <IconBadge name="share" />
           <span className="min-w-0">
-            <span className="block text-lg font-black">Suggest a pick</span>
-            <span className="mt-1 block text-xs leading-5 text-neutral-300/85">Choose content, choose who sees it, add a short reason.</span>
+            <span className="block text-lg font-black">Suggest or send a pick</span>
+            <span className="mt-1 block text-xs leading-5 text-neutral-300/85">Send a 1-vs-1 swipe card to a friend, or drop it into a clique pile.</span>
           </span>
         </span>
         <span className="rounded-full border border-white/10 bg-white/[0.08] px-3 py-1 text-xs font-black text-neutral-100">{expanded ? 'Hide' : 'Open'}</span>
@@ -437,16 +438,16 @@ function RecommendationComposer({ groups, friends, libraryItems, signedIn, onCre
           ) : null}
 
           <input value={title} onChange={(event) => { setTitle(event.target.value); setSelectedLibraryKey(''); setItemId('') }} placeholder="Or type a title" className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500" />
-          <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why should they try it?" rows={3} className="resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500" />
+          <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why should they swipe yes?" rows={3} className="resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500" />
           <div className="grid gap-3 sm:grid-cols-2">
             <select value={audience} onChange={(event) => setAudience(event.target.value)} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none">
               <option value="feed">Feed: friends and cliques</option>
-              {groups.length ? <optgroup label="Cliques">{groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name}</option>)}</optgroup> : null}
-              {friends.length ? <optgroup label="Friends">{friends.map((friend) => <option key={friend.id} value={`friend:${friend.id}`}>{friend.displayName}</option>)}</optgroup> : null}
+              {friends.length ? <optgroup label="1-vs-1 friends">{friends.map((friend) => <option key={friend.id} value={`friend:${friend.id}`}>{friend.displayName}</option>)}</optgroup> : null}
+              {groups.length ? <optgroup label="Clique piles">{groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name}</option>)}</optgroup> : null}
             </select>
             <select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none">{priorities.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
           </div>
-          <button disabled={saving || !signedIn || !title.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Posting…' : signedIn ? 'Post suggestion' : 'Sign in to post'}</button>
+          <button disabled={saving || !signedIn || !title.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Sending…' : signedIn ? 'Send suggestion' : 'Sign in to send'}</button>
         </form>
       ) : null}
     </section>
@@ -526,17 +527,28 @@ export default function Community() {
         <main className="min-w-0">
           <section className="mb-3 rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.055] to-fuchsia-500/10 p-4 text-white shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="text-xl font-black tracking-tight sm:text-2xl">Feed from cliques and friends</p><p className="mt-1 text-sm text-neutral-400">Tap a title to open the pick, or use the side cards to suggest and vote.</p></div>
+              <div>
+                <p className="text-xl font-black tracking-tight sm:text-2xl">Feed from cliques and friends</p>
+                <p className="mt-1 text-sm text-neutral-400">Send movies, series, or games as swipe cards. If both people want it, it becomes the next thing to watch or play.</p>
+              </div>
               <button type="button" onClick={() => refresh()} className="community-refresh rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950" aria-label="Refresh feed"><span className="community-refresh-label">Refresh</span><AppIcon name="refresh" size={16} className="community-refresh-icon hidden" /></button>
+            </div>
+            <div className="mt-3 flex gap-2 lg:hidden">
+              <a href="#recommend-mobile" className="rounded-2xl bg-white px-4 py-2 text-xs font-black text-neutral-950">Suggest a pick</a>
+              <a href="#tonight-mobile" className="rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-xs font-black text-white">Match pile</a>
             </div>
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1">{feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.04] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}</div>
           </section>
+          <div className="mb-3 grid gap-3 lg:hidden">
+            <RecommendationComposer sectionId="recommend-mobile" groups={groups} friends={friends} libraryItems={libraryItems} signedIn={signedIn} onCreated={() => refresh()} onFlash={flash} />
+            <div id="tonight-mobile" className="scroll-mt-24"><TonightMode groups={groups} libraryItems={libraryItems} signedIn={signedIn} onFlash={flash} /></div>
+          </div>
           <div className="grid gap-3">{loading ? <p className="rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.04] to-violet-500/10 p-4 text-sm text-neutral-300 shadow-2xl shadow-cyan-950/20 backdrop-blur-2xl ring-1 ring-white/10">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} />}</div>
           {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
         </main>
-        <aside className="grid gap-4 lg:sticky lg:top-28">
+        <aside className="hidden gap-4 lg:sticky lg:top-28 lg:grid">
           <div id="people" className="scroll-mt-24"><BlockedMembersPanel signedIn={signedIn} defaultOpen onFlash={flash} onChanged={() => refresh()} /></div>
-          <RecommendationComposer groups={groups} friends={friends} libraryItems={libraryItems} signedIn={signedIn} onCreated={() => refresh()} onFlash={flash} />
+          <RecommendationComposer sectionId="recommend" groups={groups} friends={friends} libraryItems={libraryItems} signedIn={signedIn} onCreated={() => refresh()} onFlash={flash} />
           <div id="tonight" className="scroll-mt-24"><TonightMode groups={groups} libraryItems={libraryItems} signedIn={signedIn} onFlash={flash} /></div>
         </aside>
       </div>
