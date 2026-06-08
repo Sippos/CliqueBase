@@ -7,7 +7,7 @@ import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, setActiveGroup 
 import { demoMovies } from '../lib/demoMovies.js'
 import { shareContent } from '../lib/share.js'
 import { getMovieDetails, searchMovies } from '../lib/tmdb.js'
-import { getCurrentSession, getMovies, getRemoteGroups, hasSupabase, markMovieWatched, rateMovie as saveMovieRating, saveMovie, voteMovie } from '../lib/supabaseClient.js'
+import { getCurrentSession, getGroupMembers, getMovies, getRemoteGroups, hasSupabase, markMovieWatched, rateMovie as saveMovieRating, saveMovie, voteMovie } from '../lib/supabaseClient.js'
 
 const MOVIES_SCOPE_STORAGE_KEY = 'cliquebase_movies_scope'
 
@@ -25,6 +25,22 @@ function scopeLabel(scope, groups) {
 function getInitialScope() {
   if (typeof window === 'undefined') return 'personal'
   return getActiveGroupId() || 'personal'
+}
+
+function memberName(member) {
+  return String(member?.displayName || member?.display_name || member?.name || member || '').trim() || 'Member'
+}
+
+function watchedWithLabel(movie) {
+  const names = (movie?.watchedWith || []).map(memberName).filter(Boolean)
+  if (!names.length) return ''
+  if (names.length === 1) return `Watched with ${names[0]}`
+  if (names.length === 2) return `Watched with ${names[0]} and ${names[1]}`
+  return `Watched with ${names.slice(0, 2).join(', ')} +${names.length - 2}`
+}
+
+function getMemberId(member) {
+  return member?.id || member?.userId || member?.user_id || memberName(member)
 }
 
 function SavedMovieCardsSection({ items, onInfo, onDone }) {
@@ -95,6 +111,57 @@ function AddMoviePanel({ query, setQuery, loading, hasResults, canUseLibrary, on
   )
 }
 
+function WatchPartyModal({ movie, members, selectedIds, setSelectedIds, onClose, onConfirm }) {
+  if (!movie) return null
+  const selectedMembers = members.filter((member) => selectedIds.includes(getMemberId(member)))
+
+  function toggle(member) {
+    const id = getMemberId(member)
+    setSelectedIds((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id])
+  }
+
+  function handleSelect(event) {
+    const values = Array.from(event.target.selectedOptions).map((option) => option.value)
+    setSelectedIds(values)
+  }
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 text-white backdrop-blur-sm">
+      <section className="w-full max-w-lg rounded-[2rem] border border-white/10 bg-neutral-950 p-5 shadow-2xl shadow-black/50 ring-1 ring-white/10">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-neutral-500">Watch party</p>
+            <h2 className="mt-1 text-2xl font-black">Watched “{movie.title}” with?</h2>
+            <p className="mt-2 text-sm leading-6 text-neutral-400">Choose family members or clique friends who watched this movie with you.</p>
+          </div>
+          <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 text-2xl text-neutral-400 transition hover:bg-white hover:text-neutral-950">×</button>
+        </div>
+
+        <label className="mt-4 grid gap-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-500">
+          Friends / clique members
+          <select multiple value={selectedIds} onChange={handleSelect} className="min-h-36 rounded-2xl border border-white/10 bg-neutral-900 px-3 py-3 text-sm normal-case tracking-normal text-white outline-none">
+            {members.map((member) => <option key={getMemberId(member)} value={getMemberId(member)}>{memberName(member)}</option>)}
+          </select>
+        </label>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {members.map((member) => {
+            const active = selectedIds.includes(getMemberId(member))
+            return <button key={getMemberId(member)} type="button" onClick={() => toggle(member)} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${active ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.05] text-neutral-300 hover:bg-white/10'}`}>{memberName(member)}</button>
+          })}
+        </div>
+
+        {selectedMembers.length ? <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-neutral-300">Saving: {selectedMembers.map(memberName).join(', ')}</p> : <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-sm text-neutral-500">No one selected. You can still mark it watched alone.</p>}
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button type="button" onClick={onClose} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white/10">Cancel</button>
+          <button type="button" onClick={() => onConfirm(selectedMembers)} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200">Mark watched</button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
 export default function Movies() {
   const [movies, setMovies] = useState(() => hasSupabase ? [] : demoMovies)
   const [votes, setVotes] = useState({})
@@ -108,6 +175,9 @@ export default function Movies() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
   const [groups, setGroups] = useState([])
+  const [groupMembers, setGroupMembers] = useState([])
+  const [pendingWatchedMovie, setPendingWatchedMovie] = useState(null)
+  const [watchPartySelection, setWatchPartySelection] = useState([])
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
   const [activeContextGroupId, setActiveContextGroupId] = useState(() => getActiveGroupId())
   const [selectedScope, setSelectedScopeState] = useState(() => getInitialScope())
@@ -133,6 +203,21 @@ export default function Movies() {
     if (!hasSupabase || setupState !== 'ready') return
     loadMovies(selectedGroupId)
   }, [selectedScope, setupState])
+
+  useEffect(() => {
+    if (!hasSupabase || !selectedGroupId || setupState !== 'ready') {
+      setGroupMembers([])
+      return
+    }
+    let cancelled = false
+    getGroupMembers(selectedGroupId)
+      .then((members) => { if (!cancelled) setGroupMembers(members) })
+      .catch(() => {
+        const group = groups.find((item) => item.id === selectedGroupId)
+        if (!cancelled) setGroupMembers(group?.members || [])
+      })
+    return () => { cancelled = true }
+  }, [selectedGroupId, setupState, groups])
 
   useEffect(() => {
     function handleGroupChange() {
@@ -206,6 +291,7 @@ export default function Movies() {
     setWatched([])
     setRatings({})
     setResults([])
+    setGroupMembers([])
   }
 
   async function loadMovies(groupId = selectedGroupId) {
@@ -274,8 +360,6 @@ export default function Movies() {
   }
 
   async function handleSwipe(vote, movie) {
-    if (needLibrary()) return
-
     setVotes((current) => ({ ...current, [movie.id]: vote }))
 
     if (hasSupabase) {
@@ -291,16 +375,26 @@ export default function Movies() {
     showMessage(vote === 'like' ? `You voted to watch "${movie.title}".` : `You passed on "${movie.title}".`)
   }
 
-  async function markWatched(movie) {
+  function markWatched(movie) {
     if (needLibrary()) return
+    if (hasSupabase && selectedGroupId) {
+      setPendingWatchedMovie(movie)
+      setWatchPartySelection([])
+      return
+    }
+    completeMarkWatched(movie, [])
+  }
 
+  async function completeMarkWatched(movie, watchedWithMembers = []) {
+    setPendingWatchedMovie(null)
+    setWatchPartySelection([])
     setWatched((current) => current.includes(movie.id) ? current : [...current, movie.id])
     setVotes((current) => ({ ...current, [movie.id]: 'like' }))
     setEditingRating(movie.id)
 
     if (hasSupabase) {
       try {
-        await markMovieWatched(movie, ratings[movie.id] || null, selectedGroupId)
+        await markMovieWatched(movie, ratings[movie.id] || null, selectedGroupId, watchedWithMembers)
         await loadMovies(selectedGroupId)
       } catch (error) {
         showMessage(error.message || 'Could not save watched movie.', 'error')
@@ -308,7 +402,8 @@ export default function Movies() {
       }
     }
 
-    showMessage(`"${movie.title}" moved to watched.`)
+    const withLabel = watchedWithMembers.length ? ` with ${watchedWithMembers.map(memberName).join(', ')}` : ''
+    showMessage(`"${movie.title}" moved to watched${withLabel}.`)
   }
 
   async function rateWatchedMovie(movie, rating) {
@@ -376,6 +471,12 @@ export default function Movies() {
     </label>
   ) : <button type="button" onClick={refreshPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset local demo</button>
 
+  const renderMovieMeta = (movie) => {
+    const base = `${displayYear(movie.released || movie.year) || 'Unknown year'} · ${(movie.genres || []).slice(0, 2).join(' · ') || 'No genres yet'}`
+    const party = watchedWithLabel(movie)
+    return party ? `${base} · ${party}` : base
+  }
+
   return (
     <PageShell active="movies">
       {isPersonalScope ? (
@@ -411,7 +512,7 @@ export default function Movies() {
         <PageHero
           eyebrow="Clique picks"
           title="Pick what to watch"
-          description="Search movies, save them to this clique, vote through the pile, and keep a shared watch ranking."
+          description="Search movies, save them to this clique, vote through the pile, and keep a shared watch ranking. When you mark watched, choose who watched with you."
           warning={setupMessage(setupState) || (!activeHandle && !hasSupabase ? 'Create a profile with the Profile button in the navbar to keep your picks under one name.' : null)}
           actions={scopeControl}
         >
@@ -444,8 +545,8 @@ export default function Movies() {
             onInfo={openMovieInfo}
             onShare={shareMovie}
             detailsLabel="Movie details"
-            renderMeta={(movie) => `${displayYear(movie.released || movie.year) || 'Unknown year'} · ${(movie.genres || []).slice(0, 2).join(' · ') || 'No genres yet'}`}
-            renderPills={(movie) => <>{movie.tmdbRating ? <DetailPill>TMDB ★ {Number(movie.tmdbRating).toFixed(1)}</DetailPill> : null}{movie.runtime ? <DetailPill>{movie.runtime} min</DetailPill> : null}</>}
+            renderMeta={renderMovieMeta}
+            renderPills={(movie) => <>{movie.tmdbRating ? <DetailPill>TMDB ★ {Number(movie.tmdbRating).toFixed(1)}</DetailPill> : null}{movie.runtime ? <DetailPill>{movie.runtime} min</DetailPill> : null}{watchedWithLabel(movie) ? <DetailPill>{watchedWithLabel(movie)}</DetailPill> : null}</>}
           />
 
           <AddMoviePanel query={query} setQuery={setQuery} loading={loading} hasResults={hasResults} canUseLibrary={canUseLibrary} onSubmit={handleSearch} onClear={clearSearch} />
@@ -487,17 +588,27 @@ export default function Movies() {
             onInfo={openMovieInfo}
             onShare={shareMovie}
             detailsLabel="Movie details"
-            renderMeta={(movie) => `${displayYear(movie.released || movie.year) || 'Unknown year'} · ${(movie.genres || []).slice(0, 2).join(' · ') || 'No genres yet'}`}
-            renderPills={(movie) => <>{movie.tmdbRating ? <DetailPill>TMDB ★ {Number(movie.tmdbRating).toFixed(1)}</DetailPill> : null}{movie.runtime ? <DetailPill>{movie.runtime} min</DetailPill> : null}</>}
+            renderMeta={renderMovieMeta}
+            renderPills={(movie) => <>{movie.tmdbRating ? <DetailPill>TMDB ★ {Number(movie.tmdbRating).toFixed(1)}</DetailPill> : null}{movie.runtime ? <DetailPill>{movie.runtime} min</DetailPill> : null}{watchedWithLabel(movie) ? <DetailPill>{watchedWithLabel(movie)}</DetailPill> : null}</>}
           />
         </>
       )}
+
+      <WatchPartyModal
+        movie={pendingWatchedMovie}
+        members={groupMembers}
+        selectedIds={watchPartySelection}
+        setSelectedIds={setWatchPartySelection}
+        onClose={() => { setPendingWatchedMovie(null); setWatchPartySelection([]) }}
+        onConfirm={(members) => completeMarkWatched(pendingWatchedMovie, members)}
+      />
 
       <InfoModal item={infoMovie} loading={loadingInfoMovie && !infoMovie} loadingLabel="Loading movie info..." onClose={() => setInfoMovie(null)} year={displayYear(infoMovie?.released || infoMovie?.year)} backdrop={infoMovie?.backdrop}>
         <div className="mt-4 flex flex-wrap gap-2">
           {infoMovie?.tmdbRating ? <DetailPill>TMDB ★ {Number(infoMovie.tmdbRating).toFixed(1)}</DetailPill> : null}
           {infoMovie?.runtime ? <DetailPill>{infoMovie.runtime} min</DetailPill> : null}
           {ratings[infoMovie?.id] ? <DetailPill>Your rating ★ {ratings[infoMovie.id]}/10</DetailPill> : null}
+          {watchedWithLabel(infoMovie) ? <DetailPill>{watchedWithLabel(infoMovie)}</DetailPill> : null}
           {infoMovie?.genres?.map((genre) => <DetailPill key={genre}>{genre}</DetailPill>)}
         </div>
         <p className="mt-5 text-sm leading-7 text-neutral-300">{infoMovie?.overview || 'No movie description available.'}</p>
