@@ -37,6 +37,14 @@ function profileNameFromUser(user) {
   return clean(user?.user_metadata?.display_name) || clean(user?.email?.split('@')[0]) || 'Friend'
 }
 
+function normalizeWatchedWith(value) {
+  if (!Array.isArray(value)) return []
+  return value.map((entry) => ({
+    id: entry?.id || entry?.userId || entry?.user_id || '',
+    displayName: clean(entry?.displayName || entry?.display_name || entry?.name) || 'Member',
+  })).filter((entry) => entry.id || entry.displayName)
+}
+
 function normalizeMediaRow(row, idColumn, doneColumn) {
   return {
     id: String(row[idColumn]),
@@ -55,6 +63,7 @@ function normalizeMediaRow(row, idColumn, doneColumn) {
     nominated_by: row.nominated_by,
     picks: Number(row.picks || 0),
     score: Number(row.score || 0),
+    watchedWith: normalizeWatchedWith(row.watched_with),
     [doneColumn]: Boolean(row[doneColumn]),
     rating: row.my_rating ?? null,
   }
@@ -80,11 +89,19 @@ function normalizeGame(row) {
   }
 }
 
+function normalizeGroupMember(member = {}) {
+  const profile = member.profiles || {}
+  return {
+    id: member.user_id || member.userId || member.id || profile.id || '',
+    displayName: clean(member.display_name || member.displayName || profile.display_name) || 'Member',
+    role: member.role || 'member',
+    joinedAt: member.joined_at || member.joinedAt || null,
+  }
+}
+
 function normalizeGroup(row) {
   if (!row) throw new Error('Group response was empty.')
-  const members = (row.group_members || [])
-    .map((member) => clean(member.display_name) || clean(member.profiles?.display_name) || 'Member')
-    .filter(Boolean)
+  const members = (row.group_members || []).map(normalizeGroupMember).filter((member) => member.id || member.displayName)
 
   return {
     id: row.id,
@@ -96,7 +113,7 @@ function normalizeGroup(row) {
     isFamily: Boolean(row.is_family),
     familySafe: Boolean(row.family_safe),
     minimumAge: row.minimum_age ?? null,
-    members: Array.from(new Set(members)),
+    members,
     source: 'supabase',
   }
 }
@@ -202,11 +219,12 @@ function applyScope(query, groupId, ownerId) {
   return query.is('group_id', null).eq('owner_id', ownerId)
 }
 
-async function upsertScopedMedia({ table, item, payloadFor, conflict, normalize, groupId = null, nominatedBy = 'anonymous', doneColumn = null, rating, itemType = '' }) {
+async function upsertScopedMedia({ table, item, payloadFor, conflict, normalize, groupId = null, nominatedBy = 'anonymous', doneColumn = null, rating, itemType = '', extraPayload = {} }) {
   const client = requireSupabase()
   const ownerId = await getScopeUserId(groupId)
   const payload = payloadFor(item, nominatedBy, groupId, ownerId)
   payload.updated_at = new Date().toISOString()
+  Object.assign(payload, extraPayload || {})
   if (doneColumn) payload[doneColumn] = true
   if (rating !== undefined) payload.my_rating = rating
 
@@ -215,7 +233,7 @@ async function upsertScopedMedia({ table, item, payloadFor, conflict, normalize,
   const normalized = normalize(data)
   if (itemType) {
     const eventType = rating !== undefined ? 'rating' : doneColumn ? 'completed' : 'library_add'
-    recordFeedEvent({ type: eventType, itemType, item: normalized, groupId, payload: { rating: rating ?? normalized.rating ?? null, done: Boolean(doneColumn) } })
+    recordFeedEvent({ type: eventType, itemType, item: normalized, groupId, payload: { rating: rating ?? normalized.rating ?? null, done: Boolean(doneColumn), watchedWith: extraPayload?.watched_with || null } })
   }
   return normalized
 }
@@ -261,16 +279,17 @@ export async function getProfile() { const client = requireSupabase(); const use
 export async function ensureProfile(displayName = '') { const client = requireSupabase(); const user = await getCurrentUser(); if (!user) return null; const payload = { id: user.id, email: user.email, display_name: clean(displayName) || profileNameFromUser(user), updated_at: new Date().toISOString() }; const { data, error } = await client.from('profiles').upsert(payload, { onConflict: 'id' }).select().single(); if (error) throw error; return data }
 export async function saveProfile(displayName) { return ensureProfile(displayName) }
 export async function getRemoteGroups() { const client = requireSupabase(); const { data, error } = await client.from('groups').select('id,name,invite_code,owner_id,is_public,is_family,family_safe,minimum_age,created_at,group_members(display_name,user_id,role,joined_at)').order('created_at', { ascending: false }); if (error) throw error; return (data || []).map(normalizeGroup) }
-export async function createRemoteGroup(name, displayName = '') { const client = requireSupabase(); await ensureProfile(displayName); const { data, error } = await client.rpc('create_group_with_member', { group_name_input: clean(name) || 'New clique', display_name_input: clean(displayName) || null }); if (error) throw error; const group = normalizeGroup(firstRpcRow(data)); return { ...group, members: group.members.length ? group.members : [clean(displayName) || 'You'] } }
-export async function createFamilyGroup(name = 'Family clique', displayName = '') { const client = requireSupabase(); await ensureProfile(displayName); const { data, error } = await client.rpc('create_family_group', { group_name_input: clean(name) || 'Family clique', display_name_input: clean(displayName) || null }); if (error) throw error; const group = normalizeGroup(firstRpcRow(data)); return { ...group, members: group.members.length ? group.members : [clean(displayName) || 'You'] } }
-export async function joinRemoteGroup(inviteCode, displayName = '') { const client = requireSupabase(); await ensureProfile(displayName); const { data, error } = await client.rpc('join_group_by_invite', { invite_code_input: clean(inviteCode), display_name_input: clean(displayName) || null }); if (error) throw error; const group = normalizeGroup(firstRpcRow(data)); return { ...group, members: group.members.length ? group.members : [clean(displayName) || 'You'] } }
+export async function getGroupMembers(groupId) { const client = requireSupabase(); if (!groupId) return []; const { data, error } = await client.from('group_members').select('user_id,display_name,role,joined_at').eq('group_id', groupId).order('joined_at', { ascending: true }); if (error) throw error; return (data || []).map(normalizeGroupMember) }
+export async function createRemoteGroup(name, displayName = '') { const client = requireSupabase(); await ensureProfile(displayName); const { data, error } = await client.rpc('create_group_with_member', { group_name_input: clean(name) || 'New clique', display_name_input: clean(displayName) || null }); if (error) throw error; const group = normalizeGroup(firstRpcRow(data)); return { ...group, members: group.members.length ? group.members : [{ id: '', displayName: clean(displayName) || 'You', role: 'owner' }] } }
+export async function createFamilyGroup(name = 'Family clique', displayName = '') { const client = requireSupabase(); await ensureProfile(displayName); const { data, error } = await client.rpc('create_family_group', { group_name_input: clean(name) || 'Family clique', display_name_input: clean(displayName) || null }); if (error) throw error; const group = normalizeGroup(firstRpcRow(data)); return { ...group, members: group.members.length ? group.members : [{ id: '', displayName: clean(displayName) || 'You', role: 'owner' }] } }
+export async function joinRemoteGroup(inviteCode, displayName = '') { const client = requireSupabase(); await ensureProfile(displayName); const { data, error } = await client.rpc('join_group_by_invite', { invite_code_input: clean(inviteCode), display_name_input: clean(displayName) || null }); if (error) throw error; const group = normalizeGroup(firstRpcRow(data)); return { ...group, members: group.members.length ? group.members : [{ id: '', displayName: clean(displayName) || 'You', role: 'member' }] } }
 export async function setGroupPublic(groupId, isPublic) { const client = requireSupabase(); const { data, error } = await client.rpc('set_group_public', { group_id_input: groupId, is_public_input: Boolean(isPublic) }); if (error) throw error; return normalizeGroup(firstRpcRow(data)) }
 export async function getMovies(groupId = null) { const client = requireSupabase(); const ownerId = await getScopeUserId(groupId); const { data, error } = await applyScope(client.from('movies').select('*'), groupId, ownerId).order('watched', { ascending: true }).order('score', { ascending: false }).order('picks', { ascending: false }); if (error) throw error; return (data || []).map(normalizeMovie) }
 export async function saveMovie(movie, nominatedBy = 'anonymous', groupId = null) { return upsertScopedMedia({ table: 'movies', item: movie, payloadFor: moviePayload, conflict: groupId ? 'group_id,movie_id' : 'owner_id,movie_id', normalize: normalizeMovie, groupId, nominatedBy, itemType: 'movie' }) }
 export async function copyMovieToGroup(movie, targetGroupId, nominatedBy = 'anonymous') { return saveMovie(movie, nominatedBy, targetGroupId) }
 export async function voteMovie(movie, vote, groupId = null) { const client = requireSupabase(); const delta = vote === 'like' ? 1 : -1; const payload = groupId ? { movie_id_input: String(movie.id), vote_delta_input: delta, group_id_input: groupId } : { movie_id_input: String(movie.id), vote_delta_input: delta }; const { data, error } = await client.rpc('vote_movie', payload); if (error) throw error; recordFeedEvent({ type: 'vote', itemType: 'movie', item: movie, groupId, payload: { vote, score: movie.score ?? null, picks: movie.picks ?? null } }); return data }
-export async function markMovieWatched(movie, rating = null, groupId = null) { const scopedMovie = await upsertScopedMedia({ table: 'movies', item: movie, payloadFor: moviePayload, conflict: groupId ? 'group_id,movie_id' : 'owner_id,movie_id', normalize: normalizeMovie, groupId, nominatedBy: movie.nominated_by || 'anonymous', doneColumn: 'watched', rating, itemType: 'movie' }); if (groupId) await upsertScopedMedia({ table: 'movies', item: movie, payloadFor: moviePayload, conflict: 'owner_id,movie_id', normalize: normalizeMovie, groupId: null, nominatedBy: movie.nominated_by || 'anonymous', doneColumn: 'watched', rating, itemType: 'movie' }); return scopedMovie }
-export async function rateMovie(movie, rating, groupId = null) { return markMovieWatched(movie, rating, groupId) }
+export async function markMovieWatched(movie, rating = null, groupId = null, watchedWith = []) { const cleanWatchedWith = normalizeWatchedWith(watchedWith); const scopedMovie = await upsertScopedMedia({ table: 'movies', item: movie, payloadFor: moviePayload, conflict: groupId ? 'group_id,movie_id' : 'owner_id,movie_id', normalize: normalizeMovie, groupId, nominatedBy: movie.nominated_by || 'anonymous', doneColumn: 'watched', rating, itemType: 'movie', extraPayload: groupId ? { watched_with: cleanWatchedWith } : {} }); if (groupId) await upsertScopedMedia({ table: 'movies', item: movie, payloadFor: moviePayload, conflict: 'owner_id,movie_id', normalize: normalizeMovie, groupId: null, nominatedBy: movie.nominated_by || 'anonymous', doneColumn: 'watched', rating, itemType: 'movie', extraPayload: { watched_with: cleanWatchedWith } }); return scopedMovie }
+export async function rateMovie(movie, rating, groupId = null) { return markMovieWatched(movie, rating, groupId, movie.watchedWith || []) }
 export async function getSeries(groupId = null) { const client = requireSupabase(); const ownerId = await getScopeUserId(groupId); const { data, error } = await applyScope(client.from('series').select('*'), groupId, ownerId).order('finished', { ascending: true }).order('score', { ascending: false }).order('picks', { ascending: false }); if (error) throw error; return (data || []).map(normalizeSeries) }
 export async function saveSeries(series, nominatedBy = 'anonymous', groupId = null) { return upsertScopedMedia({ table: 'series', item: series, payloadFor: seriesPayload, conflict: groupId ? 'group_id,series_id' : 'owner_id,series_id', normalize: normalizeSeries, groupId, nominatedBy, itemType: 'series' }) }
 export async function voteSeries(series, vote, groupId = null) { const client = requireSupabase(); const delta = vote === 'like' ? 1 : -1; const payload = groupId ? { series_id_input: String(series.id), vote_delta_input: delta, group_id_input: groupId } : { series_id_input: String(series.id), vote_delta_input: delta }; const { data, error } = await client.rpc('vote_series', payload); if (error) throw error; recordFeedEvent({ type: 'vote', itemType: 'series', item: series, groupId, payload: { vote, score: series.score ?? null, picks: series.picks ?? null } }); return data }
