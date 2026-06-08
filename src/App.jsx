@@ -151,7 +151,7 @@ export default function App() {
         <Route path="/groups" element={<Groups />} />
         <Route path="/cliques" element={<Groups />} />
         <Route path="/g/:groupId" element={<CliqueDetail />} />
-        <Route path="/cliques/:groupId" element={<CliqueDetail />} />
+        <Route path="/cliques/:groupId" element={<Home />} />
         <Route path="/g/:groupId/settings" element={<CliqueSettings />} />
         <Route path="/cliques/:groupId/settings" element={<CliqueSettings />} />
         <Route path="/invite/:code" element={<Groups inviteMode />} />
