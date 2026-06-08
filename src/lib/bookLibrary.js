@@ -4,6 +4,8 @@ import { getCurrentUser, hasSupabase, supabase } from './supabaseClient.js'
 const BOOK_STORAGE_KEY = 'cliquebase:book-items:v1'
 const OPEN_LIBRARY_SEARCH = 'https://openlibrary.org/search.json'
 const OPEN_LIBRARY_WORK = 'https://openlibrary.org'
+const MAX_ENRICHED_SEARCH_RESULTS = 10
+const MAX_ENRICHED_SAVED_BOOKS = 12
 
 function clean(value) {
   return String(value || '').trim()
@@ -21,10 +23,30 @@ function coverFromId(coverId, size = 'L') {
   return coverId ? `https://covers.openlibrary.org/b/id/${coverId}-${size}.jpg` : ''
 }
 
+function uniqueSubjects(values = []) {
+  return Array.from(new Set((Array.isArray(values) ? values : []).map(clean).filter(Boolean))).slice(0, 12)
+}
+
+function descriptionText(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return clean(value)
+  if (typeof value === 'object') return clean(value.value || value.text || '')
+  return ''
+}
+
+function workKeyFromSourceId(sourceId = '') {
+  const value = clean(sourceId)
+  if (!value) return ''
+  if (value.startsWith('/works/')) return value
+  if (/^OL\d+W$/i.test(value)) return `/works/${value}`
+  return ''
+}
+
 function normalizeRow(row = {}) {
   const authors = Array.isArray(row.authors) ? row.authors.filter(Boolean) : clean(row.authors || row.author).split(',').map(clean).filter(Boolean)
   const title = clean(row.title || row.name) || 'Untitled book'
   const cover = clean(row.cover || row.poster || row.image || row.coverUrl)
+  const subjects = uniqueSubjects(row.subjects || row.genres || row.categories || [])
   return {
     id: row.id || localId(),
     source: clean(row.source) || 'Open Library',
@@ -34,7 +56,8 @@ function normalizeRow(row = {}) {
     author: authors.join(', '),
     year: clean(row.year || row.first_publish_year || row.firstPublishYear),
     isbn: clean(row.isbn || row.primary_isbn || row.primaryIsbn),
-    subjects: Array.isArray(row.subjects) ? row.subjects.filter(Boolean).slice(0, 10) : [],
+    subjects,
+    genres: subjects,
     overview: clean(row.overview || row.description || row.subtitle),
     url: clean(row.url),
     poster: cover,
@@ -48,7 +71,7 @@ function normalizeRow(row = {}) {
     createdAt: row.created_at || row.createdAt || new Date().toISOString(),
     updatedAt: row.updated_at || row.updatedAt || null,
     subtitle: compact([authors.join(', '), row.year || row.first_publish_year]),
-    metadataReady: Boolean(cover || authors.length || row.year),
+    metadataReady: Boolean(cover || authors.length || row.year || subjects.length || row.overview || row.description),
   }
 }
 
@@ -63,11 +86,54 @@ function normalizeOpenLibraryDoc(doc = {}) {
     authors: Array.isArray(doc.author_name) ? doc.author_name.slice(0, 5) : [],
     year: doc.first_publish_year || '',
     isbn,
-    subjects: Array.isArray(doc.subject) ? doc.subject.slice(0, 8) : [],
+    subjects: Array.isArray(doc.subject) ? doc.subject.slice(0, 10) : [],
     overview: Array.isArray(doc.first_sentence) ? doc.first_sentence[0] : '',
     url: sourceId ? `${OPEN_LIBRARY_WORK}${sourceId.startsWith('/') ? sourceId : `/works/${sourceId}`}` : '',
     poster: coverFromId(doc.cover_i),
   })
+}
+
+async function fetchOpenLibraryWork(sourceId) {
+  const workKey = workKeyFromSourceId(sourceId)
+  if (!workKey) return null
+  try {
+    const response = await fetch(`${OPEN_LIBRARY_WORK}${workKey}.json`)
+    if (!response.ok) return null
+    return response.json()
+  } catch (error) {
+    console.warn('Open Library work fetch failed:', error.message || error)
+    return null
+  }
+}
+
+async function enrichBookMetadata(book) {
+  const normalized = normalizeRow(book)
+  const needsOverview = !normalized.overview
+  const needsSubjects = !normalized.subjects?.length
+  if (!needsOverview && !needsSubjects) return normalized
+
+  const work = await fetchOpenLibraryWork(normalized.sourceId)
+  if (!work) return normalized
+  const overview = descriptionText(work.description) || normalized.overview
+  const subjects = uniqueSubjects([
+    ...(normalized.subjects || []),
+    ...(work.subjects || []),
+    ...(work.subject_places || []),
+    ...(work.subject_people || []),
+    ...(work.subject_times || []),
+  ])
+  return normalizeRow({
+    ...normalized,
+    overview,
+    subjects,
+    url: normalized.url || `${OPEN_LIBRARY_WORK}${work.key || normalized.sourceId}`,
+  })
+}
+
+async function enrichBookList(books, limit = MAX_ENRICHED_SAVED_BOOKS) {
+  const normalized = books.map(normalizeRow)
+  const enriched = await Promise.all(normalized.slice(0, limit).map(enrichBookMetadata))
+  return [...enriched, ...normalized.slice(limit)]
 }
 
 function readLocalBooks() {
@@ -99,7 +165,9 @@ export async function searchBookCatalog({ query = '', title = '', author = '' } 
     const response = await fetch(`${OPEN_LIBRARY_SEARCH}?${params}`)
     if (!response.ok) throw new Error(`Book search failed: ${response.status}`)
     const data = await response.json()
-    return Array.isArray(data?.docs) ? data.docs.map(normalizeOpenLibraryDoc).filter((book) => book.title) : []
+    const basicResults = Array.isArray(data?.docs) ? data.docs.map(normalizeOpenLibraryDoc).filter((book) => book.title) : []
+    const enriched = await Promise.all(basicResults.slice(0, MAX_ENRICHED_SEARCH_RESULTS).map(enrichBookMetadata))
+    return [...enriched, ...basicResults.slice(MAX_ENRICHED_SEARCH_RESULTS)]
   } catch (error) {
     console.warn('Book search failed:', error.message || error)
     return []
@@ -116,18 +184,19 @@ export async function getBookItems(groupId = getActiveGroupId()) {
         query = activeGroupId ? query.eq('group_id', activeGroupId) : query.is('group_id', null).eq('owner_id', user.id)
         const { data, error } = await query
         if (error) throw error
-        return { books: (data || []).map(normalizeRow), source: 'remote' }
+        return { books: await enrichBookList(data || []), source: 'remote' }
       }
     } catch (error) {
       console.warn('Books remote load failed, using local books:', error.message || error)
     }
   }
-  return { books: readLocalBooks().filter((book) => localScopeMatches(book, activeGroupId)), source: 'local' }
+  const localBooks = readLocalBooks().filter((book) => localScopeMatches(book, activeGroupId))
+  return { books: await enrichBookList(localBooks), source: 'local' }
 }
 
 export async function saveBookItem(book, { group = null, groupId = '', groupName = '', nominatedBy = '', saved = false, readingStatus = '' } = {}) {
   const scopedGroupId = group?.id || groupId || getActiveGroupId() || null
-  const normalized = normalizeRow({ ...book, groupId: scopedGroupId, groupName: group?.name || groupName || book.groupName || '', nominated_by: nominatedBy || book.nominated_by, saved, readingStatus: readingStatus || book.readingStatus })
+  const normalized = await enrichBookMetadata(normalizeRow({ ...book, groupId: scopedGroupId, groupName: group?.name || groupName || book.groupName || '', nominated_by: nominatedBy || book.nominated_by, saved, readingStatus: readingStatus || book.readingStatus }))
 
   if (hasSupabase && supabase) {
     try {
