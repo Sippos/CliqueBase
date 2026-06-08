@@ -8,9 +8,10 @@ import { getSavedHandle } from '../lib/handle.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
 import { getVideos, saveVideo } from '../lib/videoLibrary.js'
 import { getMusicItems, saveMusicItem } from '../lib/musicLibrary.js'
+import { getBookItems, saveBookItem } from '../lib/bookLibrary.js'
 
-const TYPE_ICONS = { Movie: 'movies', Series: 'series', Game: 'games', Video: 'videos', Music: 'music' }
-const TYPE_PATHS = { Movies: '/movies', Series: '/series', Games: '/games', Videos: '/videos', Music: '/music' }
+const TYPE_ICONS = { Movie: 'movies', Series: 'series', Game: 'games', Video: 'videos', Music: 'music', Book: 'books' }
+const TYPE_PATHS = { Movies: '/movies', Series: '/series', Games: '/games', Videos: '/videos', Music: '/music', Books: '/books' }
 
 function normalizeItems(rows = [], type, code) {
   return rows.map((item) => ({
@@ -23,13 +24,14 @@ function normalizeItems(rows = [], type, code) {
 }
 
 function itemActionKey(item, prefix = '') { return item ? `${prefix}${item.type}-${item.id}` : '' }
-function itemText(item) { return item?.overview || item?.description || item?.subtitle || item?.album || item?.artist || item?.url || 'No description yet.' }
-function imageFor(item) { return item?.backdrop || item?.poster || null }
+function itemText(item) { return item?.overview || item?.description || item?.subtitle || item?.album || item?.artist || item?.author || item?.url || 'No description yet.' }
+function imageFor(item) { return item?.backdrop || item?.poster || item?.cover || null }
 function addPath(category, groupId) { return groupId ? `${TYPE_PATHS[category.title]}?clique=${encodeURIComponent(groupId)}` : TYPE_PATHS[category.title] }
-function itemTypeForShare(item) { return String(item?.type || '').toLowerCase() }
+function itemTypeForShare(item) { return item?.type === 'Book' ? 'book' : String(item?.type || '').toLowerCase() }
 function itemMetaChips(item) {
   if (!item) return []
   if (item.type === 'Music') return [item.artist, item.album, item.source].filter(Boolean).slice(0, 3)
+  if (item.type === 'Book') return [item.author, item.year, item.readingStatus].filter(Boolean).slice(0, 3)
   const genres = Array.isArray(item.genres) ? item.genres.filter(Boolean) : []
   const platforms = Array.isArray(item.platforms) ? item.platforms.filter(Boolean) : []
   const fallbackPlatform = item.platform || platforms[0]
@@ -89,7 +91,7 @@ function LibraryReel({ items, loading, onShare, onInfo }) {
   }, [items.length])
 
   if (loading) return <div className="relative flex min-h-[18rem] items-end overflow-hidden rounded-[1.5rem] bg-neutral-950 p-5"><div className="absolute inset-0 animate-pulse bg-white/[0.06]" /><div className="relative"><p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Library reel</p><h2 className="mt-2 text-2xl font-black text-white">Loading…</h2></div></div>
-  if (!items.length) return <div className="relative flex min-h-[18rem] items-end overflow-hidden rounded-[1.5rem] bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5"><div><p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Empty library</p><h2 className="mt-2 text-2xl font-black text-white">Add your first pick</h2><p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Use the Add menu to save movies, series, games, videos, or music.</p></div></div>
+  if (!items.length) return <div className="relative flex min-h-[18rem] items-end overflow-hidden rounded-[1.5rem] bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))] p-5"><div><p className="text-xs uppercase tracking-[0.3em] text-neutral-400">Empty library</p><h2 className="mt-2 text-2xl font-black text-white">Add your first pick</h2><p className="mt-2 max-w-sm text-sm leading-6 text-neutral-300">Use the Add menu to save movies, series, games, videos, music, or books.</p></div></div>
 
   const item = items[index] || items[0]
   const image = imageFor(item)
@@ -125,7 +127,7 @@ function BestByCategory({ categories, loading, onInfo }) {
           <h2 className="mt-1 text-2xl font-black">Top picks at a glance</h2>
         </div>
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         {categories.map((category) => {
           const item = category.items[0]
           const image = item ? imageFor(item) : null
@@ -207,6 +209,7 @@ function ItemInfoModal({ item, onClose, onShare, onCopy, isClique, copying }) {
   const genreList = Array.isArray(item.genres) ? item.genres.filter(Boolean) : []
   const platformList = Array.isArray(item.platforms) ? item.platforms.filter(Boolean) : []
   const isMusic = item.type === 'Music'
+  const isBook = item.type === 'Book'
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
       <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 text-white shadow-2xl shadow-black/50">
@@ -226,9 +229,9 @@ function ItemInfoModal({ item, onClose, onShare, onCopy, isClique, copying }) {
         </div>
         <div className="max-h-[calc(90vh-16rem)] overflow-y-auto p-5 sm:p-6">
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{isMusic ? 'Artist' : 'Year'}</p><p className="mt-1 font-black">{isMusic ? item.artist || 'Unknown' : item.year || 'Unknown'}</p></div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{isMusic ? 'Album' : 'Score'}</p><p className="mt-1 font-black">{isMusic ? item.album || 'Unknown' : item.score || 0}</p></div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{isMusic ? 'Source' : 'Picks'}</p><p className="mt-1 font-black">{isMusic ? item.source || 'Music' : item.picks || 0}</p></div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{isMusic ? 'Artist' : isBook ? 'Author' : 'Year'}</p><p className="mt-1 font-black">{isMusic ? item.artist || 'Unknown' : isBook ? item.author || 'Unknown' : item.year || 'Unknown'}</p></div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{isMusic ? 'Album' : isBook ? 'Status' : 'Score'}</p><p className="mt-1 font-black">{isMusic ? item.album || 'Unknown' : isBook ? item.readingStatus || 'Want' : item.score || 0}</p></div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">{isMusic ? 'Source' : isBook ? 'Year' : 'Picks'}</p><p className="mt-1 font-black">{isMusic ? item.source || 'Music' : isBook ? item.year || 'Unknown' : item.picks || 0}</p></div>
           </div>
           <p className="mt-5 break-words text-sm leading-7 text-neutral-300">{itemText(item)}</p>
           {(genreList.length || platformList.length || item.platform) ? <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-neutral-300">{genreList.map((genre) => <span key={genre} className="rounded-full border border-white/10 px-3 py-1.5">{genre}</span>)}{platformList.map((platform) => <span key={platform} className="rounded-full border border-white/10 px-3 py-1.5">{platform}</span>)}{!platformList.length && item.platform ? <span className="rounded-full border border-white/10 px-3 py-1.5">{item.platform}</span> : null}</div> : null}
@@ -248,7 +251,7 @@ export default function Home() {
   const [loading, setLoading] = useState(hasSupabase)
   const [status, setStatus] = useState(hasSupabase ? 'checking' : 'local')
   const [context, setContext] = useState(() => ({ type: getActiveGroup() ? 'group' : 'personal', name: getActiveGroup()?.name || 'My Library', groupId: getActiveGroup()?.id || null }))
-  const [media, setMedia] = useState({ movies: [], series: [], games: [], videos: [], music: [] })
+  const [media, setMedia] = useState({ movies: [], series: [], games: [], videos: [], music: [], books: [] })
   const [message, setMessage] = useState('')
   const [shareNotice, setShareNotice] = useState('')
   const [sharingItem, setSharingItem] = useState(null)
@@ -268,15 +271,16 @@ export default function Home() {
   const gameItems = useMemo(() => normalizeItems(media.games, 'Game', 'GAM'), [media.games])
   const videoItems = useMemo(() => normalizeItems(media.videos, 'Video', 'VID'), [media.videos])
   const musicItems = useMemo(() => normalizeItems(media.music, 'Music', 'MUS'), [media.music])
-  const allItems = useMemo(() => [...movieItems, ...seriesItems, ...gameItems, ...videoItems, ...musicItems].sort((a, b) => b.sortValue - a.sortValue), [movieItems, seriesItems, gameItems, videoItems, musicItems])
+  const bookItems = useMemo(() => normalizeItems(media.books, 'Book', 'BOO'), [media.books])
+  const allItems = useMemo(() => [...movieItems, ...seriesItems, ...gameItems, ...videoItems, ...musicItems, ...bookItems].sort((a, b) => b.sortValue - a.sortValue), [movieItems, seriesItems, gameItems, videoItems, musicItems, bookItems])
   const categories = useMemo(() => [
     { title: 'Movies', singular: 'Movie', code: 'MOV', icon: TYPE_ICONS.Movie, groupId: context.groupId, items: movieItems },
     { title: 'Series', singular: 'Series', code: 'SER', icon: TYPE_ICONS.Series, groupId: context.groupId, items: seriesItems },
     { title: 'Games', singular: 'Game', code: 'GAM', icon: TYPE_ICONS.Game, groupId: context.groupId, items: gameItems },
     { title: 'Videos', singular: 'Video', code: 'VID', icon: TYPE_ICONS.Video, groupId: context.groupId, items: videoItems },
     { title: 'Music', singular: 'Music', code: 'MUS', icon: TYPE_ICONS.Music, groupId: context.groupId, items: musicItems },
-  ], [context.groupId, movieItems, seriesItems, gameItems, videoItems, musicItems])
-  const ratedCount = useMemo(() => allItems.filter((item) => item.rating).length, [allItems])
+    { title: 'Books', singular: 'Book', code: 'BOO', icon: TYPE_ICONS.Book, groupId: context.groupId, items: bookItems },
+  ], [context.groupId, movieItems, seriesItems, gameItems, videoItems, musicItems, bookItems])
   const totalPicks = useMemo(() => allItems.reduce((sum, item) => sum + Number(item.picks || 0), 0), [allItems])
   const filledCategories = useMemo(() => categories.filter((category) => category.items.length).length, [categories])
   const isClique = Boolean(context.groupId)
@@ -288,19 +292,19 @@ export default function Home() {
       if (!hasSupabase) {
         const group = preferredGroupId ? setActiveGroup(preferredGroupId) : getActiveGroup()
         const groupId = group?.id || null
-        const [{ tracks: music }, videos] = await Promise.all([getMusicItems(groupId), getVideos(groupId).catch(() => [])])
+        const [{ tracks: music }, { books }, videos] = await Promise.all([getMusicItems(groupId), getBookItems(groupId), getVideos(groupId).catch(() => [])])
         setContext({ type: group ? 'group' : 'personal', name: group?.name || 'My Library', groupId })
-        setMedia({ movies: [], series: [], games: [], videos, music })
+        setMedia({ movies: [], series: [], games: [], videos, music, books })
         setStatus('local')
         return
       }
 
       const session = await getCurrentSession()
       if (!session?.user) {
-        const { tracks: music } = await getMusicItems(null)
+        const [{ tracks: music }, { books }] = await Promise.all([getMusicItems(null), getBookItems(null)])
         setStatus('signed-out')
         setContext({ type: 'personal', name: 'My Library', groupId: null })
-        setMedia({ movies: [], series: [], games: [], videos: [], music })
+        setMedia({ movies: [], series: [], games: [], videos: [], music, books })
         return
       }
 
@@ -311,13 +315,13 @@ export default function Home() {
       const groupId = activeId || null
       if (groupId) setActiveGroup(groupId)
       setContext({ type: groupId ? 'group' : 'personal', name: group?.name || (groupId && localGroup?.id === groupId ? localGroup.name : null) || (groupId ? 'Clique' : 'My Library'), groupId })
-      const [movies, seriesRows, games, videos, musicResult] = await Promise.all([getMovies(groupId), getSeries(groupId), getGames(groupId), getVideos(groupId), getMusicItems(groupId)])
-      setMedia({ movies, series: seriesRows, games, videos, music: musicResult.tracks })
+      const [movies, seriesRows, games, videos, musicResult, bookResult] = await Promise.all([getMovies(groupId), getSeries(groupId), getGames(groupId), getVideos(groupId), getMusicItems(groupId), getBookItems(groupId)])
+      setMedia({ movies, series: seriesRows, games, videos, music: musicResult.tracks, books: bookResult.books })
       setStatus('ready')
     } catch (error) {
       setStatus('error')
       setMessage(error.message || 'Could not load this workspace.')
-      setMedia({ movies: [], series: [], games: [], videos: [], music: [] })
+      setMedia({ movies: [], series: [], games: [], videos: [], music: [], books: [] })
     } finally {
       setLoading(false)
     }
@@ -337,6 +341,7 @@ export default function Home() {
       else if (item.type === 'Game') await saveGame(item, nominatedBy, null)
       else if (item.type === 'Video') await saveVideo(item, nominatedBy, null)
       else if (item.type === 'Music') await saveMusicItem(item, { groupId: null, nominatedBy })
+      else if (item.type === 'Book') await saveBookItem(item, { groupId: null, nominatedBy })
       else throw new Error('Unsupported item type.')
       handleShareMessage(`Copied "${item.title}" to My Library.`)
     } catch (error) {
@@ -354,7 +359,7 @@ export default function Home() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h1 className="max-w-3xl text-3xl font-black tracking-tight sm:text-5xl">{context.name}</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">{isClique ? 'Shared movies, series, games, videos, and music for this clique.' : 'Your saved movies, series, games, videos, and music.'}</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">{isClique ? 'Shared movies, series, games, videos, music, and books for this clique.' : 'Your saved movies, series, games, videos, music, and books.'}</p>
               </div>
               <AddMenu categories={categories} groupId={context.groupId} />
             </div>
@@ -362,8 +367,8 @@ export default function Home() {
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:max-w-3xl">
               <StatCard icon="dashboard" label="Total" value={loading ? '…' : allItems.length} caption="saved items" />
               <StatCard icon="music" label="Music" value={loading ? '…' : musicItems.length} caption="saved songs" />
-              <StatCard icon="share" label="Picks" value={loading ? '…' : totalPicks} caption="friend signals" />
-              <StatCard icon="list" label="Types" value={loading ? '…' : `${filledCategories}/5`} caption="categories active" />
+              <StatCard icon="books" label="Books" value={loading ? '…' : bookItems.length} caption="reading shelf" />
+              <StatCard icon="list" label="Types" value={loading ? '…' : `${filledCategories}/6`} caption="categories active" />
             </div>
           </div>
           <div className="p-3 pt-0 xl:p-3"><LibraryReel items={loading ? [] : allItems} loading={loading} onShare={openShare} onInfo={setInfoItem} /></div>
