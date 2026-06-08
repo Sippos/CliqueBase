@@ -23,6 +23,7 @@ export function mediaTypeLabel(type) {
   if (type === 'series') return 'Series'
   if (type === 'game') return 'Game'
   if (type === 'video') return 'Video'
+  if (type === 'music') return 'Music'
   return 'Pick'
 }
 
@@ -31,6 +32,7 @@ export function mediaTypePath(type) {
   if (type === 'series') return '/series'
   if (type === 'game') return '/games'
   if (type === 'video') return '/videos'
+  if (type === 'music') return '/music'
   return '/library'
 }
 
@@ -40,6 +42,7 @@ export function normalizeShareType(type) {
   if (['series', 'show', 'tv'].includes(value)) return 'series'
   if (['game', 'games'].includes(value)) return 'game'
   if (['video', 'videos', 'link'].includes(value)) return 'video'
+  if (['music', 'song', 'songs', 'track', 'tracks', 'album', 'playlist'].includes(value)) return 'music'
   return ''
 }
 
@@ -53,7 +56,7 @@ export function sharePayload(type, item) {
     released: item?.released || null,
     poster: item?.poster || null,
     backdrop: item?.backdrop || null,
-    overview: item?.overview || item?.description || item?.url || '',
+    overview: item?.overview || item?.description || item?.subtitle || item?.url || '',
     url: item?.url || '',
     tmdbRating: item?.tmdbRating ?? null,
     rawgRating: item?.rawgRating ?? null,
@@ -61,8 +64,14 @@ export function sharePayload(type, item) {
     genres: item?.genres || [],
     seasons: item?.seasons ?? null,
     episodes: item?.episodes ?? null,
-    platform: item?.platform || '',
+    platform: item?.platform || item?.source || '',
     platforms: item?.platforms || [],
+    artist: item?.artist || '',
+    album: item?.album || '',
+    source: item?.source || '',
+    sourceId: item?.sourceId || item?.source_id || '',
+    itemType: item?.itemType || item?.item_type || '',
+    previewUrl: item?.previewUrl || item?.preview_url || '',
   }
 }
 
