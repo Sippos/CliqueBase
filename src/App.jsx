@@ -16,6 +16,7 @@ const Series = lazy(() => import('./pages/Series.jsx'))
 const Games = lazy(() => import('./pages/Games.jsx'))
 const Videos = lazy(() => import('./pages/Videos.jsx'))
 const Music = lazy(() => import('./pages/Music.jsx'))
+const Books = lazy(() => import('./pages/Books.jsx'))
 const Groups = lazy(() => import('./pages/Groups.jsx'))
 const CliqueDetail = lazy(() => import('./pages/CliqueDetail.jsx'))
 const CliqueSettings = lazy(() => import('./pages/CliqueSettings.jsx'))
@@ -72,7 +73,7 @@ function syncPendingInviteFromUrl() {
 }
 
 function isPersonalLibraryPath(pathname) {
-  return ['/dashboard', '/library', '/library/inbox', '/library/movies', '/library/series', '/library/games', '/movies', '/series', '/games', '/videos', '/music'].includes(pathname)
+  return ['/dashboard', '/library', '/library/inbox', '/library/movies', '/library/series', '/library/games', '/movies', '/series', '/games', '/videos', '/music', '/books'].includes(pathname)
 }
 
 function syncCliqueScopeFromUrl() {
@@ -105,13 +106,7 @@ async function acceptPendingInvite(session = null) {
 }
 
 function RouteFallback() {
-  return (
-    <main className="min-h-screen bg-neutral-950 px-4 py-6 text-white">
-      <div className="mx-auto max-w-6xl rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 text-sm text-neutral-300">
-        Loading CliqueBase…
-      </div>
-    </main>
-  )
+  return <main className="min-h-screen bg-neutral-950 px-4 py-6 text-white"><div className="mx-auto max-w-6xl rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 text-sm text-neutral-300">Loading CliqueBase…</div></main>
 }
 
 export default function App() {
@@ -145,6 +140,7 @@ export default function App() {
         <Route path="/games" element={<Games />} />
         <Route path="/videos" element={<Videos />} />
         <Route path="/music" element={<Music />} />
+        <Route path="/books" element={<Books />} />
         <Route path="/share/:type/:id" element={<Share />} />
         <Route path="/members/:memberId" element={<MemberLibrary />} />
         <Route path="/users/:memberId" element={<MemberLibrary />} />
