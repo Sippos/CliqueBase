@@ -9,6 +9,7 @@ import { getActiveGroupId } from '../lib/groups.js'
 import { addMediaComment, createRecommendationNote, getSocialActivity } from '../lib/communityActivity.js'
 import { getFriendsList } from '../lib/communityShare.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
+import { getMusicItems } from '../lib/musicLibrary.js'
 import { blockUser, reportContent } from '../lib/safety.js'
 
 const priorities = [
@@ -80,7 +81,10 @@ function payloadText(activity) {
   if (activity.type === 'rating' && payload.rating) return `${payload.rating}/10`
   if (activity.type === 'vote') return payload.vote === 'pass' ? 'Passed in their library.' : `Ranked it up${payload.score !== undefined && payload.score !== null ? ` · score ${payload.score}` : ''}.`
   if (activity.type === 'friend_accept') return payload.friendName ? `Now friends with ${payload.friendName}.` : ''
-  if (activity.type === 'library_add') return activity.groupId ? 'Added to the shared clique library.' : 'Saved to personal library.'
+  if (activity.type === 'library_add') {
+    if (activity.itemType === 'music') return [payload.artist, payload.album, payload.source].filter(Boolean).join(' · ') || (activity.groupId ? 'Added a song to the shared clique library.' : 'Saved a song to personal library.')
+    return activity.groupId ? 'Added to the shared clique library.' : 'Saved to personal library.'
+  }
   if (activity.type === 'completed') return payload.rating ? `Done · ${payload.rating}/10` : 'Marked done.'
   return payload.message || ''
 }
@@ -117,11 +121,12 @@ function collapseActivity(items) {
   return Array.from(byKey.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
 }
 
-function normalizeLibraryItems(movies = [], series = [], games = []) {
+function normalizeLibraryItems(movies = [], series = [], games = [], music = []) {
   return [
     ...movies.map((item) => ({ ...item, itemType: 'movie', label: 'Movie' })),
     ...series.map((item) => ({ ...item, itemType: 'series', label: 'Series' })),
     ...games.map((item) => ({ ...item, itemType: 'game', label: 'Game' })),
+    ...music.map((item) => ({ ...item, itemType: 'music', label: 'Music' })),
   ]
     .filter((item) => item.id && item.title)
     .sort((a, b) => String(a.title).localeCompare(String(b.title)))
@@ -133,7 +138,7 @@ function itemArtwork(item) {
 
 function shareableType(activity) {
   const type = String(activity?.itemType || activity?.payload?.itemType || '').toLowerCase()
-  return ['movie', 'series', 'game', 'video'].includes(type) ? type : ''
+  return ['movie', 'series', 'game', 'video', 'music'].includes(type) ? type : ''
 }
 
 function contentHref(activity) {
@@ -145,10 +150,11 @@ function contentHref(activity) {
 function shareItemFromActivity(activity) {
   if (!activity) return null
   const payload = activity.payload || {}
+  const type = shareableType(activity)
   return {
     id: activity.itemId || activity.id,
-    type: shareableType(activity),
-    category: shareableType(activity),
+    type,
+    category: type,
     title: activity.title || 'CliqueBase pick',
     poster: payload.poster || null,
     backdrop: payload.backdrop || null,
@@ -156,6 +162,12 @@ function shareItemFromActivity(activity) {
     url: payload.url || '',
     groupId: activity.groupId || null,
     groupName: activity.groupName || '',
+    artist: payload.artist || '',
+    album: payload.album || '',
+    source: payload.source || '',
+    sourceId: payload.sourceId || '',
+    itemType: payload.itemType || '',
+    previewUrl: payload.previewUrl || '',
   }
 }
 
@@ -438,66 +450,57 @@ function RecommendationComposer({ sectionId = 'recommend', defaultExpanded = fal
           <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Why should they swipe yes?" rows={3} className="resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500" />
           <div className="grid gap-3 sm:grid-cols-2">
             <select value={audience} onChange={(event) => setAudience(event.target.value)} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none">
-              <option value="feed">Feed: friends and cliques</option>
-              {friends.length ? <optgroup label="1-vs-1 friends">{friends.map((friend) => <option key={friend.id} value={`friend:${friend.id}`}>{friend.displayName}</option>)}</optgroup> : null}
-              {groups.length ? <optgroup label="Clique piles">{groups.map((group) => <option key={group.id} value={`group:${group.id}`}>{group.name}</option>)}</optgroup> : null}
+              <option value="feed">Post to feed</option>
+              {groups.map((group) => <option key={group.id} value={`group:${group.id}`}>Clique · {group.name}</option>)}
+              {friends.map((friend) => <option key={friend.id} value={`friend:${friend.id}`}>Friend · {friend.displayName}</option>)}
             </select>
             <select value={priority} onChange={(event) => setPriority(event.target.value)} className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none">{priorities.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
           </div>
-          <button disabled={saving || !signedIn || !title.trim()} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Sending…' : signedIn ? 'Send suggestion' : 'Sign in to send'}</button>
+          <button disabled={saving || !title.trim()} className="rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 transition hover:bg-neutral-200 disabled:opacity-50">{saving ? 'Posting…' : 'Post suggestion'}</button>
         </form>
       ) : null}
     </section>
   )
 }
 
-function MobileSwipeSheet({ open, onClose, groups, friends, libraryItems, signedIn, onCreated, onFlash }) {
+function MobileSwipeSheet({ open, onClose, ...props }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-[120] bg-black/70 p-3 text-white backdrop-blur-md lg:hidden" role="dialog" aria-modal="true" aria-label="Swipe game actions">
-      <div className="absolute inset-x-3 bottom-3 max-h-[84vh] overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-4 shadow-2xl shadow-black/60 ring-1 ring-white/10">
-        <div className="sticky top-0 z-10 -mx-4 -mt-4 mb-4 flex items-center justify-between gap-3 border-b border-white/10 bg-neutral-950/95 px-4 py-3 backdrop-blur-xl">
-          <div>
-            <p className="text-lg font-black tracking-tight">Swipe game</p>
-            <p className="mt-0.5 text-xs text-neutral-400">Send cards or start a pile.</p>
-          </div>
-          <button type="button" onClick={onClose} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 text-2xl text-neutral-300 transition hover:bg-white hover:text-neutral-950">×</button>
+    <div className="fixed inset-0 z-[80] bg-black/70 p-3 backdrop-blur-sm lg:hidden">
+      <div className="max-h-full overflow-y-auto rounded-[1.5rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-sm font-black text-white">Send a card</p>
+          <button type="button" onClick={onClose} className="rounded-full border border-white/10 px-3 py-1 text-sm text-neutral-300">Close</button>
         </div>
-        <div className="grid gap-3">
-          <RecommendationComposer sectionId="recommend-mobile" defaultExpanded groups={groups} friends={friends} libraryItems={libraryItems} signedIn={signedIn} onCreated={onCreated} onFlash={onFlash} />
-          <TonightMode groups={groups} libraryItems={libraryItems} signedIn={signedIn} onFlash={onFlash} />
-        </div>
+        <RecommendationComposer defaultExpanded {...props} />
       </div>
     </div>
   )
 }
 
 export default function Community() {
-  const [session, setSession] = useState(null)
-  const [groups, setGroups] = useState([])
+  const [signedIn, setSignedIn] = useState(false)
+  const [loading, setLoading] = useState(hasSupabase)
+  const [message, setMessage] = useState('')
   const [activity, setActivity] = useState([])
+  const [groups, setGroups] = useState([])
   const [friends, setFriends] = useState([])
   const [libraryItems, setLibraryItems] = useState([])
   const [feedFilter, setFeedFilter] = useState('all')
   const [feedLimit, setFeedLimit] = useState(80)
-  const [sharingActivity, setSharingActivity] = useState(null)
-  const [mobileActionsOpen, setMobileActionsOpen] = useState(false)
   const [pullDistance, setPullDistance] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false)
+  const [sharingActivity, setSharingActivity] = useState(null)
   const touchStartY = useRef(0)
   const pullActive = useRef(false)
 
-  const signedIn = hasSupabase && Boolean(session?.user)
-  const friendIds = useMemo(() => new Set(friends.map((friend) => friend.id).filter(Boolean)), [friends])
-  const currentUserId = session?.user?.id || ''
-  const filteredActivity = useMemo(() => activity.filter((item) => {
-    if (feedFilter === 'friends') return friendIds.has(item.actorId) || item.payload?.recommendedTo === currentUserId
-    if (feedFilter === 'cliques') return Boolean(item.groupId)
-    if (feedFilter === 'mine') return item.actorId && item.actorId === currentUserId
-    return true
-  }), [activity, feedFilter, friendIds, currentUserId])
-  const visibleActivity = useMemo(() => collapseActivity(filteredActivity), [filteredActivity])
+  const visibleActivity = useMemo(() => {
+    const collapsed = collapseActivity(activity)
+    if (feedFilter === 'friends') return collapsed.filter((item) => !item.groupId && item.actorId)
+    if (feedFilter === 'cliques') return collapsed.filter((item) => item.groupId)
+    if (feedFilter === 'mine') return collapsed.filter((item) => item.payload?.scope === 'library' || item.payload?.isMine)
+    return collapsed
+  }, [activity, feedFilter])
 
   function flash(text) {
     setMessage(text)
@@ -507,27 +510,30 @@ export default function Community() {
   async function refresh(limit = feedLimit) {
     setLoading(true)
     try {
-      const nextSession = hasSupabase ? await getCurrentSession().catch(() => null) : null
-      setSession(nextSession)
-      if (!nextSession?.user) {
+      if (!hasSupabase) {
+        setSignedIn(false)
         setActivity([])
-        setGroups([])
-        setFriends([])
-        setLibraryItems([])
         return
       }
-      const [nextGroups, nextActivity, nextFriends, movies, series, games] = await Promise.all([
+      const session = await getCurrentSession().catch(() => null)
+      setSignedIn(Boolean(session?.user))
+      if (!session?.user) {
+        setActivity([])
+        return
+      }
+      const [nextGroups, nextActivity, nextFriends, movies, series, games, musicResult] = await Promise.all([
         getRemoteGroups().catch(() => []),
         getSocialActivity({ limit, includePublic: true }).catch(() => []),
         getFriendsList().catch(() => []),
         getMovies(null).catch(() => []),
         getSeries(null).catch(() => []),
         getGames(null).catch(() => []),
+        getMusicItems(null).catch(() => ({ tracks: [] })),
       ])
       setGroups(nextGroups)
       setActivity(nextActivity)
       setFriends(nextFriends)
-      setLibraryItems(normalizeLibraryItems(movies, series, games))
+      setLibraryItems(normalizeLibraryItems(movies, series, games, musicResult.tracks || []))
     } catch (error) {
       flash(error.message || 'Could not load feed.')
     } finally {
@@ -574,16 +580,12 @@ export default function Community() {
     <PageShell active="community">
       <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
         <main className="min-w-0" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-          {pullDistance > 4 ? (
-            <div className="community-pull-indicator" style={{ opacity: Math.min(1, pullDistance / 44), transform: `translateY(${Math.min(48, pullDistance)}px)` }}>
-              {pullDistance > 62 ? 'Release to refresh' : 'Pull to refresh'}
-            </div>
-          ) : null}
+          {pullDistance > 4 ? <div className="community-pull-indicator" style={{ opacity: Math.min(1, pullDistance / 44), transform: `translateY(${Math.min(48, pullDistance)}px)` }}>{pullDistance > 62 ? 'Release to refresh' : 'Pull to refresh'}</div> : null}
           <section className="community-feed-hero mb-3 rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.055] to-fuchsia-500/10 p-4 text-white shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xl font-black tracking-tight sm:text-2xl">Feed</p>
-                <p className="community-feed-copy mt-1 text-sm text-neutral-400">Friends and cliques are sharing what to watch, play, and try.</p>
+                <p className="community-feed-copy mt-1 text-sm text-neutral-400">Friends and cliques are sharing what to watch, play, hear, and try.</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <button type="button" onClick={() => setMobileActionsOpen(true)} className="community-swipe-action rounded-2xl bg-white px-3 py-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200 lg:hidden" aria-label="Open swipe game"><AppIcon name="share" size={15} /><span>Swipe</span></button>
