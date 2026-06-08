@@ -44,6 +44,41 @@ function localId() {
   return `music-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+function spotifyItemTypeFromUrl(url) {
+  const value = clean(url)
+  const uriMatch = value.match(/^spotify:(track|album|artist|playlist):/i)
+  if (uriMatch) return uriMatch[1].toLowerCase()
+  try {
+    const parsed = new URL(value)
+    const firstPathPart = parsed.pathname.split('/').filter(Boolean)[0]
+    return ['track', 'album', 'artist', 'playlist', 'episode', 'show'].includes(firstPathPart) ? firstPathPart : 'track'
+  } catch {
+    return 'track'
+  }
+}
+
+async function lookupSpotifyOEmbed(url) {
+  const cleanUrl = clean(url)
+  if (!cleanUrl) return null
+  try {
+    const response = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(cleanUrl)}`)
+    if (!response.ok) throw new Error(`Spotify oEmbed failed: ${response.status}`)
+    const data = await response.json()
+    if (!data?.title && !data?.thumbnail_url) return null
+    return normalizeRow({
+      id: localId(),
+      source: 'Spotify',
+      itemType: spotifyItemTypeFromUrl(cleanUrl),
+      title: data.title || makeTitleFromUrl(cleanUrl),
+      url: cleanUrl,
+      poster: data.thumbnail_url || '',
+    })
+  } catch (error) {
+    console.warn('Spotify oEmbed lookup failed:', error.message || error)
+    return null
+  }
+}
+
 function normalizeRow(row = {}) {
   const source = row.source || detectMusicSource(row.url)
   const title = clean(row.title) || clean(row.name) || makeTitleFromUrl(row.url)
@@ -123,6 +158,11 @@ export async function lookupMusicMetadata({ url = '', title = '' } = {}) {
   const cleanTitle = clean(title)
   const source = detectMusicSource(cleanUrl)
   const youtubeId = source === 'YouTube' ? getYoutubeId(cleanUrl) : ''
+
+  if (source === 'Spotify' && cleanUrl) {
+    const embedded = await lookupSpotifyOEmbed(cleanUrl)
+    if (embedded) return embedded
+  }
 
   if (hasSupabase && supabase && (source === 'Spotify' || cleanTitle)) {
     try {
