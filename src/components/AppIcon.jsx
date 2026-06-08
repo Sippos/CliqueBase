@@ -55,6 +55,14 @@ const icons = {
       <circle cx="18" cy="16" r="3" />
     </>
   ),
+  books: (
+    <>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" />
+      <path d="M8 6h8" />
+      <path d="M8 10h6" />
+    </>
+  ),
   explore: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -131,19 +139,7 @@ const icons = {
 export default function AppIcon({ name, size = 20, className = '', strokeWidth = 2 }) {
   const safeSize = Math.min(Number(size) || 20, 48)
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      width={safeSize}
-      height={safeSize}
-      style={{ width: safeSize, height: safeSize, maxWidth: safeSize, maxHeight: safeSize }}
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg aria-hidden="true" viewBox="0 0 24 24" width={safeSize} height={safeSize} style={{ width: safeSize, height: safeSize, maxWidth: safeSize, maxHeight: safeSize }} className={className} fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       {icons[name] || icons.dashboard}
     </svg>
   )
