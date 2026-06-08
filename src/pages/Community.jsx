@@ -10,6 +10,7 @@ import { addMediaComment, createRecommendationNote, getSocialActivity } from '..
 import { getFriendsList } from '../lib/communityShare.js'
 import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase } from '../lib/supabaseClient.js'
 import { getMusicItems } from '../lib/musicLibrary.js'
+import { getBookItems } from '../lib/bookLibrary.js'
 import { blockUser, reportContent } from '../lib/safety.js'
 
 const priorities = [
@@ -39,6 +40,7 @@ const contentTypeMeta = {
   game: { label: 'Games', singular: 'game', icon: 'games' },
   video: { label: 'Videos', singular: 'video', icon: 'videos' },
   music: { label: 'Music', singular: 'song', icon: 'music' },
+  book: { label: 'Books', singular: 'book', icon: 'books' },
   other: { label: 'Other', singular: 'pick', icon: 'explore' },
 }
 
@@ -83,9 +85,10 @@ function payloadText(activity) {
   if (activity.type === 'friend_accept') return payload.friendName ? `Now friends with ${payload.friendName}.` : ''
   if (activity.type === 'library_add') {
     if (activity.itemType === 'music') return [payload.artist, payload.album, payload.source].filter(Boolean).join(' · ') || (activity.groupId ? 'Added a song to the shared clique library.' : 'Saved a song to personal library.')
+    if (activity.itemType === 'book') return [Array.isArray(payload.authors) ? payload.authors.join(', ') : payload.author, payload.year, payload.readingStatus].filter(Boolean).join(' · ') || (activity.groupId ? 'Added a book to the shared clique library.' : 'Saved a book to personal library.')
     return activity.groupId ? 'Added to the shared clique library.' : 'Saved to personal library.'
   }
-  if (activity.type === 'completed') return payload.rating ? `Done · ${payload.rating}/10` : 'Marked done.'
+  if (activity.type === 'completed') return activity.itemType === 'book' ? 'Finished reading.' : payload.rating ? `Done · ${payload.rating}/10` : 'Marked done.'
   return payload.message || ''
 }
 
@@ -121,12 +124,13 @@ function collapseActivity(items) {
   return Array.from(byKey.values()).sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
 }
 
-function normalizeLibraryItems(movies = [], series = [], games = [], music = []) {
+function normalizeLibraryItems(movies = [], series = [], games = [], music = [], books = []) {
   return [
     ...movies.map((item) => ({ ...item, itemType: 'movie', label: 'Movie' })),
     ...series.map((item) => ({ ...item, itemType: 'series', label: 'Series' })),
     ...games.map((item) => ({ ...item, itemType: 'game', label: 'Game' })),
     ...music.map((item) => ({ ...item, itemType: 'music', label: 'Music' })),
+    ...books.map((item) => ({ ...item, itemType: 'book', label: 'Book' })),
   ]
     .filter((item) => item.id && item.title)
     .sort((a, b) => String(a.title).localeCompare(String(b.title)))
@@ -138,7 +142,7 @@ function itemArtwork(item) {
 
 function shareableType(activity) {
   const type = String(activity?.itemType || activity?.payload?.itemType || '').toLowerCase()
-  return ['movie', 'series', 'game', 'video', 'music'].includes(type) ? type : ''
+  return ['movie', 'series', 'game', 'video', 'music', 'book'].includes(type) ? type : ''
 }
 
 function contentHref(activity) {
@@ -166,8 +170,14 @@ function shareItemFromActivity(activity) {
     album: payload.album || '',
     source: payload.source || '',
     sourceId: payload.sourceId || '',
-    itemType: payload.itemType || '',
+    itemType: payload.itemType || type,
     previewUrl: payload.previewUrl || '',
+    authors: payload.authors || [],
+    author: payload.author || (Array.isArray(payload.authors) ? payload.authors.join(', ') : ''),
+    isbn: payload.isbn || '',
+    subjects: payload.subjects || [],
+    readingStatus: payload.readingStatus || '',
+    ageBand: payload.ageBand || 'unknown',
   }
 }
 
@@ -521,7 +531,7 @@ export default function Community() {
         setActivity([])
         return
       }
-      const [nextGroups, nextActivity, nextFriends, movies, series, games, musicResult] = await Promise.all([
+      const [nextGroups, nextActivity, nextFriends, movies, series, games, musicResult, bookResult] = await Promise.all([
         getRemoteGroups().catch(() => []),
         getSocialActivity({ limit, includePublic: true }).catch(() => []),
         getFriendsList().catch(() => []),
@@ -529,11 +539,12 @@ export default function Community() {
         getSeries(null).catch(() => []),
         getGames(null).catch(() => []),
         getMusicItems(null).catch(() => ({ tracks: [] })),
+        getBookItems(null).catch(() => ({ books: [] })),
       ])
       setGroups(nextGroups)
       setActivity(nextActivity)
       setFriends(nextFriends)
-      setLibraryItems(normalizeLibraryItems(movies, series, games, musicResult.tracks || []))
+      setLibraryItems(normalizeLibraryItems(movies, series, games, musicResult.tracks || [], bookResult.books || []))
     } catch (error) {
       flash(error.message || 'Could not load feed.')
     } finally {
@@ -585,7 +596,7 @@ export default function Community() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xl font-black tracking-tight sm:text-2xl">Feed</p>
-                <p className="community-feed-copy mt-1 text-sm text-neutral-400">Friends and cliques are sharing what to watch, play, hear, and try.</p>
+                <p className="community-feed-copy mt-1 text-sm text-neutral-400">Friends and cliques are sharing what to watch, play, hear, read, and try.</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <button type="button" onClick={() => setMobileActionsOpen(true)} className="community-swipe-action rounded-2xl bg-white px-3 py-2 text-xs font-black text-neutral-950 transition hover:bg-neutral-200 lg:hidden" aria-label="Open swipe game"><AppIcon name="share" size={15} /><span>Swipe</span></button>
