@@ -2,11 +2,12 @@ import { getActiveGroupId } from './groups.js'
 import { getCurrentUser, hasSupabase, supabase } from './supabaseClient.js'
 
 const MUSIC_STORAGE_KEY = 'cliquebase:music-items:v1'
+const ITUNES_SEARCH_URL = 'https://itunes.apple.com/search'
 
 export function detectMusicSource(url) {
   const value = String(url || '').toLowerCase()
   if (value.includes('spotify.com') || value.startsWith('spotify:')) return 'Spotify'
-  if (value.includes('music.apple.com')) return 'Apple Music'
+  if (value.includes('music.apple.com') || value.includes('itunes.apple.com')) return 'Apple Music'
   if (value.includes('youtube.com') || value.includes('youtu.be')) return 'YouTube'
   if (value.includes('soundcloud.com')) return 'SoundCloud'
   return 'Music link'
@@ -55,6 +56,25 @@ function spotifyItemTypeFromUrl(url) {
   } catch {
     return 'track'
   }
+}
+
+function biggerAppleArtwork(url = '') {
+  return clean(url).replace(/100x100bb\.(jpg|png)$/i, '600x600bb.$1')
+}
+
+function normalizeAppleTrack(row = {}) {
+  return normalizeRow({
+    id: row.trackId ? `apple-${row.trackId}` : localId(),
+    source: 'Apple Music',
+    sourceId: row.trackId || row.collectionId || '',
+    itemType: row.wrapperType === 'collection' ? 'album' : 'track',
+    title: row.trackName || row.collectionName || row.artistName || 'Music result',
+    artist: row.artistName || '',
+    album: row.collectionName || '',
+    url: row.trackViewUrl || row.collectionViewUrl || row.artistViewUrl || '',
+    poster: biggerAppleArtwork(row.artworkUrl100 || row.artworkUrl60 || ''),
+    previewUrl: row.previewUrl || '',
+  })
 }
 
 async function lookupSpotifyOEmbed(url) {
@@ -153,7 +173,7 @@ export async function getMusicItems(groupId = getActiveGroupId()) {
   return { tracks: readLocalTracks().filter((track) => localScopeMatches(track, activeGroupId)), source: 'local' }
 }
 
-export async function lookupMusicMetadata({ url = '', title = '' } = {}) {
+export async function searchMusicCatalog({ url = '', title = '' } = {}) {
   const cleanUrl = clean(url)
   const cleanTitle = clean(title)
   const source = detectMusicSource(cleanUrl)
@@ -161,7 +181,31 @@ export async function lookupMusicMetadata({ url = '', title = '' } = {}) {
 
   if (source === 'Spotify' && cleanUrl) {
     const embedded = await lookupSpotifyOEmbed(cleanUrl)
-    if (embedded) return embedded
+    if (embedded) return [embedded]
+  }
+
+  if (youtubeId) {
+    return [normalizeRow({
+      id: localId(),
+      title: cleanTitle || makeTitleFromUrl(cleanUrl),
+      url: cleanUrl,
+      source: 'YouTube',
+      poster: `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`,
+      itemType: 'track',
+    })]
+  }
+
+  const term = cleanTitle || cleanUrl
+  if (!term) return []
+
+  try {
+    const response = await fetch(`${ITUNES_SEARCH_URL}?${new URLSearchParams({ term, media: 'music', entity: 'song', limit: '12' })}`)
+    if (!response.ok) throw new Error(`Music search failed: ${response.status}`)
+    const data = await response.json()
+    const results = Array.isArray(data?.results) ? data.results.map(normalizeAppleTrack) : []
+    if (results.length) return results
+  } catch (error) {
+    console.warn('Public music search failed:', error.message || error)
   }
 
   if (hasSupabase && supabase && (source === 'Spotify' || cleanTitle)) {
@@ -170,25 +214,23 @@ export async function lookupMusicMetadata({ url = '', title = '' } = {}) {
         body: { url: cleanUrl, query: cleanTitle, type: 'track' },
       })
       if (error) throw error
-      if (data?.track) return normalizeRow({ ...data.track, nominated_by: data.track.nominated_by || 'Someone' })
+      if (data?.track) return [normalizeRow({ ...data.track, nominated_by: data.track.nominated_by || 'Someone' })]
     } catch (error) {
       console.warn('Spotify lookup failed, using manual metadata:', error.message || error)
     }
   }
 
-  return normalizeRow({
-    id: localId(),
-    title: cleanTitle || makeTitleFromUrl(cleanUrl),
-    url: cleanUrl,
-    source,
-    poster: youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : '',
-    itemType: 'track',
-  })
+  return [normalizeRow({ id: localId(), title: cleanTitle || makeTitleFromUrl(cleanUrl), url: cleanUrl, source, itemType: 'track' })]
 }
 
-export async function saveMusicItem(track, { group = null, nominatedBy = '', saved = false } = {}) {
-  const groupId = group?.id || getActiveGroupId() || null
-  const normalized = normalizeRow({ ...track, groupId, groupName: group?.name || track.groupName || '', nominated_by: nominatedBy || track.nominated_by, saved })
+export async function lookupMusicMetadata(input = {}) {
+  const [first] = await searchMusicCatalog(input)
+  return first || normalizeRow({ title: clean(input.title) || 'Shared song', url: clean(input.url), source: detectMusicSource(input.url), itemType: 'track' })
+}
+
+export async function saveMusicItem(track, { group = null, groupId = '', groupName = '', nominatedBy = '', saved = false } = {}) {
+  const scopedGroupId = group?.id || groupId || getActiveGroupId() || null
+  const normalized = normalizeRow({ ...track, groupId: scopedGroupId, groupName: group?.name || groupName || track.groupName || '', nominated_by: nominatedBy || track.nominated_by, saved })
 
   if (hasSupabase && supabase) {
     try {
@@ -196,7 +238,7 @@ export async function saveMusicItem(track, { group = null, nominatedBy = '', sav
       if (user?.id) {
         const payload = {
           owner_id: user.id,
-          group_id: groupId,
+          group_id: scopedGroupId,
           source: normalized.source,
           source_id: normalized.sourceId || null,
           item_type: normalized.itemType || 'track',
@@ -219,14 +261,14 @@ export async function saveMusicItem(track, { group = null, nominatedBy = '', sav
     }
   }
 
-  const localTrack = normalizeRow({ ...normalized, id: normalized.id || localId(), groupId })
+  const localTrack = normalizeRow({ ...normalized, id: normalized.id || localId(), groupId: scopedGroupId })
   const existing = readLocalTracks()
   writeLocalTracks([localTrack, ...existing.filter((item) => item.id !== localTrack.id)])
   return { track: localTrack, source: 'local' }
 }
 
 export async function updateMusicSaved(track, saved) {
-  if (hasSupabase && supabase && !String(track.id || '').startsWith('music-')) {
+  if (hasSupabase && supabase && !String(track.id || '').startsWith('music-') && !String(track.id || '').startsWith('apple-')) {
     try {
       const { data, error } = await supabase.from('music_items').update({ saved: Boolean(saved), updated_at: new Date().toISOString() }).eq('id', track.id).select().single()
       if (error) throw error
@@ -243,7 +285,7 @@ export async function updateMusicSaved(track, saved) {
 }
 
 export async function deleteMusicItem(track) {
-  if (hasSupabase && supabase && !String(track.id || '').startsWith('music-')) {
+  if (hasSupabase && supabase && !String(track.id || '').startsWith('music-') && !String(track.id || '').startsWith('apple-')) {
     try {
       const { error } = await supabase.from('music_items').delete().eq('id', track.id)
       if (error) throw error
