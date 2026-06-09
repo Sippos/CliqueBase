@@ -18,16 +18,17 @@
     overflow-x: clip !important;
   }
 
-  /* Keep the inbox bell visible on mobile, but dock it into the right side of the compact navbar. */
-  main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] {
-    top: 1.03rem !important;
-    right: 3.95rem !important;
+  /* Dock the inbox bell visually into the compact header instead of letting it float on the viewport. */
+  .page-shell-notifications {
+    position: absolute !important;
+    top: 0.58rem !important;
+    right: 3.45rem !important;
     z-index: 45 !important;
     display: flex !important;
     align-items: center !important;
   }
 
-  main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] button {
+  .page-shell-notifications > .notification-center > button {
     width: 2.45rem !important;
     height: 2.45rem !important;
     min-height: 2.45rem !important;
