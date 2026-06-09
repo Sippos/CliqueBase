@@ -1,8 +1,8 @@
 import { getCommunityLeaderboard, hasSupabase } from './lib/supabaseClient.js'
 
 // Explore enhancer for all media categories. The main React page still has an older
-// Movies/Series/Games pile layout, so this module injects the missing public category
-// piles into the same Top public picks area instead of adding a separate bottom block.
+// Movies/Series/Games pile layout, so this module injects Videos, Music, and Books
+// directly inside the same Top public picks section instead of below Explore.
 
 const CATEGORY_META = {
   Movies: { icon: '🎬', label: 'Movies', single: 'movie' },
@@ -13,7 +13,7 @@ const CATEGORY_META = {
   Books: { icon: '▣', label: 'Books', single: 'book' },
 }
 
-const EXTRA_SECTION_ID = 'explore-extra-category-piles'
+const EXTRA_SECTION_ID = 'explore-top-extra-category-piles'
 const BOARD_CACHE_TTL = 45000
 let boardCache = null
 let boardLoadedAt = 0
@@ -86,6 +86,31 @@ function sortItems(items = []) {
   ))
 }
 
+function collectPublicItems(board = {}) {
+  const seen = new Set()
+  const items = []
+  function add(item = {}, group = {}) {
+    const category = text(item.category)
+    const id = text(item.id || item.item_id || item.title)
+    if (!category || !id) return
+    const groupId = item.groupId || item.group_id || group.id || ''
+    const key = `${category}-${id}-${groupId}`
+    if (seen.has(key)) return
+    seen.add(key)
+    items.push({
+      ...item,
+      id,
+      category,
+      groupId,
+      groupName: item.groupName || item.group_name || group.name || 'Public clique',
+      nominatedBy: item.nominatedBy || item.nominated_by,
+    })
+  }
+  ;(board.topContent || []).forEach((item) => add(item))
+  ;(board.groups || []).forEach((group) => (group.publicItems || group.topItems || []).forEach((item) => add(item, group)))
+  return items
+}
+
 function groupByCategory(items = []) {
   const map = new Map()
   items.forEach((item) => {
@@ -147,20 +172,15 @@ function createPickCard(item, category) {
   }
 
   card.appendChild(makeNode('div', 'absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5'))
-
-  const badge = makeNode('span', 'absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-lg shadow-black/30 backdrop-blur', `${meta.icon} ${meta.single}`)
-  card.appendChild(badge)
-
-  const rank = makeNode('span', 'absolute right-4 top-4 rounded-full bg-white px-3 py-1 text-xs font-black text-neutral-950', `#${item.categoryRank || item.rank || 1}`)
-  card.appendChild(rank)
+  card.appendChild(makeNode('span', 'absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/65 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-lg shadow-black/30 backdrop-blur', `${meta.icon} ${meta.single}`))
+  card.appendChild(makeNode('span', 'absolute right-4 top-4 rounded-full bg-white px-3 py-1 text-xs font-black text-neutral-950', `#${item.categoryRank || item.rank || 1}`))
 
   const bottom = makeNode('div', 'absolute inset-x-0 bottom-0 p-4 sm:p-5')
   bottom.appendChild(makeNode('p', 'text-[11px] font-bold uppercase tracking-[0.22em] text-neutral-300 sm:text-xs', `Top ${meta.single} pick`))
   bottom.appendChild(makeNode('h3', 'mt-1.5 line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg sm:mt-2', item.title || `Untitled ${meta.single}`))
   const metaLine = itemMeta(item)
   if (metaLine) bottom.appendChild(makeNode('p', 'mt-2 line-clamp-1 text-xs font-semibold text-neutral-300', metaLine))
-  const stats = makeNode('p', 'mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400', `Score ${item.score || 0} · ${item.picks || 0} picks`)
-  bottom.appendChild(stats)
+  bottom.appendChild(makeNode('p', 'mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400', `Score ${item.score || 0} · ${item.picks || 0} picks`))
   card.appendChild(bottom)
 
   const link = makeNode('a', 'absolute inset-0 rounded-[inherit]')
@@ -172,54 +192,35 @@ function createPickCard(item, category) {
 
 function createCategoryPile(pile) {
   const meta = getMeta(pile.category)
-  const wrapper = makeNode('section', 'explore-injected-category sm:contents')
+  const wrapper = makeNode('div', 'explore-injected-category grid gap-2')
   wrapper.dataset.category = pile.category
   wrapper.style.order = String(orderFor(pile.category))
-
-  const mobileHeader = makeNode('div', 'mb-2 flex items-center justify-between px-1 sm:hidden')
-  mobileHeader.appendChild(makeNode('h2', 'inline-flex items-center gap-2 text-xl font-black text-white', `${meta.icon} ${meta.label}`))
-  mobileHeader.appendChild(makeNode('span', 'text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500', `${pile.items.length} public`))
-  wrapper.appendChild(mobileHeader)
-
+  const header = makeNode('div', 'mb-1 flex items-center justify-between px-1')
+  header.appendChild(makeNode('h2', 'inline-flex items-center gap-2 text-xl font-black text-white', `${meta.icon} ${meta.label}`))
+  header.appendChild(makeNode('span', 'rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-300', `${pile.items.length} public`))
+  wrapper.appendChild(header)
   wrapper.appendChild(createPickCard(pile.items[0], pile.category))
   return wrapper
-}
-
-function findTopPicksGrid(section) {
-  if (!section) return null
-  const grids = Array.from(section.querySelectorAll('div')).filter((node) => {
-    const classes = String(node.className || '')
-    return classes.includes('md:grid') && classes.includes('xl:grid-cols-3')
-  })
-  return grids[grids.length - 1] || null
 }
 
 function ensureInjectedHost(section) {
   let host = document.getElementById(EXTRA_SECTION_ID)
   if (host && section.contains(host)) return host
   host?.remove()
-
-  const desktopGrid = findTopPicksGrid(section)
-  if (desktopGrid) {
-    host = desktopGrid
-    host.dataset.exploreExtraHost = 'true'
-    return host
-  }
-
-  host = makeNode('div', 'mt-5 grid gap-5 md:grid md:grid-cols-2 xl:grid-cols-3')
+  host = makeNode('div', 'mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3')
   host.id = EXTRA_SECTION_ID
   section.appendChild(host)
   return host
 }
 
 function renderExtraCategories(board) {
-  const topContent = Array.isArray(board?.topContent) ? board.topContent : []
+  const topContent = collectPublicItems(board)
   if (!topContent.length) return
 
   const topSection = topPicksSection()
   if (!topSection) return
 
-  document.querySelectorAll(`#${EXTRA_SECTION_ID}, .explore-injected-category`).forEach((node) => node.remove())
+  document.querySelectorAll('.explore-injected-category').forEach((node) => node.remove())
   const host = ensureInjectedHost(topSection)
   const rendered = visibleReactCategories()
   const extras = groupByCategory(topContent)
@@ -227,6 +228,10 @@ function renderExtraCategories(board) {
     .filter((pile) => ['Videos', 'Music', 'Books'].includes(pile.category) || (!rendered.has(pile.category) && !CATEGORY_META[pile.category]))
     .sort((a, b) => orderFor(a.category) - orderFor(b.category))
 
+  if (!extras.length) {
+    host.remove()
+    return
+  }
   extras.forEach((pile) => host.appendChild(createCategoryPile(pile)))
 }
 
