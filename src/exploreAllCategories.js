@@ -203,6 +203,27 @@ function createCategoryPile(pile) {
   return wrapper
 }
 
+function createCategoryChip(pile) {
+  const meta = getMeta(pile.category)
+  const chip = makeNode('button', 'explore-injected-chip inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-neutral-300 transition hover:border-white hover:bg-white hover:text-neutral-950', `${meta.icon} ${meta.label}`)
+  chip.type = 'button'
+  chip.dataset.category = pile.category
+  chip.style.order = String(orderFor(pile.category))
+  chip.addEventListener('click', () => {
+    document.querySelector(`.explore-injected-category[data-category="${pile.category}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+  return chip
+}
+
+function findTopChipRow(section) {
+  if (!section) return null
+  return Array.from(section.querySelectorAll('div')).find((node) => {
+    const classes = String(node.className || '')
+    const value = node.textContent || ''
+    return classes.includes('overflow-x-auto') && /Movies/i.test(value) && /Series/i.test(value) && /Games/i.test(value)
+  }) || null
+}
+
 function ensureInjectedHost(section) {
   let host = document.getElementById(EXTRA_SECTION_ID)
   if (host && section.contains(host)) return host
@@ -220,8 +241,9 @@ function renderExtraCategories(board) {
   const topSection = topPicksSection()
   if (!topSection) return
 
-  document.querySelectorAll('.explore-injected-category').forEach((node) => node.remove())
+  document.querySelectorAll('.explore-injected-category,.explore-injected-chip').forEach((node) => node.remove())
   const host = ensureInjectedHost(topSection)
+  const chipRow = findTopChipRow(topSection)
   const rendered = visibleReactCategories()
   const extras = groupByCategory(topContent)
     .filter((pile) => pile.items.length)
@@ -232,7 +254,10 @@ function renderExtraCategories(board) {
     host.remove()
     return
   }
-  extras.forEach((pile) => host.appendChild(createCategoryPile(pile)))
+  extras.forEach((pile) => {
+    host.appendChild(createCategoryPile(pile))
+    if (chipRow) chipRow.appendChild(createCategoryChip(pile))
+  })
 }
 
 async function loadBoard() {
