@@ -1,4 +1,4 @@
-/* Mobile Community: Instagram-like feed first, with swipe actions tucked behind one small button. */
+/* Mobile Community: compact feed-first layout with actions in the filter row. */
 @media (max-width: 767px) {
   html,
   body {
@@ -18,22 +18,9 @@
     overflow-x: clip !important;
   }
 
-  /* Bell stays in the top bar layer, but panels/sheets must appear above it. */
+  /* On phones the inbox bell felt detached from the header. Keep the profile entry only. */
   main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] {
-    top: 1rem !important;
-    right: 3.95rem !important;
-    z-index: 42 !important;
-  }
-
-  main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] button {
-    width: 2.35rem !important;
-    height: 2.35rem !important;
-    min-height: 2.35rem !important;
-    border-radius: 9999px !important;
-    background: rgba(255, 255, 255, 0.06) !important;
-    border-color: rgba(255, 255, 255, 0.16) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    display: none !important;
   }
 
   .notification-panel {
@@ -64,33 +51,46 @@
 
   .community-feed-hero {
     position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.42rem !important;
     margin-bottom: 0.55rem !important;
-    padding: 0.78rem 0.82rem !important;
-    border-radius: 1.2rem !important;
+    padding: 0.48rem !important;
+    border-radius: 1.25rem !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18) !important;
   }
 
-  .community-feed-hero p[class*="text-xl"] {
-    font-size: 1.05rem !important;
-    line-height: 1.05 !important;
-    letter-spacing: -0.035em !important;
+  .community-feed-hero > div:first-child {
+    display: contents !important;
   }
 
+  .community-feed-hero > div:first-child > div:first-child,
   .community-feed-copy {
     display: none !important;
   }
 
+  .community-feed-hero > div:first-child > div:last-child {
+    order: 2 !important;
+    display: flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+  }
+
   .community-swipe-action {
     display: inline-flex !important;
-    min-height: 2.18rem !important;
+    min-height: 2.1rem !important;
     align-items: center !important;
     gap: 0.34rem !important;
     border-radius: 9999px !important;
-    padding: 0.48rem 0.78rem !important;
-    font-size: 0.68rem !important;
-    letter-spacing: 0.01em !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.075) !important;
+    padding: 0.46rem 0.78rem !important;
+    color: rgb(229, 229, 229) !important;
+    font-size: 0.72rem !important;
+    letter-spacing: -0.01em !important;
+    box-shadow: none !important;
   }
 
   .community-refresh {
@@ -98,9 +98,11 @@
   }
 
   .community-feed-tabs {
-    margin-top: 0.68rem !important;
+    order: 1 !important;
+    flex: 1 1 auto !important;
+    margin-top: 0 !important;
     display: flex !important;
-    gap: 0.38rem !important;
+    gap: 0.34rem !important;
     overflow-x: auto !important;
     padding-bottom: 0 !important;
     scrollbar-width: none;
@@ -111,10 +113,12 @@
   }
 
   .community-feed-tabs button {
-    min-height: 2.2rem !important;
-    padding: 0.5rem 0.9rem !important;
+    min-height: 2.1rem !important;
+    padding: 0.46rem 0.82rem !important;
     white-space: nowrap !important;
     touch-action: manipulation;
+    font-size: 0.72rem !important;
+    letter-spacing: -0.01em !important;
   }
 
   .community-pull-indicator {
@@ -135,60 +139,112 @@
     will-change: transform, opacity;
   }
 
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] > main > div.grid.gap-3 {
+    gap: 0.55rem !important;
+  }
+
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] {
-    border-radius: 1.18rem !important;
-    padding: 0.72rem !important;
+    border-radius: 1.12rem !important;
+    padding: 0.68rem !important;
     background-image: none !important;
-    background-color: rgba(255, 255, 255, 0.055) !important;
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18) !important;
+    background-color: rgba(255, 255, 255, 0.052) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     contain: layout paint;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] > div:first-child {
-    gap: 0.65rem !important;
+    gap: 0.58rem !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] img {
-    width: 3.05rem !important;
-    height: 4.4rem !important;
-    border-radius: 0.78rem !important;
+    width: 2.86rem !important;
+    height: 4.18rem !important;
+    border-radius: 0.72rem !important;
     content-visibility: auto;
-    contain-intrinsic-size: 3.05rem 4.4rem;
+    contain-intrinsic-size: 2.86rem 4.18rem;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] div[class*="text-xs"][class*="text-neutral-400"] {
+    gap: 0.28rem 0.42rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1.05 !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] a[class*="text-base"],
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] h3[class*="text-base"] {
-    font-size: 0.98rem !important;
-    line-height: 1.15 !important;
+    margin-top: 0.28rem !important;
+    font-size: 0.96rem !important;
+    line-height: 1.12 !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] p[class*="leading-5"] {
-    max-height: 4.6rem !important;
+    max-height: 3.8rem !important;
+    margin-top: 0.42rem !important;
     overflow: hidden !important;
+    border-radius: 0.72rem !important;
+    padding: 0.38rem 0.55rem !important;
+    font-size: 0.76rem !important;
+    line-height: 1.28 !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] div[class*="mt-3"][class*="flex"] {
+    margin-top: 0.5rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] div[class*="mt-3"][class*="flex"] button {
+    min-height: 1.9rem !important;
+    border-radius: 0.8rem !important;
+    padding: 0.36rem 0.72rem !important;
+    font-size: 0.73rem !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article form {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) auto !important;
-    gap: 0.45rem !important;
+    gap: 0.38rem !important;
+    margin-top: 0.55rem !important;
+    padding-top: 0.55rem !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article form input,
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article form button {
-    min-height: 2.45rem !important;
+    min-height: 2.1rem !important;
+    border-radius: 0.82rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article form input {
+    padding-left: 0.72rem !important;
+    padding-right: 0.72rem !important;
   }
 
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article form button {
-    padding-left: 0.78rem !important;
-    padding-right: 0.78rem !important;
+    padding-left: 0.68rem !important;
+    padding-right: 0.68rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article > div.mt-2 {
+    margin-top: 0.25rem !important;
+  }
+
+  main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article > div.mt-2 > button {
+    font-size: 0.66rem !important;
+    color: rgb(82, 82, 82) !important;
   }
 }
 
 @media (max-width: 420px) {
+  .community-feed-tabs button,
+  .community-swipe-action {
+    padding-left: 0.68rem !important;
+    padding-right: 0.68rem !important;
+  }
+
   main .mx-auto.max-w-6xl > div[class*="lg:grid-cols-[minmax"] article[class*="rounded-[1.35rem]"] img {
-    width: 2.9rem !important;
-    height: 4.25rem !important;
+    width: 2.75rem !important;
+    height: 4.05rem !important;
   }
 }
