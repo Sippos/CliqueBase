@@ -18,9 +18,24 @@
     overflow-x: clip !important;
   }
 
-  /* On phones the inbox bell felt detached from the header. Keep the profile entry only. */
+  /* Keep the inbox bell visible on mobile, but dock it into the right side of the compact navbar. */
   main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] {
-    display: none !important;
+    top: 1.03rem !important;
+    right: 3.95rem !important;
+    z-index: 45 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  main.min-h-screen > div > div[class*="fixed"][class*="right-4"][class*="top-4"][class*="z-[90]"] button {
+    width: 2.45rem !important;
+    height: 2.45rem !important;
+    min-height: 2.45rem !important;
+    border-radius: 9999px !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .notification-panel {
