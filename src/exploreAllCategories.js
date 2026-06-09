@@ -1,8 +1,8 @@
 import { getCommunityLeaderboard, hasSupabase } from './lib/supabaseClient.js'
 
 // Explore enhancer for all media categories. The main React page still has an older
-// Movies/Series/Games pile layout, so this module adds the missing public category
-// piles from the same leaderboard payload: Videos, Music, Books, and future types.
+// Movies/Series/Games pile layout, so this module injects the missing public category
+// piles into the same Top public picks area instead of adding a separate bottom block.
 
 const CATEGORY_META = {
   Movies: { icon: '🎬', label: 'Movies', single: 'movie' },
@@ -97,10 +97,13 @@ function groupByCategory(items = []) {
   return Array.from(map.entries()).map(([category, values]) => ({ category, items: sortItems(values).map((item, index) => ({ ...item, categoryRank: item.categoryRank || index + 1 })) }))
 }
 
+function topPicksSection() {
+  return Array.from(document.querySelectorAll('h1,h2')).find((node) => /Top public picks/i.test(node.textContent || ''))?.closest('section') || null
+}
+
 function visibleReactCategories() {
   const categories = new Set()
-  const topHeading = Array.from(document.querySelectorAll('h1,h2')).find((node) => /Top public picks/i.test(node.textContent || ''))
-  const topSection = topHeading?.closest('section')
+  const topSection = topPicksSection()
   if (!topSection) return categories
   Object.keys(CATEGORY_META).forEach((category) => {
     if (new RegExp(`\\b${category}\\b`, 'i').test(topSection.textContent || '')) categories.add(category)
@@ -130,10 +133,10 @@ function makeNode(tag, className, content = '') {
 
 function createPickCard(item, category) {
   const meta = getMeta(category)
-  const card = makeNode('article', 'group relative min-h-[15rem] overflow-hidden rounded-[1.45rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/20')
+  const card = makeNode('article', 'group relative min-h-[17.1rem] overflow-hidden rounded-[1.45rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/20 sm:min-h-[20rem] sm:rounded-[2rem]')
   const image = imageFor(item)
   if (image) {
-    const img = makeNode('img', 'absolute inset-0 h-full w-full object-cover opacity-78 transition duration-500 group-hover:scale-105')
+    const img = makeNode('img', 'absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105')
     img.src = image
     img.alt = ''
     img.loading = 'lazy'
@@ -151,8 +154,9 @@ function createPickCard(item, category) {
   const rank = makeNode('span', 'absolute right-4 top-4 rounded-full bg-white px-3 py-1 text-xs font-black text-neutral-950', `#${item.categoryRank || item.rank || 1}`)
   card.appendChild(rank)
 
-  const bottom = makeNode('div', 'absolute inset-x-0 bottom-0 p-4')
-  bottom.appendChild(makeNode('h3', 'line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg', item.title || `Untitled ${meta.single}`))
+  const bottom = makeNode('div', 'absolute inset-x-0 bottom-0 p-4 sm:p-5')
+  bottom.appendChild(makeNode('p', 'text-[11px] font-bold uppercase tracking-[0.22em] text-neutral-300 sm:text-xs', `Top ${meta.single} pick`))
+  bottom.appendChild(makeNode('h3', 'mt-1.5 line-clamp-2 text-2xl font-black leading-tight text-white drop-shadow-lg sm:mt-2', item.title || `Untitled ${meta.single}`))
   const metaLine = itemMeta(item)
   if (metaLine) bottom.appendChild(makeNode('p', 'mt-2 line-clamp-1 text-xs font-semibold text-neutral-300', metaLine))
   const stats = makeNode('p', 'mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-400', `Score ${item.score || 0} · ${item.picks || 0} picks`)
@@ -168,60 +172,62 @@ function createPickCard(item, category) {
 
 function createCategoryPile(pile) {
   const meta = getMeta(pile.category)
-  const section = makeNode('section', 'grid gap-3')
-  section.style.order = String(orderFor(pile.category))
+  const wrapper = makeNode('section', 'explore-injected-category sm:contents')
+  wrapper.dataset.category = pile.category
+  wrapper.style.order = String(orderFor(pile.category))
 
-  const header = makeNode('div', 'flex items-center justify-between gap-3 px-1')
-  header.appendChild(makeNode('h2', 'inline-flex items-center gap-2 text-xl font-black text-white', `${meta.icon} ${meta.label}`))
-  header.appendChild(makeNode('span', 'rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-300', `${pile.items.length} public`))
-  section.appendChild(header)
+  const mobileHeader = makeNode('div', 'mb-2 flex items-center justify-between px-1 sm:hidden')
+  mobileHeader.appendChild(makeNode('h2', 'inline-flex items-center gap-2 text-xl font-black text-white', `${meta.icon} ${meta.label}`))
+  mobileHeader.appendChild(makeNode('span', 'text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500', `${pile.items.length} public`))
+  wrapper.appendChild(mobileHeader)
 
-  const grid = makeNode('div', 'grid gap-4 md:grid-cols-2 xl:grid-cols-3')
-  pile.items.slice(0, 6).forEach((item) => grid.appendChild(createPickCard(item, pile.category)))
-  section.appendChild(grid)
-  return section
+  wrapper.appendChild(createPickCard(pile.items[0], pile.category))
+  return wrapper
 }
 
-function findInsertPoint() {
-  const topPicks = Array.from(document.querySelectorAll('h1,h2')).find((node) => /Top public picks/i.test(node.textContent || ''))?.closest('section')
-  if (topPicks) return { parent: topPicks.parentElement, after: topPicks }
-  const topCliques = Array.from(document.querySelectorAll('h1,h2')).find((node) => /Top Cliques/i.test(node.textContent || ''))?.closest('section')
-  if (topCliques) return { parent: topCliques.parentElement, before: topCliques }
-  return { parent: document.querySelector('main') || document.body }
+function findTopPicksGrid(section) {
+  if (!section) return null
+  const grids = Array.from(section.querySelectorAll('div')).filter((node) => {
+    const classes = String(node.className || '')
+    return classes.includes('md:grid') && classes.includes('xl:grid-cols-3')
+  })
+  return grids[grids.length - 1] || null
+}
+
+function ensureInjectedHost(section) {
+  let host = document.getElementById(EXTRA_SECTION_ID)
+  if (host && section.contains(host)) return host
+  host?.remove()
+
+  const desktopGrid = findTopPicksGrid(section)
+  if (desktopGrid) {
+    host = desktopGrid
+    host.dataset.exploreExtraHost = 'true'
+    return host
+  }
+
+  host = makeNode('div', 'mt-5 grid gap-5 md:grid md:grid-cols-2 xl:grid-cols-3')
+  host.id = EXTRA_SECTION_ID
+  section.appendChild(host)
+  return host
 }
 
 function renderExtraCategories(board) {
   const topContent = Array.isArray(board?.topContent) ? board.topContent : []
   if (!topContent.length) return
 
+  const topSection = topPicksSection()
+  if (!topSection) return
+
+  document.querySelectorAll(`#${EXTRA_SECTION_ID}, .explore-injected-category`).forEach((node) => node.remove())
+  const host = ensureInjectedHost(topSection)
   const rendered = visibleReactCategories()
   const extras = groupByCategory(topContent)
     .filter((pile) => pile.items.length)
-    .filter((pile) => !rendered.has(pile.category) || ['Videos', 'Music', 'Books'].includes(pile.category))
-    .filter((pile) => ['Videos', 'Music', 'Books'].includes(pile.category) || !CATEGORY_META[pile.category])
+    .filter((pile) => ['Videos', 'Music', 'Books'].includes(pile.category) || (!rendered.has(pile.category) && !CATEGORY_META[pile.category]))
     .sort((a, b) => orderFor(a.category) - orderFor(b.category))
 
-  let section = document.getElementById(EXTRA_SECTION_ID)
-  if (!extras.length) {
-    section?.remove()
-    return
-  }
-
-  if (!section) {
-    section = makeNode('section', 'mb-6 grid gap-5 pt-1 sm:mb-8')
-    section.id = EXTRA_SECTION_ID
-    const insert = findInsertPoint()
-    if (insert.after?.parentElement) insert.after.insertAdjacentElement('afterend', section)
-    else if (insert.before?.parentElement) insert.before.insertAdjacentElement('beforebegin', section)
-    else insert.parent?.appendChild(section)
-  }
-
-  section.replaceChildren()
-  const intro = makeNode('div', 'px-1')
-  intro.appendChild(makeNode('h2', 'text-3xl font-black text-white', 'More public categories'))
-  intro.appendChild(makeNode('p', 'mt-2 max-w-2xl text-sm leading-6 text-neutral-400', 'Videos, music, books, and every other public clique pick live here too.'))
-  section.appendChild(intro)
-  extras.forEach((pile) => section.appendChild(createCategoryPile(pile)))
+  extras.forEach((pile) => host.appendChild(createCategoryPile(pile)))
 }
 
 async function loadBoard() {
