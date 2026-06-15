@@ -7,7 +7,6 @@ import {
   createGroup as createLocalGroup,
   getActiveGroup,
   getActiveGroupId,
-  getGroupInvitePath,
   getGroupInviteUrl,
   getGroupOpenPath,
   getGroups,
@@ -29,7 +28,6 @@ import {
   signInWithEmail,
   signOut,
   signUpWithEmail,
-  supabase,
 } from '../lib/supabaseClient.js'
 
 const primaryLinks = [
@@ -45,6 +43,7 @@ const mediaLinks = [
   { key: 'games', to: '/games', label: 'Games', icon: 'games' },
   { key: 'videos', to: '/videos', label: 'Videos', icon: 'videos' },
   { key: 'music', to: '/music', label: 'Music', icon: 'music' },
+  { key: 'books', to: '/books', label: 'Books', icon: 'books' },
 ]
 
 const allMediaOption = { key: 'all', label: 'All media', icon: 'explore' }
@@ -58,6 +57,7 @@ const activeMap = {
   leaderboard: 'explore',
   explore: 'explore',
   community: 'community',
+  books: 'books',
 }
 
 function normalizeActiveKey(active) {
@@ -153,7 +153,7 @@ export default function PageNav({ active = 'library' }) {
   const [authMode, setAuthMode] = useState('sign-in')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
-  const [authNotice, setAuthNotice] = useState(null)
+  const [authNotice, setAuthNotice] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -161,7 +161,6 @@ export default function PageNav({ active = 'library' }) {
   const queryParams = new URLSearchParams(location.search)
   const queryMedia = queryParams.get('media')
   const scopedCliqueId = queryParams.get('clique') || activeGroup?.id || getActiveGroupId()
-  const activePrimary = primaryLinks.find((link) => isPrimaryActive(link.key, activeKey, scopedCliqueId)) || primaryLinks[2]
   const activeMedia = mediaLinks.find((link) => link.key === activeKey) || mediaLinks.find((link) => link.key === queryMedia)
   const activeMediaKey = activeMedia?.key || null
   const profileName = cleanName(handle)
@@ -203,20 +202,17 @@ export default function PageNav({ active = 'library' }) {
   }
 
   function sectionRoot() {
-    if (activePrimary.key === 'community') return '/community'
-    if (activePrimary.key === 'explore') return '/explore'
-    if (activePrimary.key === 'groups') return '/groups'
-    return '/dashboard'
+    if (activeKey === 'community') return '/community'
+    if (activeKey === 'explore') return '/explore'
+    if (activeKey === 'groups') return '/groups'
+    return scopedCliqueId ? `/cliques/${encodeURIComponent(scopedCliqueId)}` : '/dashboard'
   }
 
   function mediaHref(key) {
     if (key === 'all') return sectionRoot()
     const mediaLink = mediaLinks.find((link) => link.key === key)
-    if (activePrimary.key === 'explore') return `/explore?media=${key}`
-    if (activePrimary.key === 'groups') {
-      if (scopedCliqueId && mediaLink?.to) return `${mediaLink.to}?clique=${encodeURIComponent(scopedCliqueId)}`
-      return `/groups?media=${key}`
-    }
+    if (activeKey === 'explore') return `/explore?media=${key}`
+    if (scopedCliqueId && mediaLink?.to) return `${mediaLink.to}?clique=${encodeURIComponent(scopedCliqueId)}`
     return mediaLink?.to || '/dashboard'
   }
 
@@ -245,9 +241,6 @@ export default function PageNav({ active = 'library' }) {
           saveSharedHandle(displayName)
           setHandle(displayName)
           setDraft(displayName)
-        } else {
-          setHandle('')
-          setDraft('')
         }
         const [remoteGroups, nextFriends] = await Promise.all([
           getRemoteGroups().catch(() => []),
@@ -258,12 +251,11 @@ export default function PageNav({ active = 'library' }) {
         const activeId = getActiveGroupId()
         const nextActive = activeId ? remoteGroups.find((group) => group.id === activeId) || null : null
         setActiveGroupState(nextActive)
-        if (activeId && !nextActive) setActiveGroup('')
+        return
       } catch (error) {
         clearSessionUi()
         flash(error.message || 'Could not sync your account.')
       }
-      return
     }
     const saved = getSavedHandle()
     setHandle(saved)
@@ -277,7 +269,9 @@ export default function PageNav({ active = 'library' }) {
 
   useEffect(() => {
     refreshGroups()
-    function handleChange() { refreshGroups() }
+    function handleChange() {
+      refreshGroups()
+    }
     window.addEventListener(GROUPS_CHANGED_EVENT, handleChange)
     const unsubscribe = hasSupabase ? onAuthStateChanged((nextSession) => {
       if (!nextSession?.user) clearSessionUi()
@@ -335,10 +329,7 @@ export default function PageNav({ active = 'library' }) {
 
   async function handleProfileNameSubmit(event) {
     event.preventDefault()
-    if (!draft.trim()) {
-      flash('Add a profile name first.')
-      return
-    }
+    if (!draft.trim()) return flash('Add a profile name first.')
     setLoading(true)
     try {
       await currentHandle()
@@ -350,29 +341,41 @@ export default function PageNav({ active = 'library' }) {
     }
   }
 
-  async function handleEmailSubmit(event) {
+  async function handleAuth(event) {
     event.preventDefault()
-    const nextEmail = emailDraft.trim()
-    if (!session?.user) {
-      flash('Sign in to change your email.')
-      return
-    }
-    if (!nextEmail) {
-      flash('Add an email first.')
-      return
-    }
-    if (nextEmail === session.user.email) {
-      flash('That email is already on this profile.')
-      return
-    }
+    setAuthNotice('')
+    if (!authEmail.trim() || !authPassword) return flash('Add an email and password first.')
     setLoading(true)
     try {
-      const { error } = await supabase.auth.updateUser({ email: nextEmail })
-      if (error) throw error
-      flash('Check your new email to confirm the change.')
+      const email = authEmail.trim()
+      const displayName = draft.trim()
+      if (authMode === 'sign-up') {
+        const result = await signUpWithEmail(email, authPassword, displayName)
+        if (!result.session?.user) setAuthNotice(`Check ${email} to confirm your account, then sign in.`)
+        else setSession(result.session)
+      } else {
+        const data = await signInWithEmail(email, authPassword)
+        if (!data.session?.user) throw new Error('Confirm your email first, then try again.')
+        setSession(data.session)
+      }
+      setAuthPassword('')
       refreshGroups()
+      flash(authMode === 'sign-up' ? 'Account created.' : 'Signed in.')
     } catch (error) {
-      flash(error.message || 'Could not update your email.')
+      flash(error.message || 'Authentication failed.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSignOut() {
+    setLoading(true)
+    try {
+      clearSessionUi()
+      await signOut().catch(() => null)
+      setAuthEmail('')
+      setAuthPassword('')
+      flash('Signed out.')
     } finally {
       setLoading(false)
     }
@@ -382,15 +385,12 @@ export default function PageNav({ active = 'library' }) {
     setActiveGroup('')
     setActiveGroupState(null)
     closeMenus()
-    flash('Viewing My Library.')
-    refreshGroups()
   }
 
   function activateGroup(group) {
     setActiveGroup(group.id)
     setActiveGroupState(group)
     closeMenus()
-    flash(`Viewing ${group.name}.`)
     refreshGroups()
   }
 
@@ -399,7 +399,9 @@ export default function PageNav({ active = 'library' }) {
     setLoading(true)
     try {
       const creator = await currentHandle()
-      const group = session?.user && hasSupabase ? await createRemoteGroup(groupDraft || `${creator}'s clique`, creator) : createLocalGroup(groupDraft || `${creator}'s clique`, creator)
+      const group = session?.user && hasSupabase
+        ? await createRemoteGroup(groupDraft || `${creator}'s clique`, creator)
+        : createLocalGroup(groupDraft || `${creator}'s clique`, creator)
       setGroupDraft('')
       setActiveGroup(group.id)
       setActiveGroupState(group)
@@ -415,13 +417,12 @@ export default function PageNav({ active = 'library' }) {
   async function handleJoinGroup(event) {
     event.preventDefault()
     const code = parseInviteCode(inviteDraft)
-    if (!code) {
-      flash('Paste an invite code first.')
-      return
-    }
+    if (!code) return flash('Paste an invite code first.')
     setLoading(true)
     try {
-      const joined = session?.user && hasSupabase ? await joinRemoteGroup(code, await currentHandle()) : joinLocalGroup(code, await currentHandle())
+      const joined = session?.user && hasSupabase
+        ? await joinRemoteGroup(code, await currentHandle())
+        : joinLocalGroup(code, await currentHandle())
       setInviteDraft('')
       setActiveGroup(joined.id)
       setActiveGroupState(joined)
@@ -436,14 +437,11 @@ export default function PageNav({ active = 'library' }) {
 
   async function copyInvite(group) {
     const copied = await copyToClipboard(getGroupInviteUrl(group))
-    flash(copied ? 'Invite link copied.' : `Invite: ${getGroupInvitePath(group)}`)
+    flash(copied ? 'Invite link copied.' : getGroupInviteUrl(group))
   }
 
   async function togglePublic(group) {
-    if (!usingRemoteGroups) {
-      flash('Public Explore visibility is available for signed-in cliques.')
-      return
-    }
+    if (!usingRemoteGroups) return flash('Public Explore visibility is available for signed-in cliques.')
     try {
       await setGroupPublic(group.id, !group.isPublic)
       flash(!group.isPublic ? `${group.name} is visible in Explore.` : `${group.name} is private again.`)
@@ -481,66 +479,6 @@ export default function PageNav({ active = 'library' }) {
     }
   }
 
-  async function handleAuth(event) {
-    event.preventDefault()
-    setAuthNotice(null)
-    if (!authEmail.trim() || !authPassword) {
-      flash('Add an email and password first.')
-      return
-    }
-    setLoading(true)
-    try {
-      const email = authEmail.trim()
-      const displayName = draft.trim()
-      if (authMode === 'sign-up') {
-        const result = await signUpWithEmail(email, authPassword, displayName)
-        if (!result.session?.user) {
-          setAuthNotice(`Check ${email} to confirm your account, then sign in.`)
-        } else {
-          if (displayName) {
-            saveSharedHandle(displayName)
-            setHandle(displayName)
-            setDraft(displayName)
-          }
-          setSession(result.session)
-          setEmailDraft(result.session.user.email || email)
-          flash('Account created.')
-        }
-      } else {
-        const data = await signInWithEmail(email, authPassword)
-        if (!data.session?.user) throw new Error('Confirm your email first, then try again.')
-        setSession(data.session)
-        setEmailDraft(data.session.user.email || email)
-        const displayNameAfterLogin = sessionName(data.session, null, getSavedHandle())
-        if (displayNameAfterLogin) {
-          saveSharedHandle(displayNameAfterLogin)
-          setHandle(displayNameAfterLogin)
-          setDraft(displayNameAfterLogin)
-        }
-        flash('Signed in.')
-      }
-      setAuthPassword('')
-      refreshGroups()
-    } catch (error) {
-      flash(error.message || 'Authentication failed.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleSignOut() {
-    setLoading(true)
-    try {
-      clearSessionUi()
-      await signOut().catch(() => null)
-      setAuthEmail('')
-      setAuthPassword('')
-      flash('Signed out.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <>
       <header className={`sticky top-3 z-40 mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 top-2 shadow-black/50' : 'py-3'}`}>
@@ -550,7 +488,12 @@ export default function PageNav({ active = 'library' }) {
             <nav aria-label="Primary navigation" className="grid min-w-0 grid-cols-2 gap-1 rounded-[1.6rem] border border-white/10 bg-white/[0.035] p-1 sm:flex sm:rounded-full">
               {primaryLinks.map((link) => {
                 const selected = isPrimaryActive(link.key, activeKey, scopedCliqueId)
-                return <Link key={link.key} to={link.to} onClick={() => handlePrimaryClick(link)} aria-current={selected ? 'page' : undefined} title={link.description} className={`inline-flex min-w-0 items-center justify-center gap-2 rounded-full px-3 py-2.5 text-xs font-black transition sm:flex-1 xl:flex-none ${selected ? 'bg-white text-neutral-950 shadow-lg shadow-white/5' : 'text-neutral-300 hover:bg-white/10 hover:text-white'}`}><AppIcon name={link.icon} size={15} /><span className="truncate">{link.label}</span></Link>
+                return (
+                  <Link key={link.key} to={link.to} onClick={() => handlePrimaryClick(link)} aria-current={selected ? 'page' : undefined} title={link.description} className={`inline-flex min-w-0 items-center justify-center gap-2 rounded-full px-3 py-2.5 text-xs font-black transition sm:flex-1 xl:flex-none ${selected ? 'bg-white text-neutral-950 shadow-lg shadow-white/5' : 'text-neutral-300 hover:bg-white/10 hover:text-white'}`}>
+                    <AppIcon name={link.icon} size={15} />
+                    <span className="truncate">{link.label}</span>
+                  </Link>
+                )
               })}
             </nav>
             <div className="relative hidden w-full lg:block xl:min-w-[320px]">
@@ -561,7 +504,10 @@ export default function PageNav({ active = 'library' }) {
             </div>
           </div>
           <div className="flex justify-end">
-            <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="inline-flex h-11 max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black"><AppIcon name="user" size={16} /><span className="hidden min-w-0 truncate sm:inline">{navProfileLabel}</span></button>
+            <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="inline-flex h-11 max-w-full items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-semibold text-white transition hover:bg-white hover:text-black">
+              <AppIcon name="user" size={16} />
+              <span className="hidden min-w-0 truncate sm:inline">{navProfileLabel}</span>
+            </button>
           </div>
         </div>
       </header>
@@ -572,7 +518,10 @@ export default function PageNav({ active = 'library' }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] border border-white/10 bg-neutral-950 p-4 shadow-2xl shadow-black/40 sm:p-6">
             <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0"><div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile settings</div><h2 className="mt-1 truncate text-2xl font-black text-white">{navProfileLabel}</h2></div>
+              <div className="min-w-0">
+                <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">Profile settings</div>
+                <h2 className="mt-1 truncate text-2xl font-black text-white">{navProfileLabel}</h2>
+              </div>
               <div className="flex shrink-0 items-center gap-2">
                 <button type="button" aria-label="Edit profile details" onClick={() => setProfileToolsOpen((value) => !value)} className={`flex h-11 w-11 items-center justify-center rounded-full border border-white/10 transition ${profileToolsOpen ? 'bg-white text-neutral-950' : 'bg-white/[0.04] text-white hover:bg-white hover:text-neutral-950'}`}><AppIcon name="settings" size={18} /></button>
                 <button type="button" aria-label="Close profile" onClick={closeProfileModal} className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 text-2xl text-neutral-400 transition hover:bg-white hover:text-neutral-950">×</button>
@@ -581,22 +530,48 @@ export default function PageNav({ active = 'library' }) {
 
             <section className="mt-5 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex min-w-0 items-center gap-4"><div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.2rem] border border-white/10 bg-white/[0.06] text-white"><AppIcon name="user" size={21} strokeWidth={1.8} /></div><div className="min-w-0"><div className="text-xs uppercase tracking-[0.25em] text-neutral-500">{accountStatus}</div><h3 className="mt-1 truncate text-2xl font-black text-white">{profileLabel}</h3><p className="mt-1 truncate text-sm text-neutral-400">{session?.user?.email || (hasSupabase ? 'Not signed in yet' : 'Stored on this device')}</p></div></div>
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.2rem] border border-white/10 bg-white/[0.06] text-white"><AppIcon name="user" size={21} strokeWidth={1.8} /></div>
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-[0.25em] text-neutral-500">{accountStatus}</div>
+                    <h3 className="mt-1 truncate text-2xl font-black text-white">{profileLabel}</h3>
+                    <p className="mt-1 truncate text-sm text-neutral-400">{session?.user?.email || (hasSupabase ? 'Not signed in yet' : 'Stored on this device')}</p>
+                  </div>
+                </div>
                 {session?.user ? <button type="button" disabled={loading} onClick={handleSignOut} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Sign out</button> : null}
               </div>
+
               {profileToolsOpen ? (
                 <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 lg:grid-cols-2">
-                  <form onSubmit={handleProfileNameSubmit} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4"><p className="text-xs uppercase tracking-[0.22em] text-neutral-500">Name</p><h4 className="mt-1 font-bold text-white">Display name</h4><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="mt-4 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" /><button disabled={loading} className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 disabled:opacity-60">{loading ? 'Saving...' : 'Save name'}</button></form>
-                  {session?.user ? <form onSubmit={handleEmailSubmit} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4"><p className="text-xs uppercase tracking-[0.22em] text-neutral-500">Email</p><h4 className="mt-1 font-bold text-white">Account email</h4><input type="email" value={emailDraft} onChange={(event) => setEmailDraft(event.target.value)} placeholder="name@example.com" className="mt-4 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" /><button disabled={loading} className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">{loading ? 'Sending...' : 'Change email'}</button></form> : null}
+                  <form onSubmit={handleProfileNameSubmit} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4">
+                    <p className="text-xs uppercase tracking-[0.22em] text-neutral-500">Name</p>
+                    <h4 className="mt-1 font-bold text-white">Display name</h4>
+                    <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="example: Sip" className="mt-4 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+                    <button disabled={loading} className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 disabled:opacity-60">{loading ? 'Saving...' : 'Save name'}</button>
+                  </form>
                 </div>
               ) : null}
+
               {hasSupabase && !session?.user ? (
-                <form onSubmit={handleAuth} className="mt-4 grid gap-3 border-t border-white/10 pt-4"><div className="flex rounded-2xl border border-white/10 bg-neutral-900 p-1"><button type="button" onClick={() => { setAuthMode('sign-in'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button><button type="button" onClick={() => { setAuthMode('sign-up'); setAuthNotice(null) }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button></div>{authNotice ? <p className="rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-3 text-sm text-yellow-100">{authNotice}</p> : null}{authMode === 'sign-up' ? <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Profile name" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" /> : null}<input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="Email" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" /><input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" /><button disabled={loading} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black disabled:opacity-60">{loading ? 'Working...' : authMode === 'sign-up' ? 'Create account' : 'Sign in'}</button></form>
+                <form onSubmit={handleAuth} className="mt-4 grid gap-3 border-t border-white/10 pt-4">
+                  <div className="flex rounded-2xl border border-white/10 bg-neutral-900 p-1">
+                    <button type="button" onClick={() => { setAuthMode('sign-in'); setAuthNotice('') }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-in' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Sign in</button>
+                    <button type="button" onClick={() => { setAuthMode('sign-up'); setAuthNotice('') }} className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold ${authMode === 'sign-up' ? 'bg-white text-neutral-950' : 'text-neutral-300'}`}>Create account</button>
+                  </div>
+                  {authNotice ? <p className="rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-3 text-sm text-yellow-100">{authNotice}</p> : null}
+                  {authMode === 'sign-up' ? <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Profile name" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" /> : null}
+                  <input type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} placeholder="Email" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                  <input type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} placeholder="Password" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
+                  <button disabled={loading} className="rounded-2xl bg-white px-5 py-3 font-semibold text-black disabled:opacity-60">{loading ? 'Working...' : authMode === 'sign-up' ? 'Create account' : 'Sign in'}</button>
+                </form>
               ) : null}
             </section>
 
             <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Friends list</p><h3 className="mt-1 text-xl font-black text-white">Your friends</h3></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{friends.length} friends</span></div>
+              <div className="flex items-center justify-between gap-3">
+                <div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Friends list</p><h3 className="mt-1 text-xl font-black text-white">Your friends</h3></div>
+                <span className="rounded-full border border-white/10 px-3 py-1 text-xs font-bold text-neutral-300">{friends.length} friends</span>
+              </div>
               <div className="mt-3 grid gap-2">
                 {!usingRemoteGroups ? <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm text-neutral-400">Sign in to manage your friends list.</p> : friends.length ? friends.map((friend) => <PersonRow key={friend.id} person={friend} onAdd={handleAddFriend} onRemove={handleRemoveFriend} onClose={closeProfileModal} />) : <p className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm leading-6 text-neutral-400">No friends yet. Search people below and add them to keep their libraries one tap away.</p>}
               </div>
@@ -611,11 +586,59 @@ export default function PageNav({ active = 'library' }) {
               </div>
             </section>
 
-            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Library settings</p><h3 className="mt-1 text-xl font-black text-white">Current space: {spaceLabel}</h3></div><span className="w-fit rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-neutral-300">{groups.length} cliques</span></div><div className="mt-4 grid gap-3 md:grid-cols-2"><Link to="/dashboard" onClick={() => { usePersonalLibrary(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${!activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}><div className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${!activeGroup ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}><AppIcon name="dashboard" size={17} /></span><div><div className="text-sm font-black">My Library</div><div className="text-xs opacity-60">Private picks only you can see</div></div></div></Link><Link to="/groups" onClick={() => { closeMenus(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}><div className="flex items-center gap-3"><span className={`flex h-10 w-10 items-center justify-center rounded-2xl ${activeGroup ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}><AppIcon name="users" size={17} /></span><div><div className="text-sm font-black">Cliques</div><div className="text-xs opacity-60">Shared spaces with invite links</div></div></div></Link></div></section>
+            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Library settings</p><h3 className="mt-1 text-xl font-black text-white">Current space: {spaceLabel}</h3></div>
+                <span className="w-fit rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-neutral-300">{groups.length} cliques</span>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <Link to="/dashboard" onClick={() => { usePersonalLibrary(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${!activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}>My Library</Link>
+                <Link to="/groups" onClick={() => { closeMenus(); closeProfileModal() }} className={`rounded-3xl border p-4 transition ${activeGroup ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white hover:bg-white/10'}`}>Cliques</Link>
+              </div>
+            </section>
 
-            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Your cliques</p><h3 className="mt-1 text-xl font-black text-white">Manage shared libraries</h3></div><Link to="/groups" onClick={closeProfileModal} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Open all</Link></div><input value={cliqueSearch} onChange={(event) => setCliqueSearch(event.target.value)} placeholder="Search your cliques..." className="mt-4 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />{visibleGroups.length ? <div className="mt-4 grid gap-2">{visibleGroups.map((group) => { const selected = activeGroup?.id === group.id; return <div key={group.id} className={`rounded-3xl border p-3 ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white'}`}><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="truncate font-black">{group.name}</div><div className="text-xs opacity-60">{group.members?.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private clique'}</div></div><div className="flex flex-wrap gap-2"><Link to={getGroupOpenPath(group)} onClick={() => { activateGroup(group); closeProfileModal() }} className={`rounded-xl px-3 py-2 text-xs font-semibold ${selected ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{selected ? 'Active' : 'Use'}</Link>{usingRemoteGroups ? <button type="button" onClick={() => togglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Hide' : 'Make public'}</button> : null}<button type="button" onClick={() => copyInvite(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">Invite</button></div></div></div> })}</div> : <p className="mt-4 rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm leading-6 text-neutral-400">No matching cliques.</p>}</section>
+            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Your cliques</p><h3 className="mt-1 text-xl font-black text-white">Manage shared libraries</h3></div>
+                <Link to="/groups" onClick={closeProfileModal} className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950">Open all</Link>
+              </div>
+              <input value={cliqueSearch} onChange={(event) => setCliqueSearch(event.target.value)} placeholder="Search your cliques..." className="mt-4 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+              {visibleGroups.length ? (
+                <div className="mt-4 grid gap-2">
+                  {visibleGroups.map((group) => {
+                    const selected = activeGroup?.id === group.id
+                    return (
+                      <div key={group.id} className={`rounded-3xl border p-3 ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-neutral-900 text-white'}`}>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0"><div className="truncate font-black">{group.name}</div><div className="text-xs opacity-60">{group.members?.length || 1} members · {group.isPublic ? 'Visible in Explore' : 'Private clique'}</div></div>
+                          <div className="flex flex-wrap gap-2">
+                            <Link to={getGroupOpenPath(group)} onClick={() => { activateGroup(group); closeProfileModal() }} className={`rounded-xl px-3 py-2 text-xs font-semibold ${selected ? 'bg-neutral-950 text-white' : 'bg-white text-neutral-950'}`}>{selected ? 'Active' : 'Use'}</Link>
+                            {usingRemoteGroups ? <button type="button" onClick={() => togglePublic(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">{group.isPublic ? 'Hide' : 'Make public'}</button> : null}
+                            <button type="button" onClick={() => copyInvite(group)} className="rounded-xl border border-current/20 px-3 py-2 text-xs font-semibold">Invite</button>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : <p className="mt-4 rounded-3xl border border-white/10 bg-neutral-900 p-4 text-sm leading-6 text-neutral-400">No matching cliques.</p>}
+            </section>
 
-            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4"><p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Clique tools</p><div className="mt-4 grid gap-4 md:grid-cols-2"><form onSubmit={handleCreateGroup} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4"><h4 className="font-black text-white">Create clique</h4><input value={groupDraft} onChange={(event) => setGroupDraft(event.target.value)} placeholder="Clique name" className="mt-3 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" /><button disabled={loading} className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 disabled:opacity-60">Create</button></form><form onSubmit={handleJoinGroup} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4"><h4 className="font-black text-white">Join clique</h4><input value={inviteDraft} onChange={(event) => setInviteDraft(event.target.value)} placeholder="Invite link or code" className="mt-3 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" /><button disabled={loading} className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Join</button></form></div></section>
+            <section className="mt-4 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-4">
+              <p className="text-xs uppercase tracking-[0.25em] text-neutral-500">Clique tools</p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <form onSubmit={handleCreateGroup} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4">
+                  <h4 className="font-black text-white">Create clique</h4>
+                  <input value={groupDraft} onChange={(event) => setGroupDraft(event.target.value)} placeholder="Clique name" className="mt-3 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+                  <button disabled={loading} className="mt-3 w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 disabled:opacity-60">Create</button>
+                </form>
+                <form onSubmit={handleJoinGroup} className="rounded-3xl border border-white/10 bg-neutral-900/70 p-4">
+                  <h4 className="font-black text-white">Join clique</h4>
+                  <input value={inviteDraft} onChange={(event) => setInviteDraft(event.target.value)} placeholder="Invite link or code" className="mt-3 w-full rounded-2xl border border-white/10 bg-neutral-950 px-4 py-3 text-white outline-none" />
+                  <button disabled={loading} className="mt-3 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white hover:text-neutral-950 disabled:opacity-60">Join</button>
+                </form>
+              </div>
+            </section>
           </div>
         </div>
       ) : null}

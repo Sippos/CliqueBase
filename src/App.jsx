@@ -1,18 +1,5 @@
-import { useEffect } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
-import Community from './pages/Community.jsx'
-import Home from './pages/Home.jsx'
-import Movies from './pages/Movies.jsx'
-import Series from './pages/Series.jsx'
-import Games from './pages/Games.jsx'
-import Videos from './pages/Videos.jsx'
-import Music from './pages/Music.jsx'
-import Groups from './pages/Groups.jsx'
-import CliqueDetail from './pages/CliqueDetail.jsx'
-import CliqueSettings from './pages/CliqueSettings.jsx'
-import Leaderboard from './pages/Leaderboard.jsx'
-import Share from './pages/Share.jsx'
-import MemberLibrary from './pages/MemberLibrary.jsx'
 import {
   ACTIVE_GROUP_STORAGE_KEY,
   PENDING_GROUP_INVITE_STORAGE_KEY,
@@ -21,6 +8,22 @@ import {
   setActiveGroup,
 } from './lib/groups.js'
 import { getCurrentSession, hasSupabase, joinRemoteGroup, onAuthStateChanged } from './lib/supabaseClient.js'
+
+const Community = lazy(() => import('./pages/Community.jsx'))
+const Home = lazy(() => import('./pages/Home.jsx'))
+const Movies = lazy(() => import('./pages/Movies.jsx'))
+const Series = lazy(() => import('./pages/Series.jsx'))
+const Games = lazy(() => import('./pages/Games.jsx'))
+const Videos = lazy(() => import('./pages/Videos.jsx'))
+const Music = lazy(() => import('./pages/Music.jsx'))
+const Books = lazy(() => import('./pages/Books.jsx'))
+const Groups = lazy(() => import('./pages/Groups.jsx'))
+const CliqueDetail = lazy(() => import('./pages/CliqueDetail.jsx'))
+const CliqueSettings = lazy(() => import('./pages/CliqueSettings.jsx'))
+const Leaderboard = lazy(() => import('./pages/Leaderboard.jsx'))
+const Share = lazy(() => import('./pages/Share.jsx'))
+const MemberLibrary = lazy(() => import('./pages/MemberLibrary.jsx'))
+const SwipeInbox = lazy(() => import('./pages/SwipeInbox.jsx'))
 
 function getAppPathname() {
   if (typeof window === 'undefined') return '/'
@@ -62,7 +65,7 @@ function syncPendingInviteFromUrl() {
   }
   const pendingInvite = getPendingInvite()
   if (!pendingInvite) return
-  const resumablePaths = ['/', '/community', '/explore', '/leaderboard', '/dashboard', '/library']
+  const resumablePaths = ['/', '/community', '/explore', '/leaderboard', '/dashboard', '/library', '/library/inbox']
   if (!resumablePaths.includes(pathname)) return
   const base = getAppBasePath()
   const nextPath = `${base}invite/${encodeURIComponent(pendingInvite)}${window.location.search || ''}${window.location.hash || ''}`
@@ -70,7 +73,7 @@ function syncPendingInviteFromUrl() {
 }
 
 function isPersonalLibraryPath(pathname) {
-  return ['/dashboard', '/library', '/library/movies', '/library/series', '/library/games', '/movies', '/series', '/games', '/videos', '/music'].includes(pathname)
+  return ['/dashboard', '/library', '/library/inbox', '/library/movies', '/library/series', '/library/games', '/movies', '/series', '/games', '/videos', '/music', '/books'].includes(pathname)
 }
 
 function syncCliqueScopeFromUrl() {
@@ -102,6 +105,10 @@ async function acceptPendingInvite(session = null) {
   return joined
 }
 
+function RouteFallback() {
+  return <main className="min-h-screen bg-neutral-950 px-4 py-6 text-white"><div className="mx-auto max-w-6xl rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 text-sm text-neutral-300">Loading CliqueBase…</div></main>
+}
+
 export default function App() {
   syncPendingInviteFromUrl()
   syncCliqueScopeFromUrl()
@@ -115,31 +122,36 @@ export default function App() {
   }, [])
 
   return (
-    <Routes>
-      <Route path="/" element={<Community />} />
-      <Route path="/community" element={<Community />} />
-      <Route path="/explore" element={<Leaderboard />} />
-      <Route path="/leaderboard" element={<Leaderboard />} />
-      <Route path="/dashboard" element={<Home scope="personal" />} />
-      <Route path="/library" element={<Home scope="personal" />} />
-      <Route path="/library/movies" element={<Movies />} />
-      <Route path="/library/series" element={<Series />} />
-      <Route path="/library/games" element={<Games />} />
-      <Route path="/movies" element={<Movies />} />
-      <Route path="/series" element={<Series />} />
-      <Route path="/games" element={<Games />} />
-      <Route path="/videos" element={<Videos />} />
-      <Route path="/music" element={<Music />} />
-      <Route path="/share/:type/:id" element={<Share />} />
-      <Route path="/members/:memberId" element={<MemberLibrary />} />
-      <Route path="/users/:memberId" element={<MemberLibrary />} />
-      <Route path="/groups" element={<Groups />} />
-      <Route path="/cliques" element={<Groups />} />
-      <Route path="/g/:groupId" element={<CliqueDetail />} />
-      <Route path="/cliques/:groupId" element={<CliqueDetail />} />
-      <Route path="/g/:groupId/settings" element={<CliqueSettings />} />
-      <Route path="/cliques/:groupId/settings" element={<CliqueSettings />} />
-      <Route path="/invite/:code" element={<Groups inviteMode />} />
-    </Routes>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/" element={<Community />} />
+        <Route path="/community" element={<Community />} />
+        <Route path="/explore" element={<Leaderboard />} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/dashboard" element={<Home scope="personal" />} />
+        <Route path="/library" element={<Home scope="personal" />} />
+        <Route path="/library/inbox" element={<SwipeInbox />} />
+        <Route path="/library/swipe" element={<SwipeInbox />} />
+        <Route path="/library/movies" element={<Movies />} />
+        <Route path="/library/series" element={<Series />} />
+        <Route path="/library/games" element={<Games />} />
+        <Route path="/movies" element={<Movies />} />
+        <Route path="/series" element={<Series />} />
+        <Route path="/games" element={<Games />} />
+        <Route path="/videos" element={<Videos />} />
+        <Route path="/music" element={<Music />} />
+        <Route path="/books" element={<Books />} />
+        <Route path="/share/:type/:id" element={<Share />} />
+        <Route path="/members/:memberId" element={<MemberLibrary />} />
+        <Route path="/users/:memberId" element={<MemberLibrary />} />
+        <Route path="/groups" element={<Groups />} />
+        <Route path="/cliques" element={<Groups />} />
+        <Route path="/g/:groupId" element={<CliqueDetail />} />
+        <Route path="/cliques/:groupId" element={<Home />} />
+        <Route path="/g/:groupId/settings" element={<CliqueSettings />} />
+        <Route path="/cliques/:groupId/settings" element={<CliqueSettings />} />
+        <Route path="/invite/:code" element={<Groups inviteMode />} />
+      </Routes>
+    </Suspense>
   )
 }

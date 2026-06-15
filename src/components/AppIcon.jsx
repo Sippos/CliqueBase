@@ -55,6 +55,14 @@ const icons = {
       <circle cx="18" cy="16" r="3" />
     </>
   ),
+  books: (
+    <>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15Z" />
+      <path d="M8 6h8" />
+      <path d="M8 10h6" />
+    </>
+  ),
   explore: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -70,13 +78,21 @@ const icons = {
   settings: (
     <>
       <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.38 1.08V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.08-.38H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 a1.65 1.65 0 0 0 .38-1.08V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 18.72 6l-.06.06A1.65 1.65 0 0 0 19.4 9c.24.37.6.65 1 .77.2.06.41.09.6.09H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 a1.65 1.65 0 0 0-.38 1.08V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.08-.38H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 a1.65 1.65 0 0 0 .38-1.08V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 1 1 18.72 6l-.06.06A1.65 1.65 0 0 0 19.4 9c.24.37.6.65 1 .77.2.06.41.09.6.09H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z" />
     </>
   ),
   bell: (
     <>
       <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </>
+  ),
+  refresh: (
+    <>
+      <path d="M21 12a9 9 0 0 1-15.5 6.2" />
+      <path d="M3 12A9 9 0 0 1 18.5 5.8" />
+      <path d="M18 2v4h4" />
+      <path d="M6 22v-4H2" />
     </>
   ),
   chevronDown: <path d="m6 9 6 6 6-6" />,
@@ -123,19 +139,7 @@ const icons = {
 export default function AppIcon({ name, size = 20, className = '', strokeWidth = 2 }) {
   const safeSize = Math.min(Number(size) || 20, 48)
   return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      width={safeSize}
-      height={safeSize}
-      style={{ width: safeSize, height: safeSize, maxWidth: safeSize, maxHeight: safeSize }}
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={strokeWidth}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg aria-hidden="true" viewBox="0 0 24 24" width={safeSize} height={safeSize} style={{ width: safeSize, height: safeSize, maxWidth: safeSize, maxHeight: safeSize }} className={className} fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       {icons[name] || icons.dashboard}
     </svg>
   )

@@ -9,6 +9,11 @@ function clean(value) {
   return String(value || '').trim()
 }
 
+function isMissingRpc(error, functionName = '') {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase()
+  return error?.code === 'PGRST202' || (functionName && message.includes(functionName.toLowerCase())) || message.includes('schema cache')
+}
+
 export async function reportContent({ actorId = null, groupId = null, itemType = 'other', itemId = '', reason = 'other', details = '' } = {}) {
   const client = requireConfiguredSupabase()
   const { data, error } = await client.rpc('report_content', {
@@ -42,7 +47,10 @@ export async function unblockUser(userId) {
 export async function getBlockedUsers() {
   const client = requireConfiguredSupabase()
   const { data, error } = await client.rpc('get_blocked_users')
-  if (error) throw error
+  if (error) {
+    if (isMissingRpc(error, 'get_blocked_users')) return []
+    throw error
+  }
   return (data || []).map((member) => ({
     id: member.user_id,
     displayName: member.display_name || 'CliqueBase member',
@@ -59,7 +67,10 @@ export async function getGroupReports(groupId, includeReviewed = false) {
     group_id_input: groupId,
     include_reviewed_input: includeReviewed,
   })
-  if (error) throw error
+  if (error) {
+    if (isMissingRpc(error, 'get_group_reports')) return []
+    throw error
+  }
   return (data || []).map((report) => ({
     id: report.id,
     reporterId: report.reporter_id,

@@ -1,188 +1,363 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PageShell from '../components/PageShell.jsx'
-import { DetailPill, InfoModal, PageHero, StatusMessage } from '../components/MediaBlocks.jsx'
+import { DetailPill, InfoModal, StatusMessage } from '../components/MediaBlocks.jsx'
 import { getSavedHandle } from '../lib/handle.js'
 import { getActiveGroup } from '../lib/groups.js'
+import { deleteMusicItem, getMusicItems, saveMusicItem, searchMusicCatalog, updateMusicSaved } from '../lib/musicLibrary.js'
 
-function detectSource(url) {
-  const value = String(url || '').toLowerCase()
-  if (value.includes('spotify.com')) return 'Spotify'
-  if (value.includes('music.apple.com')) return 'Apple Music'
-  if (value.includes('youtube.com') || value.includes('youtu.be')) return 'YouTube'
-  if (value.includes('soundcloud.com')) return 'SoundCloud'
-  return 'Music link'
+const sourceHints = ['Spotify track link', 'Song search', 'YouTube music video', 'Apple Music result']
+
+function trackMeta(track) {
+  return [track.artist, track.album].filter(Boolean).join(' · ') || track.source || 'Music link'
 }
 
-function getYoutubeId(url) {
-  try {
-    const parsed = new URL(url)
-    if (parsed.hostname.includes('youtu.be')) return parsed.pathname.replace('/', '')
-    return parsed.searchParams.get('v') || ''
-  } catch {
-    return ''
-  }
+function TrackCover({ track, className = 'h-20 w-20', rounded = 'rounded-2xl' }) {
+  return track?.poster ? (
+    <img src={track.poster} alt="" loading="lazy" decoding="async" className={`${className} ${rounded} shrink-0 object-cover shadow-xl shadow-black/30 ring-1 ring-white/10`} />
+  ) : (
+    <div className={`${className} ${rounded} flex shrink-0 items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-3xl shadow-xl shadow-black/30 ring-1 ring-white/10`}>♪</div>
+  )
 }
 
-function makeTitleFromUrl(url) {
-  try {
-    const parsed = new URL(url)
-    return parsed.hostname.replace(/^www\./, '')
-  } catch {
-    return 'Shared song'
-  }
-}
-
-function makeTrack(draft, handle, group) {
-  const cleanUrl = draft.url.trim()
-  const source = detectSource(cleanUrl)
-  const youtubeId = source === 'YouTube' ? getYoutubeId(cleanUrl) : ''
-
-  return {
-    id: `music-${Date.now()}`,
-    title: draft.title.trim() || makeTitleFromUrl(cleanUrl),
-    url: cleanUrl,
-    source,
-    nominated_by: handle || 'Someone',
-    groupName: group?.name || '',
-    poster: youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : '',
-    createdAt: new Date().toISOString(),
-    saved: false,
-  }
-}
-
-function TrackCard({ track, onSave, onRemove, onInfo }) {
+function SourceBadge({ track }) {
   return (
-    <article className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 transition hover:-translate-y-0.5 hover:bg-white/[0.05]">
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <button type="button" onClick={() => onInfo(track)} className="flex h-24 w-full shrink-0 items-center justify-center overflow-hidden rounded-3xl bg-neutral-900 sm:w-36">
-          {track.poster ? <img src={track.poster} alt="" className="h-full w-full object-cover" /> : <span className="text-4xl">🎵</span>}
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-300">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+      {track.source || 'Music'}
+    </span>
+  )
+}
+
+function Composer({ draft, searching, onSubmit, onChange, onClear }) {
+  return (
+    <form onSubmit={onSubmit} className="rounded-[2rem] border border-emerald-200/15 bg-gradient-to-br from-emerald-400/12 via-white/[0.055] to-cyan-500/10 p-3 shadow-2xl shadow-emerald-950/20 ring-1 ring-white/10 sm:p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <div className="min-w-0 flex-1">
+          <label className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-100/70">Paste or search music</label>
+          <input value={draft.url} onChange={(event) => onChange('url', event.target.value)} placeholder="Spotify, YouTube, Apple Music, SoundCloud…" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500 focus:border-emerald-200/40" />
+        </div>
+        <div className="min-w-0 lg:w-72">
+          <label className="text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500">Song / artist search</label>
+          <input value={draft.title} onChange={(event) => onChange('title', event.target.value)} placeholder="Daft Punk One More Time" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-neutral-500 focus:border-white/30" />
+        </div>
+        <div className="flex gap-2">
+          <button disabled={searching} className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-neutral-950 shadow-lg shadow-white/10 transition hover:bg-neutral-200 disabled:opacity-50">{searching ? 'Searching…' : 'Search'}</button>
+          <button type="button" onClick={onClear} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Clear</button>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {sourceHints.map((hint) => <span key={hint} className="rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-[11px] font-semibold text-neutral-400">{hint}</span>)}
+      </div>
+    </form>
+  )
+}
+
+function SearchResults({ results, savingId, onAdd, onInfo, onClear }) {
+  if (!results.length) return null
+  return (
+    <section className="rounded-[2rem] border border-emerald-200/15 bg-emerald-300/[0.045] p-4 shadow-2xl shadow-black/20">
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">Search results</p>
+          <h2 className="mt-1 text-2xl font-black text-white">Choose what to save</h2>
+        </div>
+        <button type="button" onClick={onClear} className="rounded-2xl border border-white/10 px-3 py-2 text-xs font-bold text-neutral-300 hover:bg-white hover:text-neutral-950">Close</button>
+      </div>
+      <div className="grid gap-2">
+        {results.map((track) => (
+          <article key={`${track.source}-${track.sourceId || track.id}-${track.title}`} className="flex items-center gap-3 rounded-[1.35rem] border border-white/10 bg-neutral-950/70 p-3">
+            <button type="button" onClick={() => onInfo(track)} className="shrink-0"><TrackCover track={track} className="h-16 w-16" /></button>
+            <div className="min-w-0 flex-1">
+              <button type="button" onClick={() => onInfo(track)} className="block max-w-full truncate text-left font-black text-white hover:underline">{track.title}</button>
+              <p className="mt-1 truncate text-xs text-neutral-400">{trackMeta(track)}</p>
+              <p className="mt-0.5 truncate text-[11px] text-neutral-600">{track.source} · {track.itemType}</p>
+            </div>
+            {track.previewUrl ? <a href={track.previewUrl} target="_blank" rel="noreferrer" className="hidden rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-neutral-300 hover:bg-white hover:text-neutral-950 sm:inline-flex">Preview</a> : null}
+            <button type="button" onClick={() => onAdd(track)} disabled={savingId === track.id} className="rounded-xl bg-white px-3 py-2 text-xs font-black text-neutral-950 hover:bg-neutral-200 disabled:opacity-50">{savingId === track.id ? 'Adding…' : 'Add'}</button>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function FeaturedTrack({ track, onInfo, onSave, onRemove }) {
+  if (!track) {
+    return (
+      <section className="rounded-[2rem] border border-dashed border-white/15 bg-white/[0.025] p-6 text-center shadow-2xl shadow-black/20">
+        <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-[2rem] bg-neutral-900 text-5xl text-neutral-500">♪</div>
+        <h2 className="mt-4 text-2xl font-black text-white">No music yet</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-neutral-400">Search a song or paste a Spotify link above, then choose one of the results to save it into this library.</p>
+      </section>
+    )
+  }
+
+  return (
+    <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-white/[0.09] via-emerald-400/10 to-cyan-500/10 p-4 shadow-2xl shadow-black/30 ring-1 ring-white/10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <button type="button" onClick={() => onInfo(track)} className="shrink-0 overflow-hidden rounded-[1.6rem] text-left">
+          <TrackCover track={track} className="aspect-square w-full sm:h-44 sm:w-44" rounded="rounded-[1.6rem]" />
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap gap-2">
-            <DetailPill>{track.source}</DetailPill>
+            <SourceBadge track={track} />
             {track.groupName ? <DetailPill>{track.groupName}</DetailPill> : null}
             {track.saved ? <DetailPill>Saved</DetailPill> : null}
           </div>
-          <button type="button" onClick={() => onInfo(track)} className="mt-3 block w-full truncate text-left text-2xl font-black text-white hover:underline">{track.title}</button>
-          <p className="mt-1 text-sm text-neutral-400">Added by {track.nominated_by}</p>
-          <p className="mt-2 truncate text-sm text-neutral-600">{track.url}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <a href={track.url} target="_blank" rel="noreferrer" className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Open link</a>
-            <button type="button" onClick={() => onSave(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white hover:text-neutral-950">{track.saved ? 'Unsave' : 'Save'}</button>
-            <button type="button" onClick={() => onRemove(track)} className="rounded-2xl border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500 hover:text-white">Delete</button>
+          <p className="mt-4 text-xs font-black uppercase tracking-[0.26em] text-neutral-500">Latest drop</p>
+          <button type="button" onClick={() => onInfo(track)} className="mt-1 block max-w-full truncate text-left text-3xl font-black tracking-tight text-white hover:underline sm:text-4xl">{track.title}</button>
+          <p className="mt-2 truncate text-sm text-neutral-300">{trackMeta(track)}</p>
+          <p className="mt-1 text-xs text-neutral-500">Added by {track.nominated_by}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {track.url ? <a href={track.url} target="_blank" rel="noreferrer" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950 hover:bg-neutral-200">Open</a> : null}
+            {track.previewUrl ? <a href={track.previewUrl} target="_blank" rel="noreferrer" className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-white hover:bg-white hover:text-neutral-950">Preview</a> : null}
+            <button type="button" onClick={() => onSave(track)} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-200 hover:bg-white hover:text-neutral-950">{track.saved ? 'Unsave' : 'Save'}</button>
+            <button type="button" onClick={() => onRemove(track)} className="rounded-2xl border border-red-500/30 px-4 py-2 text-sm font-black text-red-200 hover:bg-red-500 hover:text-white">Delete</button>
           </div>
         </div>
       </div>
+    </section>
+  )
+}
+
+function TrackRow({ track, onInfo, onSave, onRemove }) {
+  return (
+    <article className="group rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-3 transition hover:border-emerald-100/25 hover:bg-white/[0.06]">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => onInfo(track)} className="shrink-0 overflow-hidden rounded-2xl text-left">
+          <TrackCover track={track} className="h-16 w-16" />
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => onInfo(track)} className="block max-w-full truncate text-left font-black text-white hover:underline">{track.title}</button>
+            {track.saved ? <span className="shrink-0 rounded-full bg-emerald-300 px-2 py-0.5 text-[10px] font-black text-neutral-950">Saved</span> : null}
+          </div>
+          <p className="mt-1 truncate text-xs text-neutral-400">{trackMeta(track)}</p>
+          <p className="mt-0.5 truncate text-[11px] text-neutral-600">{track.source} · Added by {track.nominated_by}</p>
+        </div>
+        <div className="hidden shrink-0 flex-wrap justify-end gap-2 sm:flex">
+          {track.url ? <a href={track.url} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-neutral-300 hover:bg-white hover:text-neutral-950">Open</a> : null}
+          <button type="button" onClick={() => onSave(track)} className="rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-neutral-300 hover:bg-white hover:text-neutral-950">{track.saved ? 'Unsave' : 'Save'}</button>
+          <button type="button" onClick={() => onRemove(track)} className="rounded-xl border border-red-400/20 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500 hover:text-white">Delete</button>
+        </div>
+      </div>
+      <div className="mt-3 flex gap-2 sm:hidden">
+        {track.url ? <a href={track.url} target="_blank" rel="noreferrer" className="flex-1 rounded-xl border border-white/10 px-3 py-2 text-center text-xs font-bold text-neutral-300">Open</a> : null}
+        <button type="button" onClick={() => onSave(track)} className="flex-1 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-neutral-300">{track.saved ? 'Unsave' : 'Save'}</button>
+        <button type="button" onClick={() => onRemove(track)} className="flex-1 rounded-xl border border-red-400/20 px-3 py-2 text-xs font-bold text-red-200">Delete</button>
+      </div>
     </article>
+  )
+}
+
+function SavedShelf({ tracks, onInfo }) {
+  return (
+    <aside className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Saved</p>
+          <h2 className="mt-1 text-2xl font-black text-white">Favorites</h2>
+        </div>
+        <span className="text-xs text-neutral-500">{tracks.length}</span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-1">
+        {tracks.length ? tracks.slice(0, 8).map((track) => (
+          <button key={track.id} type="button" onClick={() => onInfo(track)} className="min-w-0 rounded-2xl bg-neutral-900/80 p-2 text-left transition hover:bg-neutral-800">
+            <TrackCover track={track} className="aspect-square w-full lg:h-14 lg:w-14" rounded="rounded-xl" />
+            <div className="mt-2 min-w-0 lg:mt-0 lg:inline-block lg:w-[calc(100%-4.3rem)] lg:pl-3 lg:align-top">
+              <div className="truncate text-sm font-black text-white">{track.title}</div>
+              <div className="truncate text-xs text-neutral-500">{track.artist || track.source}</div>
+            </div>
+          </button>
+        )) : <p className="col-span-full rounded-2xl border border-dashed border-white/15 p-4 text-sm leading-6 text-neutral-500">Save tracks from the feed to build a quick shelf.</p>}
+      </div>
+    </aside>
+  )
+}
+
+function StorageStatus({ activeGroup, storageMode }) {
+  return (
+    <section className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-neutral-300">
+      <strong className="text-white">{activeGroup ? activeGroup.name : 'Personal music library'}</strong>
+      <span className="text-neutral-500"> · </span>
+      Storage: <strong className="text-white">{storageMode === 'remote' ? 'Supabase' : 'local fallback'}</strong>
+      {storageMode === 'local' ? <span className="text-neutral-500">. Run the music SQL migration/sign in for synced music.</span> : null}
+    </section>
   )
 }
 
 export default function Music() {
   const [tracks, setTracks] = useState([])
   const [draft, setDraft] = useState({ url: '', title: '' })
+  const [results, setResults] = useState([])
   const [message, setMessage] = useState(null)
   const [infoTrack, setInfoTrack] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [searching, setSearching] = useState(false)
+  const [savingId, setSavingId] = useState('')
+  const [storageMode, setStorageMode] = useState('local')
   const activeHandle = getSavedHandle()
   const activeGroup = getActiveGroup()
 
   const savedTracks = useMemo(() => tracks.filter((track) => track.saved), [tracks])
   const feedTracks = useMemo(() => tracks.slice().sort((a, b) => Number(b.saved) - Number(a.saved) || String(b.createdAt).localeCompare(String(a.createdAt))), [tracks])
+  const featuredTrack = feedTracks[0] || null
+  const listTracks = featuredTrack ? feedTracks.filter((track) => track.id !== featuredTrack.id) : feedTracks
 
   function showMessage(text, type = 'success') {
     setMessage({ text, type })
-    setTimeout(() => setMessage(null), 2200)
+    setTimeout(() => setMessage(null), 2600)
   }
 
   function updateDraft(field, value) {
     setDraft((current) => ({ ...current, [field]: value }))
   }
 
-  function addTrack(event) {
+  function clearSearch() {
+    setDraft({ url: '', title: '' })
+    setResults([])
+  }
+
+  async function refreshMusic() {
+    setLoading(true)
+    try {
+      const result = await getMusicItems(activeGroup?.id || null)
+      setTracks(result.tracks)
+      setStorageMode(result.source)
+    } catch (error) {
+      showMessage(error.message || 'Could not load music.', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => { refreshMusic() }, [activeGroup?.id])
+
+  async function handleSearch(event) {
     event.preventDefault()
-    if (!draft.url.trim()) {
-      showMessage('Paste a song link first.', 'error')
+    if (!draft.url.trim() && !draft.title.trim()) {
+      showMessage('Paste a music link or search for a song first.', 'error')
       return
     }
 
-    const next = makeTrack(draft, activeHandle, activeGroup)
-    setTracks((current) => [next, ...current])
-    setDraft({ url: '', title: '' })
-    showMessage(`"${next.title}" added to the music feed.`)
+    setSearching(true)
+    try {
+      const found = await searchMusicCatalog(draft)
+      setResults(found)
+      if (!found.length) showMessage('No music results found.', 'error')
+    } catch (error) {
+      showMessage(error.message || 'Music search failed.', 'error')
+    } finally {
+      setSearching(false)
+    }
   }
 
-  function toggleSaved(track) {
-    setTracks((current) => current.map((item) => item.id === track.id ? { ...item, saved: !item.saved } : item))
-    showMessage(track.saved ? `"${track.title}" removed from saved songs.` : `"${track.title}" saved.`)
+  async function addTrack(track) {
+    setSavingId(track.id)
+    try {
+      const result = await saveMusicItem(track, { group: activeGroup, nominatedBy: activeHandle, saved: false })
+      setTracks((current) => [result.track, ...current.filter((item) => item.id !== result.track.id)])
+      setStorageMode(result.source)
+      setResults((current) => current.filter((item) => item.id !== track.id))
+      const metadataLabel = result.track.metadataReady ? ' with cover art' : ''
+      showMessage(`"${result.track.title}" added${metadataLabel}.`)
+    } catch (error) {
+      showMessage(error.message || 'Could not add that song.', 'error')
+    } finally {
+      setSavingId('')
+    }
   }
 
-  function removeTrack(track) {
-    setTracks((current) => current.filter((item) => item.id !== track.id))
-    if (infoTrack?.id === track.id) setInfoTrack(null)
-    showMessage(`"${track.title}" deleted.`)
+  async function toggleSaved(track) {
+    try {
+      const result = await updateMusicSaved(track, !track.saved)
+      setStorageMode(result.source)
+      setTracks((current) => current.map((item) => item.id === track.id ? result.track : item))
+      if (infoTrack?.id === track.id) setInfoTrack(result.track)
+      showMessage(track.saved ? `"${track.title}" removed from saved songs.` : `"${track.title}" saved.`)
+    } catch (error) {
+      showMessage(error.message || 'Could not update saved state.', 'error')
+    }
+  }
+
+  async function removeTrack(track) {
+    try {
+      const result = await deleteMusicItem(track)
+      setStorageMode(result.source)
+      setTracks((current) => current.filter((item) => item.id !== track.id))
+      if (infoTrack?.id === track.id) setInfoTrack(null)
+      showMessage(`"${track.title}" deleted.`)
+    } catch (error) {
+      showMessage(error.message || 'Could not delete song.', 'error')
+    }
   }
 
   return (
     <PageShell active="music">
-      <PageHero
-        eyebrow="Music feed"
-        title="Drop a song link"
-        description="Paste a Spotify, YouTube, SoundCloud, Apple Music, or any song link. Keep the feed simple for now; save favorites as they stand out."
-      >
-        <form onSubmit={addTrack} className="mt-5 rounded-3xl border border-white/10 bg-neutral-950/80 p-3">
-          <div className="grid gap-2 md:grid-cols-[1fr_0.7fr_auto]">
-            <input value={draft.url} onChange={(event) => updateDraft('url', event.target.value)} placeholder="Paste song link..." className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-            <input value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} placeholder="Title optional" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none" />
-            <button className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 hover:bg-neutral-200">Add song</button>
+      <section className="mb-5 overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-neutral-900 via-neutral-950 to-emerald-950/50 p-4 shadow-2xl shadow-black/30 ring-1 ring-white/10 sm:p-5">
+        <div className="grid gap-5 lg:grid-cols-[1fr_20rem] lg:items-end">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-[0.3em] text-emerald-200/70">Music room</p>
+            <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-tight text-white sm:text-5xl">Search tracks and add them to your library or clique.</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-400 sm:text-base">Search by song title, paste a Spotify link, or drop a YouTube music URL. Results show as selectable music cards first; nothing is saved until you press Add.</p>
           </div>
-        </form>
-      </PageHero>
+          <StorageStatus activeGroup={activeGroup} storageMode={storageMode} />
+        </div>
+        <div className="mt-5"><Composer draft={draft} searching={searching} onSubmit={handleSearch} onChange={updateDraft} onClear={clearSearch} /></div>
+      </section>
 
       <StatusMessage message={message} />
 
-      {activeGroup ? (
-        <section className="mb-5 rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 text-sm text-neutral-300">
-          Active group: <strong className="text-white">{activeGroup.name}</strong>. Music is currently stored locally until the music backend is added.
-        </section>
-      ) : null}
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <main className="min-w-0 space-y-4">
+          <SearchResults results={results} savingId={savingId} onAdd={addTrack} onInfo={setInfoTrack} onClear={() => setResults([])} />
+          {loading ? <p className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-6 text-neutral-400">Loading music…</p> : <FeaturedTrack track={featuredTrack} onInfo={setInfoTrack} onSave={toggleSaved} onRemove={removeTrack} />}
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_0.7fr]">
-        <div className="space-y-4">
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Feed</p>
-              <h2 className="mt-1 text-3xl font-black text-white">Song links</h2>
+          <section className="rounded-[2rem] border border-white/10 bg-white/[0.025] p-4 shadow-2xl shadow-black/20">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Library</p>
+                <h2 className="mt-1 text-2xl font-black text-white">Added music</h2>
+              </div>
+              <span className="text-sm text-neutral-500">{tracks.length} item{tracks.length === 1 ? '' : 's'}</span>
             </div>
-            <span className="text-sm text-neutral-500">{tracks.length} link{tracks.length === 1 ? '' : 's'}</span>
-          </div>
-          {feedTracks.length ? feedTracks.map((track) => <TrackCard key={track.id} track={track} onInfo={setInfoTrack} onSave={toggleSaved} onRemove={removeTrack} />) : <p className="rounded-[2rem] border border-dashed border-white/15 p-8 text-center text-neutral-500">No song links yet. Paste the first one above.</p>}
-        </div>
+            <div className="mt-4 grid gap-2">
+              {loading ? null : listTracks.length ? listTracks.map((track) => <TrackRow key={track.id} track={track} onInfo={setInfoTrack} onSave={toggleSaved} onRemove={removeTrack} />) : featuredTrack ? <p className="rounded-2xl border border-dashed border-white/15 p-5 text-sm text-neutral-500">Add another song to build the queue.</p> : <p className="rounded-2xl border border-dashed border-white/15 p-5 text-sm text-neutral-500">No saved music yet. Search above, then press Add on a result.</p>}
+            </div>
+          </section>
+        </main>
 
-        <aside className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">Saved</p>
-          <h2 className="mt-1 text-3xl font-black text-white">Favorites</h2>
-          <div className="mt-4 space-y-3">
-            {savedTracks.length ? savedTracks.map((track) => (
-              <button key={track.id} type="button" onClick={() => setInfoTrack(track)} className="flex w-full items-center gap-3 rounded-2xl bg-neutral-900 p-3 text-left transition hover:bg-neutral-800">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-lg text-neutral-950">🎵</div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-semibold text-white">{track.title}</div>
-                  <div className="truncate text-xs text-neutral-500">{track.source}</div>
-                </div>
-              </button>
-            )) : <p className="rounded-2xl border border-dashed border-white/15 p-4 text-sm text-neutral-500">Save links from the feed to keep favorites here.</p>}
-          </div>
-        </aside>
+        <div className="grid gap-4 lg:sticky lg:top-28">
+          <SavedShelf tracks={savedTracks} onInfo={setInfoTrack} />
+          <section className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-4 text-sm leading-6 text-neutral-400">
+            <p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-500">Connected</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {['Clique library', 'Public music search', 'Spotify covers', 'YouTube thumbnail'].map((item) => <span key={item} className="rounded-full border border-white/10 bg-neutral-900 px-3 py-1.5 text-xs font-bold text-neutral-300">{item}</span>)}
+            </div>
+          </section>
+        </div>
       </section>
 
       <InfoModal item={infoTrack} onClose={() => setInfoTrack(null)}>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {infoTrack?.source ? <DetailPill>{infoTrack.source}</DetailPill> : null}
-          {infoTrack?.saved ? <DetailPill>Saved</DetailPill> : null}
-          {infoTrack?.nominated_by ? <DetailPill>Added by {infoTrack.nominated_by}</DetailPill> : null}
+        <div className="mt-4 grid gap-5 md:grid-cols-[15rem_1fr] md:items-start">
+          <TrackCover track={infoTrack} className="aspect-square w-full" rounded="rounded-[2rem]" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap gap-2">
+              {infoTrack?.source ? <DetailPill>{infoTrack.source}</DetailPill> : null}
+              {infoTrack?.itemType ? <DetailPill>{infoTrack.itemType}</DetailPill> : null}
+              {infoTrack?.saved ? <DetailPill>Saved</DetailPill> : null}
+              {infoTrack?.nominated_by ? <DetailPill>Added by {infoTrack.nominated_by}</DetailPill> : null}
+            </div>
+            {infoTrack?.artist || infoTrack?.album ? <p className="mt-4 text-sm text-neutral-300">{[infoTrack.artist, infoTrack.album].filter(Boolean).join(' · ')}</p> : null}
+            <p className="mt-5 break-words text-sm leading-7 text-neutral-400">{infoTrack?.url || 'No link available.'}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {infoTrack?.url ? <a href={infoTrack.url} target="_blank" rel="noreferrer" className="inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-black text-neutral-950 hover:bg-neutral-200">Open song</a> : null}
+              {infoTrack?.previewUrl ? <a href={infoTrack.previewUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white hover:bg-white hover:text-neutral-950">Play preview</a> : null}
+              {infoTrack && results.some((item) => item.id === infoTrack.id) ? <button type="button" onClick={() => addTrack(infoTrack)} className="inline-flex rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white hover:bg-white hover:text-neutral-950">Add</button> : null}
+              {infoTrack && !results.some((item) => item.id === infoTrack.id) ? <button type="button" onClick={() => toggleSaved(infoTrack)} className="inline-flex rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white hover:bg-white hover:text-neutral-950">{infoTrack.saved ? 'Unsave' : 'Save'}</button> : null}
+            </div>
+          </div>
         </div>
-        {infoTrack?.poster ? <img src={infoTrack.poster} alt="" className="mt-5 max-h-80 w-full rounded-3xl object-cover" /> : null}
-        <p className="mt-5 break-words text-sm leading-7 text-neutral-300">{infoTrack?.url || 'No link available.'}</p>
-        {infoTrack?.url ? <a href={infoTrack.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 hover:bg-neutral-200">Open song</a> : null}
       </InfoModal>
     </PageShell>
   )
