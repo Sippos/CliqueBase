@@ -345,7 +345,12 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
         </div>
       </div>
       <h3 className="mt-2 text-xl font-black leading-tight text-white">{activity.title}</h3>
-      {text ? <p className="mt-3 rounded-2xl bg-neutral-950/40 p-3.5 text-[0.95rem] leading-relaxed text-neutral-300">{text}</p> : null}
+      {image || text ? (
+        <div className={`mt-3 ${image && text ? 'flex items-start gap-4 rounded-2xl bg-neutral-950/40 p-3.5' : ''}`}>
+          {image ? <img src={image} alt="" className={`shrink-0 rounded-xl bg-neutral-900 object-cover shadow-md ${text ? 'w-16 sm:w-20 aspect-[2/3]' : 'w-full aspect-video'}`} /> : null}
+          {text ? <p className={`min-w-0 flex-1 text-[0.95rem] leading-relaxed text-neutral-300 ${!image ? 'rounded-2xl bg-neutral-950/40 p-3.5' : ''}`}>{text}</p> : null}
+        </div>
+      ) : null}
       <div className="mt-3.5 flex flex-wrap gap-2">
         {activity.itemType ? <span className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-400">{activity.itemType}</span> : null}
         {activity.payload?.priority ? <span className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-400">{activity.payload.priority}</span> : null}

@@ -156,6 +156,7 @@ export default function PageNav({ active = 'library' }) {
   const [authNotice, setAuthNotice] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [searchFocused, setSearchFocused] = useState(false)
 
   const activeKey = normalizeActiveKey(active)
   const queryParams = new URLSearchParams(location.search)
@@ -481,11 +482,11 @@ export default function PageNav({ active = 'library' }) {
 
   return (
     <>
-      <header className={`sticky top-3 z-40 mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 top-2 shadow-black/50' : 'py-3'}`}>
+      <header className={`mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 shadow-black/50' : 'py-3'}`}>
         <div className="grid gap-3 xl:grid-cols-[auto_1fr_auto] xl:items-center">
-          <Link to="/community" aria-label="CliqueBase Community" className="w-fit rounded-[1.4rem] px-2 py-1 transition hover:opacity-80" onClick={closeMenus}><LogoMark scrolled={scrolled} /></Link>
+          <Link to="/community" aria-label="CliqueBase Community" className={`w-fit rounded-[1.4rem] px-2 py-1 transition hover:opacity-80 ${searchFocused ? 'hidden lg:block' : ''}`} onClick={closeMenus}><LogoMark scrolled={scrolled} /></Link>
           <div className="flex min-w-0 flex-col items-stretch justify-center gap-2 lg:flex-row lg:items-center">
-            <nav aria-label="Primary navigation" className="grid min-w-0 grid-cols-2 gap-1 rounded-[1.6rem] border border-white/10 bg-white/[0.035] p-1 sm:flex sm:rounded-full">
+            <nav aria-label="Primary navigation" className={`grid min-w-0 grid-cols-2 gap-1 rounded-[1.6rem] border border-white/10 bg-white/[0.035] p-1 sm:rounded-full ${searchFocused ? 'hidden lg:hidden' : 'sm:flex lg:flex'}`}>
               {primaryLinks.map((link) => {
                 const selected = isPrimaryActive(link.key, activeKey, scopedCliqueId)
                 return (
@@ -496,10 +497,10 @@ export default function PageNav({ active = 'library' }) {
                 )
               })}
             </nav>
-            <div className="relative hidden w-full lg:block xl:min-w-[320px]">
+            <div className={`relative hidden w-full lg:block transition-all duration-300 ${searchFocused ? 'flex-1' : 'xl:w-[240px]'}`}>
               <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2.5 text-sm text-neutral-200 transition focus-within:border-white/30 focus-within:bg-white/[0.06]">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-neutral-500 shrink-0"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                <input type="text" placeholder="Search topics, books, youtube..." className="w-full bg-transparent outline-none placeholder:text-neutral-500 font-bold" />
+                <input type="text" placeholder="Search topics, books, youtube..." className="w-full bg-transparent outline-none placeholder:text-neutral-500 font-bold" onFocus={() => setSearchFocused(true)} onBlur={() => setSearchFocused(false)} />
               </div>
             </div>
           </div>
