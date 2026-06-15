@@ -354,11 +354,15 @@ export default function Home() {
             return <button key={category.title} type="button" onClick={() => jumpToSpotlight(category)} className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${active ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}><AppIcon name={category.icon} size={13} />{category.title}</button>
           })}
         </div>
-        <div ref={topScrollerRef} onScroll={handleTopScroll} className="mt-4 grid auto-cols-[minmax(14.5rem,74%)] grid-flow-col gap-3 overflow-x-auto pb-2 snap-x snap-mandatory lg:mt-5 lg:auto-cols-auto lg:grid-flow-row lg:grid-cols-3 lg:gap-4 lg:overflow-visible lg:pb-0">
+        <div ref={topScrollerRef} onScroll={handleTopScroll} className="mt-4 flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory lg:mt-5 lg:gap-4">
           {categories.map((category) => {
             const index = spotlightIndexes[category.title] || 0
             const item = category.items[index % Math.max(category.items.length, 1)] || category.top
-            return <CategorySpotlightCard key={category.title} category={category} index={index} loading={loading} isClique={isClique} saving={copyingKey === itemActionKey(item, 'copy-')} onCycle={cycleSpotlight} onOpenPile={openPile} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
+            return (
+              <div key={category.title} className="w-[min(85vw,22rem)] shrink-0 snap-center lg:w-[24rem]">
+                <CategorySpotlightCard category={category} index={index} loading={loading} isClique={isClique} saving={copyingKey === itemActionKey(item, 'copy-')} onCycle={cycleSpotlight} onOpenPile={openPile} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
+              </div>
+            )
           })}
         </div>
       </section>

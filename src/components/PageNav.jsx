@@ -93,7 +93,7 @@ function sessionName(session, profile, fallback = '') {
   return candidates.map(cleanName).find(Boolean) || ''
 }
 
-function LogoMark() {
+function LogoMark({ scrolled }) {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       <svg viewBox="0 0 64 64" fill="none" aria-hidden="true" className="h-9 w-9 shrink-0 text-white sm:h-10 sm:w-10">
@@ -105,7 +105,7 @@ function LogoMark() {
         <circle cx="45" cy="25" r="4" fill="currentColor" />
         <path d="M33 37l2.2 5.2L40 44l-4.8 1.8L33 51l-2.2-5.2L26 44l4.8-1.8L33 37Z" fill="currentColor" />
       </svg>
-      <span className="block text-xl font-black tracking-tight text-white sm:text-2xl">CliqueBase</span>
+      <span className={`block text-xl font-black tracking-tight text-white sm:text-2xl transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${scrolled ? 'max-w-0 opacity-0 overflow-hidden' : 'max-w-[200px] opacity-100'}`}>CliqueBase</span>
     </div>
   )
 }
@@ -133,6 +133,7 @@ function PersonRow({ person, onAdd, onRemove, onClose }) {
 
 export default function PageNav({ active = 'library' }) {
   const location = useLocation()
+  const [scrolled, setScrolled] = useState(false)
   const [handle, setHandle] = useState('')
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
@@ -282,7 +283,14 @@ export default function PageNav({ active = 'library' }) {
       if (!nextSession?.user) clearSessionUi()
       else refreshGroups()
     }) : () => {}
+
+    function handleScroll() {
+      setScrolled(window.scrollY > 30)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
     return () => {
+      window.removeEventListener('scroll', handleScroll)
       window.removeEventListener(GROUPS_CHANGED_EVENT, handleChange)
       unsubscribe()
     }
@@ -535,9 +543,9 @@ export default function PageNav({ active = 'library' }) {
 
   return (
     <>
-      <header className="sticky top-3 z-40 mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur sm:px-4">
+      <header className={`sticky top-3 z-40 mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 top-2 shadow-black/50' : 'py-3'}`}>
         <div className="grid gap-3 xl:grid-cols-[auto_1fr_auto] xl:items-center">
-          <Link to="/community" aria-label="CliqueBase Community" className="w-fit rounded-[1.4rem] px-2 py-1 transition hover:opacity-80" onClick={closeMenus}><LogoMark /></Link>
+          <Link to="/community" aria-label="CliqueBase Community" className="w-fit rounded-[1.4rem] px-2 py-1 transition hover:opacity-80" onClick={closeMenus}><LogoMark scrolled={scrolled} /></Link>
           <div className="flex min-w-0 flex-col items-stretch justify-center gap-2 lg:flex-row lg:items-center">
             <nav aria-label="Primary navigation" className="grid min-w-0 grid-cols-2 gap-1 rounded-[1.6rem] border border-white/10 bg-white/[0.035] p-1 sm:flex sm:rounded-full">
               {primaryLinks.map((link) => {
@@ -545,20 +553,11 @@ export default function PageNav({ active = 'library' }) {
                 return <Link key={link.key} to={link.to} onClick={() => handlePrimaryClick(link)} aria-current={selected ? 'page' : undefined} title={link.description} className={`inline-flex min-w-0 items-center justify-center gap-2 rounded-full px-3 py-2.5 text-xs font-black transition sm:flex-1 xl:flex-none ${selected ? 'bg-white text-neutral-950 shadow-lg shadow-white/5' : 'text-neutral-300 hover:bg-white/10 hover:text-white'}`}><AppIcon name={link.icon} size={15} /><span className="truncate">{link.label}</span></Link>
               })}
             </nav>
-            <div className="relative">
-              <button type="button" onClick={() => setMediaOpen((value) => !value)} className="flex w-full min-w-0 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.035] px-4 py-3 text-sm font-bold text-neutral-200 transition hover:bg-white/10 hover:text-white lg:w-auto">
-                <AppIcon name={activeMedia?.icon || allMediaOption.icon} size={17} /><span className="truncate">{activeMedia?.label || allMediaOption.label}</span><AppIcon name="chevronDown" size={15} className="text-neutral-500" />
-              </button>
-              {mediaOpen ? (
-                <div className="absolute left-1/2 top-full mt-3 w-[min(92vw,22rem)] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl shadow-black/50">
-                  <div className="grid gap-2">
-                    {[allMediaOption, ...mediaLinks].map((link) => {
-                      const selected = link.key === 'all' ? !activeMediaKey : activeMediaKey === link.key
-                      return <Link key={link.key} to={mediaHref(link.key)} onClick={closeMenus} className={`flex items-center gap-3 rounded-2xl px-4 py-3 transition ${selected ? 'bg-white font-bold text-neutral-950' : 'bg-white/[0.04] text-neutral-200 hover:bg-white/10 hover:text-white'}`}><AppIcon name={link.icon} size={17} /><span>{link.label}</span></Link>
-                    })}
-                  </div>
-                </div>
-              ) : null}
+            <div className="relative hidden w-full lg:block xl:min-w-[320px]">
+              <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.035] px-4 py-2.5 text-sm text-neutral-200 transition focus-within:border-white/30 focus-within:bg-white/[0.06]">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-neutral-500 shrink-0"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" placeholder="Search topics, books, youtube..." className="w-full bg-transparent outline-none placeholder:text-neutral-500 font-bold" />
+              </div>
             </div>
           </div>
           <div className="flex justify-end">
