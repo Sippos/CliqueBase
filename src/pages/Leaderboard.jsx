@@ -210,40 +210,45 @@ function FeaturedPickPile({ category, items, onInfo, onOpenLadder, onCopy, onSha
 }
 
 function CategoryScrollspy({ piles, onInfo, onOpenLadder, onCopy, onShare, saving }) {
+  const scrollerRef = useRef(null)
   const [activeCategory, setActiveCategory] = useState(piles[0]?.category || '')
 
-  useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      let maxRatio = 0
-      let maxCategory = null
-      entries.forEach(entry => {
-        if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
-          maxRatio = entry.intersectionRatio
-          maxCategory = entry.target.dataset.category
-        }
-      })
-      if (maxCategory) setActiveCategory(maxCategory)
-    }, { rootMargin: '-10% 0px -40% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] })
-
-    piles.forEach(pile => {
-      const el = document.getElementById(`category-section-${pile.category}`)
-      if (el) observer.observe(el)
-    })
-    return () => observer.disconnect()
-  }, [piles])
+  useEffect(() => { setActiveCategory(piles[0]?.category || '') }, [piles])
 
   function scrollToCategory(category) {
-    const el = document.getElementById(`category-section-${category}`)
-    if (el) {
-       const y = el.getBoundingClientRect().top + window.scrollY - 160
-       window.scrollTo({ top: y, behavior: 'smooth' })
+    const index = piles.findIndex((pile) => pile.category === category)
+    const node = scrollerRef.current?.children?.[index]
+    if (node) {
+      const container = scrollerRef.current
+      container.scrollTo({ left: node.offsetLeft - container.offsetLeft, behavior: 'smooth' })
     }
     setActiveCategory(category)
   }
 
+  function handleScroll(event) {
+    const container = event.currentTarget
+    const children = Array.from(container.children)
+    const center = container.scrollLeft + container.clientWidth / 2
+    
+    let closestIndex = 0
+    let minDistance = Infinity
+
+    children.forEach((child, index) => {
+      const childCenter = child.offsetLeft - container.offsetLeft + child.clientWidth / 2
+      const distance = Math.abs(childCenter - center)
+      if (distance < minDistance) {
+        minDistance = distance
+        closestIndex = index
+      }
+    })
+
+    const next = piles[closestIndex]?.category
+    if (next && next !== activeCategory) setActiveCategory(next)
+  }
+
   return (
     <div className="mb-6 sm:mb-8">
-      <div className="sticky top-[4.5rem] z-40 -mx-3 mb-6 flex gap-2 overflow-x-auto bg-neutral-950/85 px-3 py-3 backdrop-blur sm:-mx-4 sm:top-[5.2rem] sm:px-4 md:-mx-6 md:top-[6rem] md:px-6 lg:top-[6.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {piles.map((pile) => {
           const meta = getCategoryMeta(pile.category)
           const selected = activeCategory === pile.category
@@ -255,10 +260,10 @@ function CategoryScrollspy({ piles, onInfo, onOpenLadder, onCopy, onShare, savin
         })}
       </div>
       
-      <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+      <div ref={scrollerRef} onScroll={handleScroll} className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-1 pb-4 md:gap-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {piles.map((pile) => (
-          <div key={pile.category} id={`category-section-${pile.category}`} data-category={pile.category} className="scroll-mt-[9rem] sm:scroll-mt-[10rem] md:scroll-mt-[11rem] lg:scroll-mt-[12rem] flex flex-col">
-            <FeaturedPickPile category={pile.category} items={pile.items} onInfo={onInfo} onOpenLadder={onOpenLadder} onCopy={onCopy} onShare={onShare} saving={saving} showHeading={true} enableItemSwipe={false} />
+          <div key={pile.category} className="w-[min(85vw,22rem)] shrink-0 snap-start lg:w-[24rem]">
+            <FeaturedPickPile category={pile.category} items={pile.items} onInfo={onInfo} onOpenLadder={onOpenLadder} onCopy={onCopy} onShare={onShare} saving={saving} showHeading={false} enableItemSwipe={false} />
           </div>
         ))}
       </div>
