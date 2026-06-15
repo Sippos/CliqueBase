@@ -16,8 +16,6 @@ body {
   margin: 0;
   background: radial-gradient(circle at top center, #1e293b 0%, #0f172a 100%);
   background-attachment: fixed;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
 }
