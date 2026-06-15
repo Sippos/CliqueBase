@@ -211,9 +211,21 @@ function FeaturedPickPile({ category, items, onInfo, onOpenLadder, onCopy, onSha
 
 function CategoryScrollspy({ piles, onInfo, onOpenLadder, onCopy, onShare, saving }) {
   const scrollerRef = useRef(null)
+  const tabsRef = useRef(null)
   const [activeCategory, setActiveCategory] = useState(piles[0]?.category || '')
 
   useEffect(() => { setActiveCategory(piles[0]?.category || '') }, [piles])
+
+  useEffect(() => {
+    if (!tabsRef.current || !activeCategory) return
+    const index = piles.findIndex(p => p.category === activeCategory)
+    const node = tabsRef.current.children[index]
+    if (node) {
+      const container = tabsRef.current
+      const scrollLeft = node.offsetLeft - container.offsetLeft - (container.clientWidth / 2) + (node.clientWidth / 2)
+      container.scrollTo({ left: scrollLeft, behavior: 'smooth' })
+    }
+  }, [activeCategory, piles])
 
   function scrollToCategory(category) {
     const index = piles.findIndex((pile) => pile.category === category)
@@ -248,7 +260,7 @@ function CategoryScrollspy({ piles, onInfo, onOpenLadder, onCopy, onShare, savin
 
   return (
     <div className="mb-6 sm:mb-8">
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div ref={tabsRef} className="mb-4 flex gap-2 overflow-x-auto pb-1 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {piles.map((pile) => {
           const meta = getCategoryMeta(pile.category)
           const selected = activeCategory === pile.category
