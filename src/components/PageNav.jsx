@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
+import NotificationCenter from './NotificationCenter.jsx'
 import AppIcon from './AppIcon.jsx'
 import { getSavedHandle, saveSharedHandle } from '../lib/handle.js'
 import {
@@ -482,6 +483,12 @@ export default function PageNav({ active = 'library' }) {
 
   return (
     <>
+      <div className="fixed right-4 top-3 z-[90] flex items-center gap-2 sm:right-4 sm:top-4 md:right-6 md:top-6">
+        <NotificationCenter />
+        <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="flex h-[2.35rem] w-[2.35rem] shrink-0 items-center justify-center rounded-full border border-white/10 bg-neutral-950/95 text-white shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 hover:bg-white hover:text-black md:hidden">
+          <AppIcon name="user" size={15} />
+        </button>
+      </div>
       <div className="fixed top-3 left-3 right-3 sm:left-4 sm:right-4 md:left-6 md:right-6 z-[80] pointer-events-none hidden md:flex justify-center">
         <header className={`pointer-events-auto w-full max-w-6xl rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 shadow-black/50' : 'py-3'}`}>
         <div className="grid gap-3 xl:grid-cols-[auto_1fr_auto] xl:items-center">
