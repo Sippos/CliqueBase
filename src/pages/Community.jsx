@@ -506,6 +506,7 @@ export default function Community() {
   const [message, setMessage] = useState('')
   const [activity, setActivity] = useState([])
   const [groups, setGroups] = useState([])
+  const activeGroup = groups.find((g) => g.id === getActiveGroupId()) || null
   const [friends, setFriends] = useState([])
   const [libraryItems, setLibraryItems] = useState([])
   const [feedFilter, setFeedFilter] = useState('all')
