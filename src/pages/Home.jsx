@@ -442,6 +442,12 @@ export default function Home() {
         </div>
       </section>
 
+      <div className="mt-8 flex flex-col gap-8">
+        {categories.map((category) => (
+          <CategoryShelf key={category.title} category={category} loading={loading} isClique={isClique} copyingKey={copyingKey} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
+        ))}
+      </div>
+
       <ItemInfoModal item={infoItem} onClose={() => setInfoItem(null)} onShare={openShare} onCopy={copyToLibrary} isClique={isClique} copying={copyingKey === itemActionKey(infoItem, 'copy-')} />
       {sharingItem ? <MemberShareModal item={sharingItem} type={itemTypeForShare(sharingItem)} onClose={() => setSharingItem(null)} onMessage={handleShareMessage} /> : null}
     </PageShell>
