@@ -349,7 +349,7 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
       <div className="mt-3.5 flex flex-wrap gap-2">
         {activity.itemType ? <span className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-400">{activity.itemType}</span> : null}
         {activity.payload?.priority ? <span className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-400">{activity.payload.priority}</span> : null}
-        {tags.map((tag) => <span key={tag} className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black text-neutral-300">{tag}</span>)}
+        {(activity.payload?.tags || []).map((tag) => <span key={tag} className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black text-neutral-300">{tag}</span>)}
       </div>
       <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-4">
         {canShare ? (
