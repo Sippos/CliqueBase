@@ -482,7 +482,7 @@ export default function PageNav({ active = 'library' }) {
 
   return (
     <>
-      <header className={`mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 shadow-black/50' : 'py-3'}`}>
+      <header className={`sticky top-3 z-50 mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 shadow-black/50' : 'py-3'}`}>
         <div className="grid gap-3 xl:grid-cols-[auto_1fr_auto] xl:items-center">
           <Link to="/community" aria-label="CliqueBase Community" className={`w-fit rounded-[1.4rem] px-2 py-1 transition hover:opacity-80 ${searchFocused ? 'hidden lg:block' : ''}`} onClick={closeMenus}><LogoMark scrolled={scrolled} /></Link>
           <div className="flex min-w-0 flex-col items-stretch justify-center gap-2 lg:flex-row lg:items-center">
