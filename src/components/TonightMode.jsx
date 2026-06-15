@@ -283,7 +283,7 @@ export default function TonightMode({ groups = [], libraryItems = [], signedIn =
   }
 
   return (
-    <section className="rounded-[1.5rem] border border-amber-200/15 bg-gradient-to-br from-amber-300/12 via-white/[0.055] to-orange-500/10 p-4 text-white shadow-2xl shadow-amber-950/25 backdrop-blur-2xl ring-1 ring-white/10">
+    <section className="rounded-2xl border border-white/5 bg-white/[0.04] p-4 text-white shadow-xl shadow-black/20">
       <button type="button" onClick={() => setExpanded((value) => !value)} className="flex w-full items-start justify-between gap-3 text-left">
         <span className="flex min-w-0 items-start gap-3">
           <IconBadge name="users" />

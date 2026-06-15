@@ -6,7 +6,7 @@ import { getFriendRequests, respondFriendRequest } from '../lib/socialGovernance
 
 function PersonCard({ person, action, actionLabel, busy, status = '', onClose, friend = false }) {
   return (
-    <article className="rounded-2xl border border-cyan-200/15 bg-white/[0.06] p-3 shadow-lg shadow-cyan-950/10 backdrop-blur-xl ring-1 ring-white/10">
+    <article className="rounded-2xl border border-white/5 bg-white/[0.04] p-3 shadow-md shadow-black/10 transition hover:bg-white/[0.06]">
       <div className="flex items-start justify-between gap-3">
         <Link to={`/members/${person.id}`} onClick={onClose} className="min-w-0 flex-1 transition hover:opacity-80">
           <p className="truncate text-sm font-black text-white">{person.displayName}</p>
@@ -27,7 +27,7 @@ function PersonCard({ person, action, actionLabel, busy, status = '', onClose, f
 function RequestCard({ request, busy, onRespond }) {
   const incoming = request.direction === 'incoming'
   return (
-    <article className="rounded-2xl border border-cyan-200/15 bg-white/[0.06] p-3 backdrop-blur-xl ring-1 ring-white/10">
+    <article className="rounded-2xl border border-white/5 bg-white/[0.04] p-3 shadow-md shadow-black/10 transition hover:bg-white/[0.06]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-black text-white">{request.displayName}</p>
@@ -170,7 +170,7 @@ export default function BlockedMembersPanel({ signedIn = false, defaultOpen = fa
   const incomingCount = requests.filter((request) => request.direction === 'incoming').length
 
   return (
-    <section className="rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.055] to-blue-500/10 p-4 text-white shadow-2xl shadow-cyan-950/25 backdrop-blur-2xl ring-1 ring-white/10">
+    <section className="rounded-2xl border border-white/5 bg-white/[0.04] p-4 text-white shadow-xl shadow-black/20">
       <button type="button" onClick={() => setOpen((value) => !value)} className="flex w-full items-center justify-between gap-3 text-left">
         <span>
           <span className="block text-lg font-black">Friends</span>

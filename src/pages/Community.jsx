@@ -239,7 +239,7 @@ function ActivityCommentForm({ activity, signedIn, onCommented, onFlash }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-3 flex gap-2 border-t border-white/10 pt-3">
+    <form onSubmit={handleSubmit} className="mt-3 flex gap-2 border-t border-white/5 pt-3">
       <input value={body} onChange={(event) => setBody(event.target.value)} placeholder={signedIn ? 'Reply…' : 'Sign in to reply'} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-xs text-white outline-none placeholder:text-neutral-500" />
       <button disabled={saving || !body.trim() || !signedIn} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2 text-xs font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950 disabled:opacity-45">{saving ? '…' : 'Reply'}</button>
     </form>
@@ -299,7 +299,7 @@ function ActivityReportForm({ activity, signedIn, onFlash, onBlocked }) {
     <div className="mt-2">
       <button type="button" onClick={() => setOpen((value) => !value)} className="text-[11px] font-bold text-neutral-600 transition hover:text-neutral-300">{open ? 'Cancel' : 'Report / block'}</button>
       {open ? (
-        <div className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-neutral-950/75 p-3">
+        <div className="mt-3 grid gap-2 rounded-2xl border border-white/5 bg-neutral-950/75 p-3">
           <form onSubmit={handleSubmit} className="grid gap-2">
             <div className="grid gap-2 sm:grid-cols-[9rem_1fr]">
               <select value={reason} onChange={(event) => setReason(event.target.value)} className="rounded-xl border border-white/10 bg-neutral-950 px-3 py-2 text-sm text-white outline-none">{reportReasons.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
@@ -323,7 +323,7 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   const avatarText = typeof actorName === 'string' && actorName.length > 0 ? actorName.charAt(0).toUpperCase() : '?'
   
   return (
-    <article className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-5 shadow-sm transition hover:border-white/20 hover:bg-white/[0.045]">
+    <article className="rounded-2xl border border-white/5 bg-white/[0.04] p-5 shadow-lg shadow-black/20 transition hover:bg-white/[0.06]">
       <div className="flex items-center gap-3 mb-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white shadow-md">
           {avatarText}
@@ -430,7 +430,7 @@ function RecommendationComposer({ sectionId = 'recommend', defaultExpanded = fal
   }
 
   return (
-    <section id={sectionId} className="scroll-mt-24 rounded-[1.5rem] border border-emerald-200/15 bg-gradient-to-br from-emerald-400/10 via-white/[0.055] to-cyan-500/10 p-4 text-white shadow-2xl shadow-emerald-950/25 backdrop-blur-2xl ring-1 ring-white/10">
+    <section id={sectionId} className="scroll-mt-24 rounded-2xl border border-emerald-200/15 bg-gradient-to-br from-emerald-400/10 via-white/[0.05] to-cyan-500/10 p-4 text-white shadow-xl shadow-black/20 backdrop-blur-2xl ring-1 ring-white/10">
       <button type="button" onClick={() => setExpanded((value) => !value)} className="flex w-full items-center justify-between gap-3 text-left">
         <span className="flex min-w-0 items-start gap-3">
           <IconBadge name="share" />
@@ -494,7 +494,7 @@ function MobileSwipeSheet({ open, onClose, ...props }) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-[80] bg-black/70 p-3 backdrop-blur-sm lg:hidden">
-      <div className="max-h-full overflow-y-auto rounded-[1.5rem] border border-white/10 bg-neutral-950 p-3 shadow-2xl">
+      <div className="max-h-full overflow-y-auto rounded-2xl border border-white/10 bg-neutral-950 p-3 shadow-2xl">
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="text-sm font-black text-white">Send a card</p>
           <button type="button" onClick={onClose} className="rounded-full border border-white/10 px-3 py-1 text-sm text-neutral-300">Close</button>
@@ -609,7 +609,7 @@ export default function Community() {
     <PageShell active="community">
       <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <main className="mx-auto w-full max-w-[640px] min-w-0">
-          <section className="mb-4 rounded-[1.5rem] border border-white/10 bg-white/[0.025] p-4 text-white">
+          <section className="mb-4 rounded-2xl border border-white/5 bg-white/[0.04] p-4 text-white shadow-lg shadow-black/20">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Friend feed</h1><p className="mt-1 text-sm text-neutral-500">{activeGroup?.name ? `${activeGroup.name} and friends` : 'Recommendations, shares, comments, and clique updates.'}</p></div>
               <div className="flex gap-2"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div>
@@ -618,8 +618,8 @@ export default function Community() {
               {feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.04] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}
             </div>
           </section>
-          <div className="grid gap-3">{loading ? <p className="rounded-[1.5rem] border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.04] to-violet-500/10 p-4 text-sm text-neutral-300 shadow-2xl shadow-cyan-950/20 backdrop-blur-2xl ring-1 ring-white/10">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} onSuggest={() => setMobileActionsOpen(true)} />}</div>
-          {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
+          <div className="grid gap-3">{loading ? <p className="rounded-2xl border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.04] to-violet-500/10 p-4 text-sm text-neutral-300 shadow-xl shadow-black/20 backdrop-blur-2xl ring-1 ring-white/10">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} onSuggest={() => setMobileActionsOpen(true)} />}</div>
+          {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/5 bg-white/[0.04] px-4 py-3 text-sm font-black text-neutral-300 shadow-lg shadow-black/20 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
         </main>
         <aside className="hidden gap-4 lg:sticky lg:top-28 lg:grid">
           <div id="people" className="scroll-mt-24"><BlockedMembersPanel signedIn={signedIn} defaultOpen onFlash={flash} onChanged={() => refresh()} /></div>
