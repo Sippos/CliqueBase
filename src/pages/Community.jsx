@@ -323,7 +323,7 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   const avatarText = typeof actorName === 'string' && actorName.length > 0 ? actorName.charAt(0).toUpperCase() : '?'
   
   return (
-    <article className="rounded-2xl border border-white/5 bg-white/[0.04] p-5 shadow-lg shadow-black/20 transition hover:bg-white/[0.06]">
+    <article className="rounded-2xl border border-white/15 bg-white/[0.12] p-5 shadow-lg shadow-black/20 transition hover:bg-white/[0.16]">
       <div className="flex items-center gap-3 mb-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white shadow-md">
           {avatarText}
@@ -430,7 +430,7 @@ function RecommendationComposer({ sectionId = 'recommend', defaultExpanded = fal
   }
 
   return (
-    <section id={sectionId} className="scroll-mt-24 rounded-2xl border border-emerald-200/15 bg-gradient-to-br from-emerald-400/10 via-white/[0.05] to-cyan-500/10 p-4 text-white shadow-xl shadow-black/20 backdrop-blur-2xl ring-1 ring-white/10">
+    <section id={sectionId} className="scroll-mt-24 rounded-2xl border border-white/15 bg-white/[0.12] p-4 text-white shadow-xl shadow-black/20 backdrop-blur-2xl">
       <button type="button" onClick={() => setExpanded((value) => !value)} className="flex w-full items-center justify-between gap-3 text-left">
         <span className="flex min-w-0 items-start gap-3">
           <IconBadge name="share" />
@@ -439,7 +439,7 @@ function RecommendationComposer({ sectionId = 'recommend', defaultExpanded = fal
             <span className="mt-1 block text-xs leading-5 text-neutral-300/85">Send a 1-vs-1 swipe card to a friend, or drop it into a clique pile.</span>
           </span>
         </span>
-        <span className="rounded-full border border-white/10 bg-white/[0.08] px-3 py-1 text-xs font-black text-neutral-100">{expanded ? 'Hide' : 'Open'}</span>
+        <span className="rounded-full border border-white/10 bg-white/[0.12] px-3 py-1 text-xs font-black text-neutral-100">{expanded ? 'Hide' : 'Open'}</span>
       </button>
 
       {expanded ? (
@@ -459,7 +459,7 @@ function RecommendationComposer({ sectionId = 'recommend', defaultExpanded = fal
                   const key = `${item.itemType}:${item.id}`
                   const selected = key === selectedLibraryKey
                   return (
-                    <button key={key} type="button" onClick={() => handleLibrarySelect(key)} className={`flex items-center gap-2 rounded-2xl border p-2 text-left transition ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-black/25 text-white hover:bg-white/10'}`}>
+                    <button key={key} type="button" onClick={() => handleLibrarySelect(key)} className={`flex items-center gap-2 rounded-2xl border p-2 text-left transition ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-black/25 text-white hover:bg-white/[0.16]'}`}>
                       {itemArtwork(item) ? <img src={itemArtwork(item)} alt="" className="h-12 w-9 shrink-0 rounded-lg object-cover" /> : <IconBadge name={contentTypeMeta[item.itemType]?.icon || 'explore'} />}
                       <span className="min-w-0"><span className="block truncate text-xs font-black">{item.title}</span><span className="text-[10px] uppercase tracking-[0.14em] opacity-60">{item.label}</span></span>
                     </button>
@@ -494,7 +494,7 @@ function MobileSwipeSheet({ open, onClose, ...props }) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-[80] bg-black/70 p-3 backdrop-blur-sm lg:hidden">
-      <div className="max-h-full overflow-y-auto rounded-2xl border border-white/10 bg-neutral-950 p-3 shadow-2xl">
+      <div className="max-h-full overflow-y-auto rounded-2xl border border-white/15 bg-neutral-950 p-3 shadow-2xl">
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="text-sm font-black text-white">Send a card</p>
           <button type="button" onClick={onClose} className="rounded-full border border-white/10 px-3 py-1 text-sm text-neutral-300">Close</button>
@@ -609,17 +609,17 @@ export default function Community() {
     <PageShell active="community">
       <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <main className="mx-auto w-full max-w-[640px] min-w-0">
-          <section className="mb-4 rounded-2xl border border-white/5 bg-white/[0.04] p-4 text-white shadow-lg shadow-black/20">
+          <section className="mb-4 rounded-2xl border border-white/15 bg-white/[0.12] p-4 text-white shadow-lg shadow-black/20">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Friend feed</h1><p className="mt-1 text-sm text-neutral-500">{activeGroup?.name ? `${activeGroup.name} and friends` : 'Recommendations, shares, comments, and clique updates.'}</p></div>
               <div className="flex gap-2"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div>
             </div>
             <div className="community-feed-tabs mt-4 flex gap-2 overflow-x-auto pb-1">
-              {feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.04] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}
+              {feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.12] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}
             </div>
           </section>
-          <div className="grid gap-3">{loading ? <p className="rounded-2xl border border-cyan-200/15 bg-gradient-to-br from-cyan-400/10 via-white/[0.04] to-violet-500/10 p-4 text-sm text-neutral-300 shadow-xl shadow-black/20 backdrop-blur-2xl ring-1 ring-white/10">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} onSuggest={() => setMobileActionsOpen(true)} />}</div>
-          {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/5 bg-white/[0.04] px-4 py-3 text-sm font-black text-neutral-300 shadow-lg shadow-black/20 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
+          <div className="grid gap-3">{loading ? <p className="rounded-2xl border border-white/15 bg-white/[0.12] p-4 text-sm text-neutral-300 shadow-xl shadow-black/20">Loading feed…</p> : visibleActivity.length ? visibleActivity.map((item) => <ActivityCard key={item.id} activity={item} signedIn={signedIn} onCommented={() => refresh()} onFlash={flash} onShare={setSharingActivity} />) : <EmptyCommunity signedIn={signedIn} filter={feedFilter} onSuggest={() => setMobileActionsOpen(true)} />}</div>
+          {signedIn && activity.length >= feedLimit ? <button type="button" onClick={loadMore} className="mt-4 w-full rounded-2xl border border-white/15 bg-white/[0.12] px-4 py-3 text-sm font-black text-neutral-300 shadow-lg shadow-black/20 transition hover:bg-white hover:text-neutral-950">Load more</button> : null}
         </main>
         <aside className="hidden gap-4 lg:sticky lg:top-28 lg:grid">
           <div id="people" className="scroll-mt-24"><BlockedMembersPanel signedIn={signedIn} defaultOpen onFlash={flash} onChanged={() => refresh()} /></div>
