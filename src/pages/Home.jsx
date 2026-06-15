@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AppIcon from '../components/AppIcon.jsx'
 import MemberShareModal from '../components/MemberShareModal.jsx'
@@ -257,6 +257,47 @@ export default function Home() {
   const [sharingItem, setSharingItem] = useState(null)
   const [infoItem, setInfoItem] = useState(null)
   const [copyingKey, setCopyingKey] = useState('')
+  const [spotlightIndexes, setSpotlightIndexes] = useState({})
+  const [activeTopTitle, setActiveTopTitle] = useState('Movies')
+  const topScrollerRef = useRef(null)
+
+  function cycleSpotlight(categoryTitle) {
+    setSpotlightIndexes((current) => ({ ...current, [categoryTitle]: (current[categoryTitle] || 0) + 1 }))
+  }
+
+  function openPile(categoryTitle) {
+    // Placeholder
+  }
+
+  function handleTopScroll() {
+    if (!topScrollerRef.current) return
+    const scroller = topScrollerRef.current
+    const scrollLeft = scroller.scrollLeft
+    const children = Array.from(scroller.children)
+    if (!children.length) return
+    let closestTitle = children[0].getAttribute('data-title') || 'Movies'
+    let minDiff = Infinity
+    for (const child of children) {
+      const childCenter = child.offsetLeft + child.clientWidth / 2
+      const viewportCenter = scrollLeft + scroller.clientWidth / 2
+      const diff = Math.abs(childCenter - viewportCenter)
+      if (diff < minDiff) {
+        minDiff = diff
+        closestTitle = child.getAttribute('data-title') || closestTitle
+      }
+    }
+    setActiveTopTitle(closestTitle)
+  }
+
+  function jumpToSpotlight(category) {
+    if (!topScrollerRef.current) return
+    const scroller = topScrollerRef.current
+    const target = Array.from(scroller.children).find((child) => child.getAttribute('data-title') === category.title)
+    if (target) {
+      scroller.scrollTo({ left: target.offsetLeft - scroller.clientWidth / 2 + target.clientWidth / 2, behavior: 'smooth' })
+    }
+    setActiveTopTitle(category.title)
+  }
 
   useEffect(() => {
     if (routeGroupId) setActiveGroup(routeGroupId)
@@ -392,8 +433,8 @@ export default function Home() {
             const index = spotlightIndexes[category.title] || 0
             const item = category.items[index % Math.max(category.items.length, 1)] || category.top
             return (
-              <div key={category.title} className="w-[min(85vw,22rem)] shrink-0 snap-center lg:w-[24rem]">
-                <CategorySpotlightCard category={category} index={index} loading={loading} isClique={isClique} saving={copyingKey === itemActionKey(item, 'copy-')} onCycle={cycleSpotlight} onOpenPile={openPile} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
+              <div key={category.title} data-title={category.title} className="w-[min(85vw,22rem)] shrink-0 snap-center lg:w-[24rem]">
+                <CategorySpotlightCard category={category} index={index} loading={loading} isClique={isClique} saving={copyingKey === itemActionKey(item, 'copy-')} onCycle={() => cycleSpotlight(category.title)} onOpenPile={() => openPile(category.title)} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
               </div>
             )
           })}
