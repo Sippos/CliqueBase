@@ -89,13 +89,13 @@ function PollCard({ poll, onVote, onClose, voting, closing, lockedDecision = fal
           {passOption ? (
             <button type="button" disabled={voting || !open} onClick={() => onVote(poll, passOption)} className={`rounded-2xl border px-4 py-3 text-left transition disabled:opacity-60 ${passOption.selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-black/25 text-white hover:bg-white/10'}`}>
               <span className="block text-sm font-black">Pass</span>
-              <span className="mt-1 block text-xs opacity-70">{passOption.votes} · {passOption.percent}%</span>
+              <span className="mt-1 block text-xs opacity-100">{passOption.votes} · {passOption.percent}%</span>
             </button>
           ) : null}
           {wantOption ? (
             <button type="button" disabled={voting || !open} onClick={() => onVote(poll, wantOption)} className={`rounded-2xl border px-4 py-3 text-left transition disabled:opacity-60 ${wantOption.selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-black/25 text-white hover:bg-white/10'}`}>
               <span className="block text-sm font-black">Want</span>
-              <span className="mt-1 block text-xs opacity-70">{wantOption.votes} · {wantOption.percent}%</span>
+              <span className="mt-1 block text-xs opacity-100">{wantOption.votes} · {wantOption.percent}%</span>
             </button>
           ) : null}
         </div>

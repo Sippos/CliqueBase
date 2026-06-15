@@ -27,8 +27,8 @@ export default function CategorySpotlightCard({ category, loading, isClique, sav
 
   return (
     <article data-top-category={category.title} className="group relative min-h-[15.25rem] snap-start overflow-hidden rounded-[1.6rem] border border-white/15 bg-neutral-950/80 text-white shadow-2xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/25 sm:min-h-[19rem] sm:rounded-[1.75rem]">
-      {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+      {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-100 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/5" />
       <button type="button" onClick={() => item ? onInfo?.(item) : onOpenPile?.(category.title)} className="absolute inset-0 z-10" aria-label={`Open ${title}`} />
 
       <div className="pointer-events-none relative z-20 flex min-h-[15.25rem] flex-col justify-between p-3 sm:min-h-[19rem] sm:p-4">

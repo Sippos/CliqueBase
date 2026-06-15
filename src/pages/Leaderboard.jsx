@@ -115,8 +115,8 @@ function FeaturedPickCard({ item, onInfo, onToggleFlip, rankLabel = 'global pick
   return (
     <article className="group relative z-10 outline-none">
       <div role="button" tabIndex={0} onClick={onToggleFlip} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onToggleFlip?.() }} className="relative min-h-[17.1rem] overflow-hidden rounded-[1.45rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 transition group-hover:-translate-y-0.5 group-hover:border-white/20 sm:min-h-[20rem] sm:rounded-[2rem]">
-        <MediaArt item={item} className={`absolute inset-0 opacity-82 transition duration-500 group-hover:scale-105 ${flipped ? 'scale-105 opacity-24 sm:opacity-82' : ''}`} />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+        <MediaArt item={item} className={`absolute inset-0 opacity-100 transition duration-500 group-hover:scale-105 ${flipped ? 'scale-105 opacity-24 sm:opacity-100' : ''}`} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/5" />
         <div className="absolute left-4 top-4"><CategoryBadge category={item.category} /></div>
         <IconButton icon="info" label={`Show details for ${item.title}`} onClick={(event) => { event.stopPropagation(); onInfo(item) }} className="absolute right-4 top-4 hidden sm:inline-flex" />
         <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
@@ -185,7 +185,7 @@ function FeaturedPickPile({ category, items, onInfo, onOpenLadder, onCopy, onSha
   }
   return (
     <section className="sm:contents">
-      {showHeading ? <div className="mb-2 flex items-center justify-between px-1 sm:hidden"><h2 className="inline-flex items-center gap-2 text-xl font-black text-white"><AppIcon name={meta.icon} size={18} />{meta.plural}</h2><span className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Swipe</span></div> : null}
+      {showHeading ? <div className="mb-2 flex items-center justify-between px-1"><h2 className="inline-flex items-center gap-2 text-xl font-black text-white"><AppIcon name={meta.icon} size={18} />{meta.plural}</h2><span className="text-[10px] font-black uppercase tracking-[0.18em] text-neutral-500">Swipe</span></div> : null}
       <div className="relative pt-3 pr-1.5 sm:pt-8 sm:pr-5" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {items.length > 2 ? <PilePeekCard item={thirdItem} offset={2} onClick={() => stepCard(2)} /> : null}
         {items.length > 1 ? <PilePeekCard item={nextItem} offset={1} onClick={() => stepCard(1)} /> : null}
@@ -209,33 +209,58 @@ function FeaturedPickPile({ category, items, onInfo, onOpenLadder, onCopy, onSha
   )
 }
 
-function MobilePicksCarousel({ piles, onInfo, onOpenLadder, onCopy, onShare, saving }) {
-  const scrollerRef = useRef(null)
+function CategoryScrollspy({ piles, onInfo, onOpenLadder, onCopy, onShare, saving }) {
   const [activeCategory, setActiveCategory] = useState(piles[0]?.category || '')
-  useEffect(() => { setActiveCategory(piles[0]?.category || '') }, [piles])
+
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      let maxRatio = 0
+      let maxCategory = null
+      entries.forEach(entry => {
+        if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+          maxRatio = entry.intersectionRatio
+          maxCategory = entry.target.dataset.category
+        }
+      })
+      if (maxCategory) setActiveCategory(maxCategory)
+    }, { rootMargin: '-10% 0px -40% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] })
+
+    piles.forEach(pile => {
+      const el = document.getElementById(`category-section-${pile.category}`)
+      if (el) observer.observe(el)
+    })
+    return () => observer.disconnect()
+  }, [piles])
+
   function scrollToCategory(category) {
-    const index = piles.findIndex((pile) => pile.category === category)
-    const node = scrollerRef.current?.children?.[index]
-    if (node) node.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
+    const el = document.getElementById(`category-section-${category}`)
+    if (el) {
+       const y = el.getBoundingClientRect().top + window.scrollY - 160
+       window.scrollTo({ top: y, behavior: 'smooth' })
+    }
     setActiveCategory(category)
   }
-  function handleScroll(event) {
-    const width = event.currentTarget.clientWidth || 1
-    const index = Math.round(event.currentTarget.scrollLeft / width)
-    const next = piles[index]?.category
-    if (next && next !== activeCategory) setActiveCategory(next)
-  }
+
   return (
-    <div className="sm:hidden">
-      <div className="mb-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+    <div className="mb-6 sm:mb-8">
+      <div className="sticky top-[4.5rem] z-40 -mx-3 mb-6 flex gap-2 overflow-x-auto bg-neutral-950/85 px-3 py-3 backdrop-blur sm:-mx-4 sm:top-[5.2rem] sm:px-4 md:-mx-6 md:top-[6rem] md:px-6 lg:top-[6.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {piles.map((pile) => {
           const meta = getCategoryMeta(pile.category)
           const selected = activeCategory === pile.category
-          return <button key={pile.category} type="button" onClick={() => scrollToCategory(pile.category)} className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition ${selected ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.04] text-neutral-300'}`}><AppIcon name={meta.icon} size={14} />{meta.plural}</button>
+          return (
+            <button key={pile.category} type="button" onClick={() => scrollToCategory(pile.category)} className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-xs font-black transition sm:text-sm ${selected ? 'border-white bg-white text-neutral-950 shadow-lg shadow-white/20' : 'border-white/10 bg-white/[0.04] text-neutral-300 hover:bg-white/[0.08]'}`}>
+              <AppIcon name={meta.icon} size={15} />{meta.plural}
+            </button>
+          )
         })}
       </div>
-      <div ref={scrollerRef} onScroll={handleScroll} className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-1 pb-2 [scrollbar-width:none]">
-        {piles.map((pile) => <div key={pile.category} className="w-full shrink-0 snap-start"><FeaturedPickPile category={pile.category} items={pile.items} onInfo={onInfo} onOpenLadder={onOpenLadder} onCopy={onCopy} onShare={onShare} saving={saving} showHeading={false} enableItemSwipe={false} /></div>)}
+      
+      <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+        {piles.map((pile) => (
+          <div key={pile.category} id={`category-section-${pile.category}`} data-category={pile.category} className="scroll-mt-[9rem] sm:scroll-mt-[10rem] md:scroll-mt-[11rem] lg:scroll-mt-[12rem] flex flex-col">
+            <FeaturedPickPile category={pile.category} items={pile.items} onInfo={onInfo} onOpenLadder={onOpenLadder} onCopy={onCopy} onShare={onShare} saving={saving} showHeading={true} enableItemSwipe={false} />
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -252,7 +277,7 @@ function GroupRubricTile({ summary, onOpenList }) {
   const meta = getCategoryMeta(summary.category)
   const topItem = summary.items[0]
   const ratingLabel = topItem?.rating ? ` · ${Number(topItem.rating).toFixed(1)}` : ''
-  return <button type="button" onClick={() => onOpenList(summary)} className="group relative min-h-[8.1rem] overflow-hidden rounded-[1rem] border border-white/10 bg-neutral-950 text-left shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/20 sm:min-h-[11rem] sm:rounded-2xl">{topItem?.poster ? <img src={topItem.poster} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-neutral-400"><AppIcon name={meta.icon} size={30} strokeWidth={1.7} /></div>}<div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/10" /><div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/45 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-black/30 backdrop-blur-sm"><AppIcon name={meta.icon} size={11} strokeWidth={2.2} />{meta.plural}</div><span className="absolute right-2 top-2 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-white px-2 text-[10px] font-black text-neutral-950 shadow-lg shadow-black/30">{summary.count}</span><div className="absolute inset-x-2 bottom-2 rounded-xl bg-black/46 p-2 shadow-lg shadow-black/30 backdrop-blur-sm"><p className="line-clamp-1 text-xs font-black leading-tight text-white">{topItem ? `#1 ${topItem.title}` : 'No picks yet'}</p><p className="mt-0.5 text-[9px] font-bold text-neutral-400">Score {summary.score || 0}{ratingLabel}</p></div></button>
+  return <button type="button" onClick={() => onOpenList(summary)} className="group relative min-h-[8.1rem] overflow-hidden rounded-[1rem] border border-white/10 bg-neutral-950 text-left shadow-xl shadow-black/20 transition hover:-translate-y-0.5 hover:border-white/20 sm:min-h-[11rem] sm:rounded-2xl">{topItem?.poster ? <img src={topItem.poster} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-neutral-800 to-neutral-950 text-neutral-400"><AppIcon name={meta.icon} size={30} strokeWidth={1.7} /></div>}<div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10" /><div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/15 bg-black/45 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-black/30 backdrop-blur-sm"><AppIcon name={meta.icon} size={11} strokeWidth={2.2} />{meta.plural}</div><span className="absolute right-2 top-2 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-white px-2 text-[10px] font-black text-neutral-950 shadow-lg shadow-black/30">{summary.count}</span><div className="absolute inset-x-2 bottom-2 rounded-xl bg-black/46 p-2 shadow-lg shadow-black/30 backdrop-blur-sm"><p className="line-clamp-1 text-xs font-black leading-tight text-white">{topItem ? `#1 ${topItem.title}` : 'No picks yet'}</p><p className="mt-0.5 text-[9px] font-bold text-neutral-400">Score {summary.score || 0}{ratingLabel}</p></div></button>
 }
 function GroupSummaryCard({ group, onOpenRubric, compact = false }) {
   const allItems = group.publicItems || group.topItems || []
@@ -265,7 +290,7 @@ function MobileGroupCarousel({ groups, onOpenRubric }) {
 }
 function TopContributors({ contributors }) {
   if (!contributors.length) return null
-  return <section className="mt-6 sm:mt-8"><div className="mb-3 flex items-end justify-between gap-3 px-1"><div><p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500 sm:text-xs">Community</p><h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">Top contributors</h2></div><span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-300">{contributors.length} profiles</span></div><div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">{contributors.map((person) => <article key={person.name} className="w-[12.8rem] shrink-0 rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-3 shadow-xl shadow-black/20 sm:w-64"><div className="flex items-center gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black text-neutral-950">{initials(person.name)}</div><div className="min-w-0"><h3 className="truncate text-sm font-black text-white">{person.name}</h3><p className="truncate text-[11px] text-neutral-500">{person.count} public suggestions</p></div></div><div className="mt-3 grid grid-cols-2 gap-1.5">{person.items.map((item) => <div key={itemKey(item, `contrib-${person.name}-`)} className="relative min-h-[4.8rem] overflow-hidden rounded-xl border border-white/10 bg-neutral-950"><MediaArt item={item} className="absolute inset-0 opacity-58" iconSize={20} /><div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/10" /><div className="absolute inset-x-1.5 bottom-1.5"><p className="line-clamp-1 text-[10px] font-black leading-tight text-white">{item.title}</p><p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-neutral-400">{getCategoryMeta(item.category).label}</p></div></div>)}</div><div className="mt-3 flex flex-wrap gap-1.5"><MetricPill compact>{person.count} picks</MetricPill><MetricPill compact>Score {person.score}</MetricPill>{person.averageRating ? <MetricPill compact>Avg {person.averageRating.toFixed(1)}</MetricPill> : null}{person.highestRating ? <MetricPill compact>Best {person.highestRating.toFixed(1)}</MetricPill> : null}</div></article>)}</div></section>
+  return <section className="mt-6 sm:mt-8"><div className="mb-3 flex items-end justify-between gap-3 px-1"><div><p className="text-[10px] font-black uppercase tracking-[0.24em] text-neutral-500 sm:text-xs">Community</p><h2 className="mt-1 text-2xl font-black text-white sm:text-3xl">Top contributors</h2></div><span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-300">{contributors.length} profiles</span></div><div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none]">{contributors.map((person) => <article key={person.name} className="w-[12.8rem] shrink-0 rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-3 shadow-xl shadow-black/20 sm:w-64"><div className="flex items-center gap-3"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-sm font-black text-neutral-950">{initials(person.name)}</div><div className="min-w-0"><h3 className="truncate text-sm font-black text-white">{person.name}</h3><p className="truncate text-[11px] text-neutral-500">{person.count} public suggestions</p></div></div><div className="mt-3 grid grid-cols-2 gap-1.5">{person.items.map((item) => <div key={itemKey(item, `contrib-${person.name}-`)} className="relative min-h-[4.8rem] overflow-hidden rounded-xl border border-white/10 bg-neutral-950"><MediaArt item={item} className="absolute inset-0 opacity-100" iconSize={20} /><div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10" /><div className="absolute inset-x-1.5 bottom-1.5"><p className="line-clamp-1 text-[10px] font-black leading-tight text-white">{item.title}</p><p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-neutral-400">{getCategoryMeta(item.category).label}</p></div></div>)}</div><div className="mt-3 flex flex-wrap gap-1.5"><MetricPill compact>{person.count} picks</MetricPill><MetricPill compact>Score {person.score}</MetricPill>{person.averageRating ? <MetricPill compact>Avg {person.averageRating.toFixed(1)}</MetricPill> : null}{person.highestRating ? <MetricPill compact>Best {person.highestRating.toFixed(1)}</MetricPill> : null}</div></article>)}</div></section>
 }
 
 function ShareSheet({ item, onClose, onFlash }) {
@@ -339,7 +364,7 @@ function ExploreBoard() {
   if (loading) return <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] p-10 text-center text-neutral-400">Loading Explore...</div>
   if (message && !topContent.length && !groups.length) return <div className="rounded-[2rem] border border-rose-400/30 bg-rose-950/30 p-5 text-rose-100">{message}</div>
   if (!topContent.length && !groups.length) return <EmptyState />
-  return <>{message ? <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}{categoryPiles.length ? <section className="mb-6 pt-1 sm:mb-8"><div className="mb-3 flex flex-col gap-3 px-1 sm:mb-4 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="text-3xl font-black text-white">Top public picks</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Best public picks from cliques for movies, series, games and more.</p></div><div className="hidden w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300 sm:inline-flex"><AppIcon name="explore" size={15} />{topContent.length} public picks</div></div><MobilePicksCarousel piles={categoryPiles} onInfo={setSelectedItem} onOpenLadder={openCategoryLadder} onCopy={copyToLibrary} onShare={setShareItem} saving={savingItem} /><div className="hidden gap-5 md:flex md:overflow-x-auto md:pb-4 md:snap-x md:snap-mandatory">{categoryPiles.map((pile) => <div key={pile.category} className="shrink-0 snap-center w-[min(85vw,22rem)] lg:w-[24rem]"><FeaturedPickPile category={pile.category} items={pile.items} onInfo={setSelectedItem} onOpenLadder={openCategoryLadder} onCopy={copyToLibrary} onShare={setShareItem} saving={savingItem} showHeading={false} /></div>)}</div></section> : null}{groups.length ? <section><div className="mb-3 flex flex-col gap-2 px-1 sm:mb-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="hidden text-xs font-black uppercase tracking-[0.28em] text-neutral-500 sm:block">Public discovery</p><div className="mt-1 flex items-center justify-between gap-3"><h2 className="text-3xl font-black text-white">Top Cliques</h2><span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-300 sm:hidden">{groups.length} public</span></div><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Swipe through public cliques, then open one to see every shared pick.</p></div><span className="hidden w-fit rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300 sm:inline-flex">{groups.length} public</span></div><MobileGroupCarousel groups={groups} onOpenRubric={openGroupRubric} /><div className="hidden gap-4 sm:grid xl:grid-cols-2">{groups.slice(0, 10).map((group) => <GroupSummaryCard key={group.id} group={group} onOpenRubric={openGroupRubric} />)}</div></section> : null}<TopContributors contributors={contributors} /><CategoryLadderModal category={activeLadder?.category} items={activeLadder?.items || []} title={activeLadder?.title} subtitle={activeLadder?.subtitle} saving={savingItem} onInfo={(item) => { setActiveLadder(null); setSelectedItem(item) }} onCopy={copyToLibrary} onClose={() => setActiveLadder(null)} /><DetailModal item={selectedItem} saving={savingItem} onCopy={copyToLibrary} onShare={setShareItem} onClose={() => setSelectedItem(null)} /><ShareSheet item={shareItem} onClose={() => setShareItem(null)} onFlash={flash} /></>
+  return <>{message ? <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}{categoryPiles.length ? <section className="mb-6 pt-1 sm:mb-8"><div className="mb-3 flex flex-col gap-3 px-1 sm:mb-4 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="text-3xl font-black text-white">Top public picks</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Best public picks from cliques for movies, series, games and more.</p></div><div className="hidden w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300 sm:inline-flex"><AppIcon name="explore" size={15} />{topContent.length} public picks</div></div><CategoryScrollspy piles={categoryPiles} onInfo={setSelectedItem} onOpenLadder={openCategoryLadder} onCopy={copyToLibrary} onShare={setShareItem} saving={savingItem} /></section> : null}{groups.length ? <section><div className="mb-3 flex flex-col gap-2 px-1 sm:mb-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="hidden text-xs font-black uppercase tracking-[0.28em] text-neutral-500 sm:block">Public discovery</p><div className="mt-1 flex items-center justify-between gap-3"><h2 className="text-3xl font-black text-white">Top Cliques</h2><span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-300 sm:hidden">{groups.length} public</span></div><p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-400">Swipe through public cliques, then open one to see every shared pick.</p></div><span className="hidden w-fit rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-neutral-300 sm:inline-flex">{groups.length} public</span></div><MobileGroupCarousel groups={groups} onOpenRubric={openGroupRubric} /><div className="hidden gap-4 sm:grid xl:grid-cols-2">{groups.slice(0, 10).map((group) => <GroupSummaryCard key={group.id} group={group} onOpenRubric={openGroupRubric} />)}</div></section> : null}<TopContributors contributors={contributors} /><CategoryLadderModal category={activeLadder?.category} items={activeLadder?.items || []} title={activeLadder?.title} subtitle={activeLadder?.subtitle} saving={savingItem} onInfo={(item) => { setActiveLadder(null); setSelectedItem(item) }} onCopy={copyToLibrary} onClose={() => setActiveLadder(null)} /><DetailModal item={selectedItem} saving={savingItem} onCopy={copyToLibrary} onShare={setShareItem} onClose={() => setSelectedItem(null)} /><ShareSheet item={shareItem} onClose={() => setShareItem(null)} onFlash={flash} /></>
 }
 
 export default function Leaderboard() { return <PageShell active="explore"><ExploreBoard /></PageShell> }

@@ -100,7 +100,7 @@ function LibraryReel({ items, loading, onShare, onInfo }) {
     <div className="relative min-h-[18rem] overflow-hidden rounded-[1.5rem] bg-neutral-950">
       <button type="button" onClick={() => onInfo?.(item)} className="group absolute inset-0 flex items-end p-5 text-left">
         {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-65 transition duration-700 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.4))]" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10" />
         <div className="absolute left-5 top-5 right-5 flex items-center justify-between gap-3">
           <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">Library reel</span>
           <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-bold text-neutral-200 backdrop-blur">{index + 1}/{items.length}</span>
@@ -133,9 +133,9 @@ function BestByCategory({ categories, loading, onInfo }) {
           const item = category.items[0]
           const image = item ? imageFor(item) : null
           return (
-            <button key={category.title} type="button" disabled={!item || loading} onClick={() => item && onInfo?.(item)} className="group relative min-h-[9rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 p-3 text-left transition hover:border-white/30 disabled:cursor-default disabled:opacity-70">
+            <button key={category.title} type="button" disabled={!item || loading} onClick={() => item && onInfo?.(item)} className="group relative min-h-[9rem] overflow-hidden rounded-2xl border border-white/10 bg-neutral-950 p-3 text-left transition hover:border-white/30 disabled:cursor-default disabled:opacity-100">
               {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45 transition duration-500 group-hover:scale-105" /> : null}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/10" />
               <div className="relative flex h-full flex-col justify-between gap-6">
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-200"><AppIcon name={category.icon} size={12} />{category.title}</span>
@@ -162,7 +162,7 @@ function ShelfCard({ item, isClique, copying, onInfo, onShare, onCopy }) {
       <div className="group relative h-32 overflow-hidden sm:h-36">
         <button type="button" onClick={() => onInfo?.(item)} className="absolute inset-0 z-10 text-left" aria-label={`Show details for ${item.title}`} />
         {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-75 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
         <div className="absolute right-2 top-2 z-20 flex gap-1.5">
           <SmallIconButton icon="info" label={`Show details for ${item.title}`} onClick={() => onInfo?.(item)} />
           <SmallIconButton icon="share" label={`Share ${item.title}`} onClick={() => onShare?.(item)} />

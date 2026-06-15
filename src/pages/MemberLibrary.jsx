@@ -36,7 +36,7 @@ function PublicLibraryCard({ item, onInfo }) {
       <button type="button" onClick={() => onInfo(item)} className="block w-full text-left">
         <div className="relative h-48 bg-neutral-900">
           {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 flex items-center justify-center text-neutral-500"><AppIcon name={meta.icon} size={40} /></div>}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/5" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/5" />
           <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-neutral-950">
             <AppIcon name={meta.icon} size={12} />
             {item.type}
@@ -104,7 +104,7 @@ export default function MemberLibrary() {
       <section className="mb-5 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-2xl shadow-black/20">
         <div className="relative min-h-64 p-5 sm:p-7">
           {library.items[0]?.backdrop || library.items[0]?.poster ? <img src={library.items[0].backdrop || library.items[0].poster} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" /> : null}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/30" />
           <div className="relative flex min-h-52 flex-col justify-end">
             <p className="text-xs font-black uppercase tracking-[0.28em] text-neutral-500">Public member library</p>
             <h1 className="mt-2 text-4xl font-black text-white sm:text-5xl">{name}</h1>

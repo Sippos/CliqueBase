@@ -116,8 +116,8 @@ function MiniCategoryTile({ category, onOpenList }) {
   const top = category.items[0]
   return (
     <button type="button" onClick={() => onOpenList(category)} className="group relative min-h-[10rem] overflow-hidden rounded-[1.35rem] border border-white/10 bg-neutral-950 text-left transition hover:-translate-y-0.5 hover:border-white/25">
-      {artFor(top) ? <img src={artFor(top)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.07),rgba(0,0,0,0.45))]" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/5" />
+      {artFor(top) ? <img src={artFor(top)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-100 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.07),rgba(0,0,0,0.45))]" />}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/5" />
       <div className="relative flex min-h-[10rem] flex-col justify-between p-3.5">
         <div className="flex items-start justify-between gap-2"><span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-950"><AppIcon name={category.icon} size={10} />{category.title}</span><span className="rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-black text-white">{category.count}</span></div>
         <h3 className="line-clamp-2 text-lg font-black leading-tight text-white">{top?.title || `No ${category.title.toLowerCase()}`}</h3>
@@ -129,8 +129,8 @@ function MiniCategoryTile({ category, onOpenList }) {
 function HeroSlide({ category, item, index, total, onOpenList }) {
   return (
     <div className="relative min-h-[28rem] bg-neutral-950">
-      {artFor(item) ? <img src={artFor(item)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-82" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+      {artFor(item) ? <img src={artFor(item)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-100" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.16),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/5" />
       <div className="absolute left-5 top-5 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-white backdrop-blur">{category.title} · {index + 1}/{total}</div>
       <button type="button" onClick={() => onOpenList(category)} className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-neutral-950 hover:bg-neutral-200"><AppIcon name="list" size={13} />Open list</button>
       <div className="absolute inset-x-0 bottom-0 p-6"><p className="text-xs font-black uppercase tracking-[0.3em] text-neutral-300">#1 in {category.title}</p><h2 className="mt-2 text-4xl font-black leading-tight text-white">{item?.title || `No ${category.title.toLowerCase()} yet`}</h2><p className="mt-2 line-clamp-2 max-w-lg text-sm leading-6 text-neutral-300">{detailsText(item)}</p></div>
@@ -166,7 +166,7 @@ function CategoryOverviewCard({ category, groupId, active, copying, itemIndex, o
       <div className={`absolute inset-0 rounded-[1.75rem] transition duration-500 [transform-style:preserve-3d] ${active ? '[transform:rotateY(180deg)]' : ''}`}>
         <div className="absolute inset-0 overflow-hidden rounded-[1.75rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/20 [backface-visibility:hidden] transition hover:-translate-y-0.5 hover:border-white/25">
           {artFor(current) ? <img src={artFor(current)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/5" />
           <button type="button" onClick={flipCard} className="absolute inset-0 z-10 text-left" aria-label={`Flip ${category.title} card`} />
           <div className="pointer-events-none relative z-20 flex min-h-[24rem] flex-col justify-between p-5">
             <div className="flex items-start justify-between gap-3">
@@ -277,7 +277,7 @@ function CardTile({ item, category, saving, onInfo, onShare, onCopy }) {
       <div className={`absolute inset-0 rounded-[1.5rem] transition duration-500 [transform-style:preserve-3d] ${flipped ? '[transform:rotateY(180deg)]' : ''}`}>
         <div className="absolute inset-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-neutral-950 shadow-2xl shadow-black/25 [backface-visibility:hidden] group-hover:border-white/25">
           {image ? <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-78 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.14),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(0,0,0,0.45))]" />}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/45 to-black/5" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/5" />
           <div className="pointer-events-none relative z-20 flex min-h-[22rem] flex-col justify-between p-4">
             <div className="flex items-start justify-between gap-3">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-neutral-950"><AppIcon name={category.icon} size={12} />{category.singular}</span>
