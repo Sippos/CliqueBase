@@ -6,7 +6,7 @@ import { getGroupOpenPath } from '../lib/groups.js'
 import { getGameDetails, getMovieDetails, getSeriesDetails } from '../lib/tmdb.js'
 import { getCommunityLeaderboard, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
 
-const featuredCategories = ['Movies', 'Series', 'Games']
+const featuredCategories = ['Movies', 'Series', 'Games', 'Videos', 'Music', 'Books']
 const categoryMeta = {
   Movies: { icon: 'movies', label: 'Movie', plural: 'Movies' },
   Series: { icon: 'series', label: 'Series', plural: 'Series' },

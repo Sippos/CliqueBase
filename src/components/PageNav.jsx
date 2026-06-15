@@ -482,7 +482,8 @@ export default function PageNav({ active = 'library' }) {
 
   return (
     <>
-      <header className={`sticky top-3 z-50 mb-5 rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 shadow-black/50' : 'py-3'}`}>
+      <div className="fixed top-3 left-3 right-3 sm:left-4 sm:right-4 md:left-6 md:right-6 z-[80] pointer-events-none flex justify-center">
+        <header className={`pointer-events-auto w-full max-w-6xl rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 shadow-black/50' : 'py-3'}`}>
         <div className="grid gap-3 xl:grid-cols-[auto_1fr_auto] xl:items-center">
           <Link to="/community" aria-label="CliqueBase Community" className={`w-fit rounded-[1.4rem] px-2 py-1 transition hover:opacity-80 ${searchFocused ? 'hidden lg:block' : ''}`} onClick={closeMenus}><LogoMark scrolled={scrolled} /></Link>
           <div className="flex min-w-0 flex-col items-stretch justify-center gap-2 lg:flex-row lg:items-center">
@@ -511,7 +512,9 @@ export default function PageNav({ active = 'library' }) {
             </button>
           </div>
         </div>
-      </header>
+        </header>
+      </div>
+      <div className="h-[4.5rem] mb-5 sm:h-[5.5rem]" aria-hidden="true" />
 
       {message ? <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-neutral-950 shadow-2xl">{message}</div> : null}
 

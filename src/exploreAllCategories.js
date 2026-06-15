@@ -247,7 +247,7 @@ function renderExtraCategories(board) {
   const rendered = visibleReactCategories()
   const extras = groupByCategory(topContent)
     .filter((pile) => pile.items.length)
-    .filter((pile) => ['Videos', 'Music', 'Books'].includes(pile.category) || (!rendered.has(pile.category) && !CATEGORY_META[pile.category]))
+    .filter((pile) => !rendered.has(pile.category) && !CATEGORY_META[pile.category])
     .sort((a, b) => orderFor(a.category) - orderFor(b.category))
 
   if (!extras.length) {
