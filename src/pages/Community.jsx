@@ -541,31 +541,43 @@ export default function Community() {
       if (!hasSupabase) {
         setSignedIn(false)
         setActivity([])
+        setLoading(false)
         return
       }
       const session = await getCurrentSession().catch(() => null)
       setSignedIn(Boolean(session?.user))
       if (!session?.user) {
         setActivity([])
+        setLoading(false)
         return
       }
-      const [nextGroups, nextActivity, nextFriends, movies, series, games, musicResult, bookResult] = await Promise.all([
+      // Load feed immediately to drop loading state ASAP
+      getSocialActivity({ limit, includePublic: true })
+        .then((nextActivity) => {
+          setActivity(nextActivity)
+          setLoading(false)
+        })
+        .catch((error) => {
+          flash(error.message || 'Could not load feed.')
+          setLoading(false)
+        })
+
+      // Load heavy library items and auxiliary data in the background
+      Promise.all([
         getRemoteGroups().catch(() => []),
-        getSocialActivity({ limit, includePublic: true }).catch(() => []),
         getFriendsList().catch(() => []),
         getMovies(null).catch(() => []),
         getSeries(null).catch(() => []),
         getGames(null).catch(() => []),
         getMusicItems(null).catch(() => ({ tracks: [] })),
         getBookItems(null).catch(() => ({ books: [] })),
-      ])
-      setGroups(nextGroups)
-      setActivity(nextActivity)
-      setFriends(nextFriends)
-      setLibraryItems(normalizeLibraryItems(movies, series, games, musicResult.tracks || [], bookResult.books || []))
+      ]).then(([nextGroups, nextFriends, movies, series, games, musicResult, bookResult]) => {
+        setGroups(nextGroups)
+        setFriends(nextFriends)
+        setLibraryItems(normalizeLibraryItems(movies, series, games, musicResult?.tracks || [], bookResult?.books || []))
+      })
     } catch (error) {
       flash(error.message || 'Could not load feed.')
-    } finally {
       setLoading(false)
     }
   }
