@@ -247,6 +247,8 @@ export async function getCurrentSession() {
 
 export async function getCurrentUser() {
   const client = requireSupabase()
+  const { data: sessionData } = await client.auth.getSession()
+  if (sessionData?.session?.user) return sessionData.session.user
   const { data, error } = await client.auth.getUser()
   if (error) throw error
   return data.user || null
