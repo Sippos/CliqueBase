@@ -33,7 +33,7 @@ export default function CategorySpotlightCard({ category, loading, isClique, sav
 
       <div className="pointer-events-none relative z-20 flex min-h-[15.25rem] flex-col justify-between p-3 sm:min-h-[19rem] sm:p-4">
         <div className="flex items-start justify-between gap-3">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/45 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-100 backdrop-blur sm:px-3 sm:text-[10px] sm:tracking-[0.16em]">Featured</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/45 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-[0.14em] text-neutral-100 backdrop-blur sm:px-3 sm:text-[10px] sm:tracking-[0.16em]"><AppIcon name={category.icon} size={12} />{category.title}</span>
           <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
             <SmallIconButton icon="list" label={`Open ${category.title} list`} onClick={(event) => { event.stopPropagation(); onOpenPile?.(category.title) }} />
             {canCycle ? <SmallIconButton icon="refresh" label="Next recommendation" onClick={(event) => { event.stopPropagation(); onCycle?.(category.title) }} /> : null}

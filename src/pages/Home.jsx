@@ -260,6 +260,7 @@ export default function Home() {
   const [copyingKey, setCopyingKey] = useState('')
   const [spotlightIndexes, setSpotlightIndexes] = useState({})
   const [activeTopTitle, setActiveTopTitle] = useState('Movies')
+  const [activeLibraryTab, setActiveLibraryTab] = useState('All')
   const topScrollerRef = useRef(null)
 
   function cycleSpotlight(categoryTitle) {
@@ -426,7 +427,6 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="mt-5"><BestByCategory categories={categories} loading={loading} onInfo={setInfoItem} /></div>
       {shareNotice ? <div className="mt-5 rounded-2xl border border-emerald-400/30 bg-emerald-950/30 p-4 text-sm text-emerald-100">{shareNotice}</div> : null}
       {message ? <div className="mt-5 rounded-2xl border border-rose-400/30 bg-rose-950/30 p-4 text-sm text-rose-100">{message}</div> : null}
 
@@ -451,10 +451,19 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="mt-8 flex flex-col gap-8">
-        {categories.map((category) => (
-          <CategoryShelf key={category.title} category={category} loading={loading} isClique={isClique} copyingKey={copyingKey} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
-        ))}
+      <div className="mt-8 flex flex-col gap-5">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button type="button" onClick={() => setActiveLibraryTab('All')} className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-black transition ${activeLibraryTab === 'All' ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>All</button>
+          {categories.map((category) => {
+            const active = category.title === activeLibraryTab
+            return <button key={category.title} type="button" onClick={() => setActiveLibraryTab(category.title)} className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-black transition ${active ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}><AppIcon name={category.icon} size={15} />{category.title}</button>
+          })}
+        </div>
+        <div className="flex flex-col gap-8">
+          {categories.filter(c => activeLibraryTab === 'All' || c.title === activeLibraryTab).map((category) => (
+            <CategoryShelf key={category.title} category={category} loading={loading} isClique={isClique} copyingKey={copyingKey} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
+          ))}
+        </div>
       </div>
 
       <ItemInfoModal item={infoItem} onClose={() => setInfoItem(null)} onShare={openShare} onCopy={copyToLibrary} isClique={isClique} copying={copyingKey === itemActionKey(infoItem, 'copy-')} />
