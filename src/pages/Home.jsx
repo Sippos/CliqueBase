@@ -184,7 +184,7 @@ function ShelfCard({ item, isClique, copying, onInfo, onShare, onCopy }) {
 function CategoryShelf({ category, loading, isClique, copyingKey, onInfo, onShare, onCopy }) {
   const items = category.items || []
   return (
-    <section id={`library-${category.title.toLowerCase()}`} className="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 text-white sm:rounded-[1.75rem] sm:p-5">
+    <section id={`library-${category.title.toLowerCase()}`} className="text-white">
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-neutral-500"><AppIcon name={category.icon} size={14} />Library</p>
@@ -459,7 +459,7 @@ export default function Home() {
             return <button key={category.title} type="button" onClick={() => setActiveLibraryTab(category.title)} className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-black transition ${active ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.03] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}><AppIcon name={category.icon} size={15} />{category.title}</button>
           })}
         </div>
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 sm:rounded-[1.75rem] sm:p-5">
           {categories.filter(c => activeLibraryTab === 'All' || c.title === activeLibraryTab).map((category) => (
             <CategoryShelf key={category.title} category={category} loading={loading} isClique={isClique} copyingKey={copyingKey} onInfo={setInfoItem} onShare={openShare} onCopy={copyToLibrary} />
           ))}
