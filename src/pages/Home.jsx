@@ -6,7 +6,7 @@ import PageShell from '../components/PageShell.jsx'
 import CategorySpotlightCard from '../components/CategorySpotlightCard.jsx'
 import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, setActiveGroup } from '../lib/groups.js'
 import { getSavedHandle } from '../lib/handle.js'
-import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase, saveGame, saveMovie, saveSeries } from '../lib/supabaseClient.js'
+import { getCurrentSession, getGames, getMovies, getRemoteGroups, getSeries, hasSupabase, saveGame, saveMovie, saveSeries, onAuthStateChanged } from '../lib/supabaseClient.js'
 import { getVideos, saveVideo } from '../lib/videoLibrary.js'
 import { getMusicItems, saveMusicItem } from '../lib/musicLibrary.js'
 import { getBookItems, saveBookItem } from '../lib/bookLibrary.js'
@@ -305,7 +305,16 @@ export default function Home() {
     refreshDashboard(routeGroupId || null)
     function handleGroupChange() { refreshDashboard(routeGroupId || null) }
     window.addEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
-    return () => window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
+    let unsubscribeAuth = () => {}
+    if (hasSupabase) {
+      unsubscribeAuth = onAuthStateChanged(() => {
+        refreshDashboard(routeGroupId || null)
+      })
+    }
+    return () => {
+      window.removeEventListener(GROUPS_CHANGED_EVENT, handleGroupChange)
+      unsubscribeAuth()
+    }
   }, [routeGroupId])
 
   const movieItems = useMemo(() => normalizeItems(media.movies, 'Movie', 'MOV'), [media.movies])
