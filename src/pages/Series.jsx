@@ -7,6 +7,7 @@ import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
 import { demoSeries } from '../lib/demoMovies.js'
 import { getSeriesDetails, searchSeries } from '../lib/tmdb.js'
 import { getCurrentSession, getRemoteGroups, getSeries, hasSupabase, markSeriesFinished, rateSeries as saveSeriesRating, saveSeries, voteSeries } from '../lib/supabaseClient.js'
+import { useLocalVotes } from '../hooks/useLocalVotes.js'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
@@ -21,7 +22,6 @@ function scopeLabel(scope, groups) {
 
 export default function Series() {
   const [series, setSeries] = useState(() => hasSupabase ? [] : demoSeries)
-  const [votes, setVotes] = useState({})
   const [finished, setFinished] = useState(() => hasSupabase ? [] : demoSeries.filter((item) => item.finished).map((item) => item.id))
   const [ratings, setRatings] = useState(() => hasSupabase ? {} : Object.fromEntries(demoSeries.filter((item) => item.rating).map((item) => [item.id, item.rating])))
   const [editingRating, setEditingRating] = useState(null)
@@ -42,6 +42,7 @@ export default function Series() {
   const canUseLibrary = !hasSupabase || setupState === 'ready'
   const isPersonalScope = selectedScope === 'personal'
   const selectedGroupId = isPersonalScope ? null : selectedScope
+  const [votes, recordVote] = useLocalVotes('series', selectedGroupId)
   const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => series.filter((item) => !votes[item.id] && !finished.includes(item.id)), [series, votes, finished])
@@ -100,7 +101,6 @@ export default function Series() {
 
   function clearRemoteState() {
     setSeries([])
-    setVotes({})
     setFinished([])
     setRatings({})
     setResults([])
@@ -174,7 +174,7 @@ export default function Series() {
   async function handleSwipe(vote, item) {
     if (needLibrary()) return
 
-    setVotes((current) => ({ ...current, [item.id]: vote }))
+    recordVote(item.id, vote)
 
     if (hasSupabase) {
       try {
@@ -193,7 +193,7 @@ export default function Series() {
     if (needLibrary()) return
 
     setFinished((current) => current.includes(item.id) ? current : [...current, item.id])
-    setVotes((current) => ({ ...current, [item.id]: 'like' }))
+    recordVote(item.id, 'like')
     setEditingRating(item.id)
 
     if (hasSupabase) {

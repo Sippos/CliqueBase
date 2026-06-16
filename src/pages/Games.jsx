@@ -7,6 +7,7 @@ import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, setActiveGroup 
 import { demoGames } from '../lib/demoMovies.js'
 import { getGameDetails, searchGames } from '../lib/tmdb.js'
 import { getCurrentSession, getGames, getRemoteGroups, hasSupabase, markGamePlayed, rateGame as saveGameRating, saveGame, voteGame } from '../lib/supabaseClient.js'
+import { useLocalVotes } from '../hooks/useLocalVotes'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
@@ -49,7 +50,10 @@ function makeCustomGame(query) {
 
 export default function Games() {
   const [games, setGames] = useState(() => hasSupabase ? [] : demoGames)
-  const [votes, setVotes] = useState({})
+  const [selectedScope, setSelectedScopeState] = useState(() => getInitialScope())
+  const isPersonalScope = selectedScope === 'personal'
+  const selectedGroupId = isPersonalScope ? null : selectedScope
+  const [votes, recordVote] = useLocalVotes('games', selectedGroupId)
   const [played, setPlayed] = useState(() => hasSupabase ? [] : demoGames.filter((game) => game.played || game.finished).map((game) => game.id))
   const [ratings, setRatings] = useState(() => hasSupabase ? {} : Object.fromEntries(demoGames.filter((game) => game.rating).map((game) => [game.id, game.rating])))
   const [editingRating, setEditingRating] = useState(null)
@@ -62,13 +66,11 @@ export default function Games() {
   const [groups, setGroups] = useState([])
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
   const [activeContextGroupId, setActiveContextGroupId] = useState(() => getActiveGroupId())
-  const [selectedScope, setSelectedScopeState] = useState(() => getInitialScope())
   const [setupState, setSetupState] = useState(() => hasSupabase ? 'checking' : 'local')
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
   const canUseLibrary = !hasSupabase || setupState === 'ready'
-  const selectedGroupId = selectedScope === 'personal' ? null : selectedScope
   const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => games.filter((game) => !votes[game.id] && !played.includes(game.id)), [games, votes, played])
@@ -150,7 +152,6 @@ export default function Games() {
 
   function clearRemoteState() {
     setGames([])
-    setVotes({})
     setPlayed([])
     setRatings({})
     setResults([])
@@ -229,8 +230,7 @@ export default function Games() {
 
   async function handleSwipe(vote, game) {
     if (needLibrary()) return
-
-    setVotes((current) => ({ ...current, [game.id]: vote }))
+    recordVote(game.id, vote)
 
     if (hasSupabase) {
       try {
@@ -249,7 +249,7 @@ export default function Games() {
     if (needLibrary()) return
 
     setPlayed((current) => current.includes(game.id) ? current : [...current, game.id])
-    setVotes((current) => ({ ...current, [game.id]: 'like' }))
+    recordVote(game.id, 'like')
     setEditingRating(game.id)
 
     if (hasSupabase) {

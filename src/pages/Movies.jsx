@@ -8,6 +8,7 @@ import { demoMovies } from '../lib/demoMovies.js'
 import { shareContent } from '../lib/share.js'
 import { getMovieDetails, searchMovies } from '../lib/tmdb.js'
 import { getCurrentSession, getGroupMembers, getMovies, getRemoteGroups, hasSupabase, markMovieWatched, rateMovie as saveMovieRating, saveMovie, voteMovie } from '../lib/supabaseClient.js'
+import { useLocalVotes } from '../hooks/useLocalVotes.js'
 
 const MOVIES_SCOPE_STORAGE_KEY = 'cliquebase_movies_scope'
 
@@ -164,7 +165,10 @@ function WatchPartyModal({ movie, members, selectedIds, setSelectedIds, onClose,
 
 export default function Movies() {
   const [movies, setMovies] = useState(() => hasSupabase ? [] : demoMovies)
-  const [votes, setVotes] = useState({})
+  const [selectedScope, setSelectedScopeState] = useState(() => getInitialScope())
+  const isPersonalScope = selectedScope === 'personal'
+  const selectedGroupId = isPersonalScope ? null : selectedScope
+  const [votes, recordVote] = useLocalVotes('movies', selectedGroupId)
   const [watched, setWatched] = useState(() => hasSupabase ? [] : demoMovies.filter((movie) => movie.watched).map((movie) => movie.id))
   const [ratings, setRatings] = useState(() => hasSupabase ? {} : Object.fromEntries(demoMovies.filter((movie) => movie.rating).map((movie) => [movie.id, movie.rating])))
   const [editingRating, setEditingRating] = useState(null)
@@ -180,14 +184,11 @@ export default function Movies() {
   const [watchPartySelection, setWatchPartySelection] = useState([])
   const [activeGroup, setActiveGroupState] = useState(() => getActiveGroup())
   const [activeContextGroupId, setActiveContextGroupId] = useState(() => getActiveGroupId())
-  const [selectedScope, setSelectedScopeState] = useState(() => getInitialScope())
   const [setupState, setSetupState] = useState(() => hasSupabase ? 'checking' : 'local')
   const deckRef = useRef(null)
   const activeHandle = getSavedHandle()
   const hasResults = results.length > 0
   const canUseLibrary = !hasSupabase || setupState === 'ready'
-  const isPersonalScope = selectedScope === 'personal'
-  const selectedGroupId = isPersonalScope ? null : selectedScope
   const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => movies.filter((movie) => !votes[movie.id] && !watched.includes(movie.id)), [movies, votes, watched])
@@ -287,7 +288,7 @@ export default function Movies() {
 
   function clearRemoteState() {
     setMovies([])
-    setVotes({})
+    // We do not clear votes here as useLocalVotes handles it per group
     setWatched([])
     setRatings({})
     setResults([])
@@ -360,7 +361,7 @@ export default function Movies() {
   }
 
   async function handleSwipe(vote, movie) {
-    setVotes((current) => ({ ...current, [movie.id]: vote }))
+    recordVote(movie.id, vote)
 
     if (hasSupabase) {
       try {
@@ -389,7 +390,7 @@ export default function Movies() {
     setPendingWatchedMovie(null)
     setWatchPartySelection([])
     setWatched((current) => current.includes(movie.id) ? current : [...current, movie.id])
-    setVotes((current) => ({ ...current, [movie.id]: 'like' }))
+    recordVote(movie.id, 'like')
     setEditingRating(movie.id)
 
     if (hasSupabase) {

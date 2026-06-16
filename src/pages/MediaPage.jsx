@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import PageShell from '../components/PageShell.jsx'
 import SwipeDeck from '../components/SwipeDeck.jsx'
 import { getSavedHandle } from '../lib/handle.js'
+import { useLocalVotes } from '../hooks/useLocalVotes.js'
 
 function DetailPill({ children }) {
   if (!children) return null
@@ -14,7 +15,7 @@ function makeId(prefix, title) {
 
 export default function MediaPage({ active, eyebrow, title, description, items, itemLabel, likeLabel = 'Pick', historyLabel = 'Finished' }) {
   const [library, setLibrary] = useState(items)
-  const [votes, setVotes] = useState({})
+  const [votes, recordVote, setVotesDirectly] = useLocalVotes(itemLabel || 'media', null)
   const [finished, setFinished] = useState(() => items.filter((item) => item.watched || item.finished).map((item) => item.id))
   const [ratings, setRatings] = useState(() => Object.fromEntries(items.filter((item) => item.rating).map((item) => [item.id, item.rating])))
   const [editingRating, setEditingRating] = useState(null)
@@ -33,13 +34,13 @@ export default function MediaPage({ active, eyebrow, title, description, items, 
   }
 
   function handleSwipe(vote, item) {
-    setVotes((current) => ({ ...current, [item.id]: vote }))
+    recordVote(item.id, vote)
     showMessage(vote === 'like' ? `${item.title} moved up the ranking.` : `${item.title} skipped for now.`)
   }
 
   function markFinished(item) {
     setFinished((current) => current.includes(item.id) ? current : [...current, item.id])
-    setVotes((current) => ({ ...current, [item.id]: 'like' }))
+    recordVote(item.id, 'like')
     setEditingRating(item.id)
     showMessage(`${item.title} added to ${historyLabel.toLowerCase()}.`)
   }
@@ -72,7 +73,7 @@ export default function MediaPage({ active, eyebrow, title, description, items, 
 
   function resetPage() {
     setLibrary(items)
-    setVotes({})
+    setVotesDirectly({})
     setFinished(items.filter((item) => item.watched || item.finished).map((item) => item.id))
     setRatings(Object.fromEntries(items.filter((item) => item.rating).map((item) => [item.id, item.rating])))
     setEditingRating(null)

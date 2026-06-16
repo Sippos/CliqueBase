@@ -6,6 +6,7 @@ import { DetailPill, InfoModal, PageHero, StatusMessage, displayYear } from '../
 import { getSavedHandle } from '../lib/handle.js'
 import { getActiveGroupId } from '../lib/groups.js'
 import { deleteVideo, getVideos, makeVideoFromLink, markVideoClassic, saveVideo, updateVideo, voteVideo } from '../lib/videoLibrary.js'
+import { useLocalVotes } from '../hooks/useLocalVotes.js'
 
 function scopedGroupFromLocation(search) {
   const params = new URLSearchParams(search)
@@ -71,7 +72,7 @@ export default function Videos() {
   const location = useLocation()
   const groupId = scopedGroupFromLocation(location.search)
   const [videos, setVideos] = useState([])
-  const [votes, setVotes] = useState({})
+  const [votes, recordVote] = useLocalVotes('videos', groupId)
   const [infoVideo, setInfoVideo] = useState(null)
   const [editingVideo, setEditingVideo] = useState(null)
   const [editTitle, setEditTitle] = useState('')
@@ -156,11 +157,6 @@ export default function Videos() {
     try {
       await deleteVideo(video, groupId)
       setVideos((current) => current.filter((item) => item.id !== video.id))
-      setVotes((current) => {
-        const next = { ...current }
-        delete next[video.id]
-        return next
-      })
       if (infoVideo?.id === video.id) setInfoVideo(null)
       if (editingVideo?.id === video.id) setEditingVideo(null)
       showMessage(`Deleted "${video.title}".`)
@@ -176,7 +172,7 @@ export default function Videos() {
     try {
       const saved = await markVideoClassic(video, groupId)
       setVideos((current) => current.map((item) => item.id === saved.id ? saved : item))
-      setVotes((current) => ({ ...current, [video.id]: 'like' }))
+      recordVote(video.id, 'like')
       showMessage(`"${saved.title}" saved as classic.`)
     } catch (error) {
       showMessage(error.message || 'Could not mark this video as classic.', 'error')
@@ -186,7 +182,7 @@ export default function Videos() {
   }
 
   async function handleSwipe(vote, video) {
-    setVotes((current) => ({ ...current, [video.id]: vote }))
+    recordVote(video.id, vote)
     try {
       await voteVideo(video, vote, groupId)
       if (vote === 'like') await markClassic(video)
@@ -197,7 +193,6 @@ export default function Videos() {
   }
 
   async function refreshPage() {
-    setVotes({})
     setInfoVideo(null)
     setEditingVideo(null)
     setDraft({ url: '', title: '' })
