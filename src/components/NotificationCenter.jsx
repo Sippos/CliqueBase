@@ -193,7 +193,7 @@ export default function NotificationCenter() {
 
   return (
     <div className="relative notification-center">
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-label="Open community inbox" className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white transition hover:bg-white hover:text-neutral-950">
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-label="Open community inbox" className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white transition hover:bg-white hover:text-neutral-950">
         <AppIcon name="bell" size={18} />
         {unreadCount ? <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-black text-neutral-950">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}
       </button>

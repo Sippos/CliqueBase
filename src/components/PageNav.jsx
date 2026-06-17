@@ -135,6 +135,7 @@ function PersonRow({ person, onAdd, onRemove, onClose }) {
 export default function PageNav({ active = 'library' }) {
   const location = useLocation()
   const [scrolled, setScrolled] = useState(false)
+  const [hiddenNav, setHiddenNav] = useState(false)
   const [handle, setHandle] = useState('')
   const [activeGroup, setActiveGroupState] = useState(null)
   const [groups, setGroups] = useState([])
@@ -280,8 +281,16 @@ export default function PageNav({ active = 'library' }) {
       else refreshGroups()
     }) : () => {}
 
+    let lastScrollY = window.scrollY
     function handleScroll() {
-      setScrolled(window.scrollY > 30)
+      const currentScrollY = window.scrollY
+      setScrolled(currentScrollY > 30)
+      if (currentScrollY > lastScrollY && currentScrollY > 60) {
+        setHiddenNav(true)
+      } else if (currentScrollY < lastScrollY) {
+        setHiddenNav(false)
+      }
+      lastScrollY = currentScrollY
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
 
@@ -483,13 +492,13 @@ export default function PageNav({ active = 'library' }) {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-[80] flex items-center justify-between px-3 py-2 bg-neutral-950/80 backdrop-blur-lg border-b border-white/10 md:hidden">
+      <div className={`fixed top-0 left-0 right-0 z-[80] flex items-center justify-between px-3 py-2 bg-neutral-950/80 backdrop-blur-lg border-b border-white/10 md:hidden transition-transform duration-300 ${hiddenNav ? '-translate-y-full' : 'translate-y-0'}`}>
         <Link to="/community" aria-label="CliqueBase Community" className="w-fit rounded-[1.4rem] transition hover:opacity-80" onClick={closeMenus}>
           <LogoMark scrolled={false} />
         </Link>
         <div className="flex items-center gap-2">
           <NotificationCenter />
-          <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="flex h-[2.35rem] w-[2.35rem] shrink-0 items-center justify-center rounded-full border border-white/10 bg-neutral-950/95 text-white shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 hover:bg-white hover:text-black">
+          <button type="button" aria-label={`Open profile for ${profileLabel}`} onClick={() => { closeMenus(); setProfileToolsOpen(false); setAccountOpen(true) }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-neutral-400 transition hover:bg-white hover:text-neutral-950">
             <AppIcon name="user" size={15} />
           </button>
         </div>
