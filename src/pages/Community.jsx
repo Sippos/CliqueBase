@@ -624,7 +624,7 @@ export default function Community() {
           <div className="mb-4 pt-2">
             <div className="flex flex-wrap items-end justify-between gap-3 px-1">
               <div><h1 className="text-3xl font-black tracking-tight sm:text-4xl text-white">Friend feed</h1><p className="mt-1 text-sm text-neutral-400">{activeGroup?.name ? `${activeGroup.name} and friends` : 'Recommendations, shares, comments, and clique updates.'}</p></div>
-              <div className="flex gap-2"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div>
+              <div className="hidden gap-2 sm:flex"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div>
             </div>
             <div className="community-feed-tabs mt-4 flex gap-2 overflow-x-auto pb-1 px-1">
               {feedFilters.map((filter) => <button key={filter.key} type="button" onClick={() => setFeedFilter(filter.key)} className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${feedFilter === filter.key ? 'border-white bg-white text-neutral-950' : 'border-white/10 bg-white/[0.12] text-neutral-300 hover:bg-white hover:text-neutral-950'}`}>{filter.label}</button>)}
