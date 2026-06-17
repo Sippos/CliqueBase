@@ -323,50 +323,57 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   const avatarText = typeof actorName === 'string' && actorName.length > 0 ? actorName.charAt(0).toUpperCase() : '?'
   
   return (
-    <article className="rounded-2xl border border-white/15 bg-white/[0.12] p-5 shadow-lg shadow-black/20 transition hover:bg-white/[0.16]">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white shadow-md">
-          {avatarText}
-        </div>
-        <div className="min-w-0 flex-1 leading-tight">
-          <div className="flex items-center gap-1.5 text-[0.9rem] text-neutral-400">
-            {actor}
-            <span>{activityVerb(activity)}</span>
-          </div>
-          <div className="flex items-center gap-1.5 mt-0.5 text-[0.75rem] text-neutral-500">
-            <span>{relativeTime(activity.createdAt)}</span>
-            {activity.groupName ? (
-              <>
-                <span>•</span>
-                <Link to={`/cliques/${encodeURIComponent(activity.groupId)}`} className="font-semibold text-neutral-400 hover:text-white">{activity.groupName}</Link>
-              </>
-            ) : null}
-          </div>
-        </div>
-      </div>
-      <h3 className="mt-2 text-xl font-black leading-tight text-white">{activity.title}</h3>
-      {image || text ? (
-        <div className={`mt-3 ${image && text ? 'flex items-start gap-4 rounded-2xl bg-neutral-950/40 p-3.5' : ''}`}>
-          {image ? <img src={image} alt="" className={`shrink-0 rounded-xl bg-neutral-900 object-cover shadow-md ${text ? 'w-16 sm:w-20 aspect-[2/3]' : 'w-full aspect-video'}`} /> : null}
-          {text ? <p className={`min-w-0 flex-1 text-[0.95rem] leading-relaxed text-neutral-300 ${!image ? 'rounded-2xl bg-neutral-950/40 p-3.5' : ''}`}>{text}</p> : null}
-        </div>
+    <article className="relative overflow-hidden rounded-2xl border border-white/15 bg-white/[0.12] shadow-lg shadow-black/20 transition hover:bg-white/[0.16]">
+      {image ? (
+        <div 
+          className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-[0.15] mix-blend-screen"
+          style={{ backgroundImage: `url(${image})` }} 
+        />
       ) : null}
-      <div className="mt-3.5 flex flex-wrap gap-2">
-        {activity.itemType ? <span className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-400">{activity.itemType}</span> : null}
-        {activity.payload?.priority ? <span className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-400">{activity.payload.priority}</span> : null}
-        {(activity.payload?.tags || []).map((tag) => <span key={tag} className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black text-neutral-300">{tag}</span>)}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-4">
-        {canShare ? (
-          <button type="button" onClick={() => onShare(activity)} className="flex items-center gap-1.5 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-xs font-bold text-neutral-300 transition hover:bg-white/10 hover:text-white">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-            Share
-          </button>
+      <div className="relative p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white shadow-md">
+            {avatarText}
+          </div>
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="flex items-center gap-1.5 text-[0.9rem] text-neutral-400">
+              {actor}
+              <span>{activityVerb(activity)}</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5 text-[0.75rem] text-neutral-500">
+              <span>{relativeTime(activity.createdAt)}</span>
+              {activity.groupName ? (
+                <>
+                  <span>•</span>
+                  <Link to={`/cliques/${encodeURIComponent(activity.groupId)}`} className="font-semibold text-neutral-400 hover:text-white">{activity.groupName}</Link>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <h3 className="mt-2 text-xl font-black leading-tight text-white">{activity.title}</h3>
+        {text ? (
+          <div className="mt-3 rounded-2xl bg-neutral-950/40 p-3.5">
+            <p className="min-w-0 flex-1 text-[0.95rem] leading-relaxed text-neutral-300">{text}</p>
+          </div>
         ) : null}
-        {activity.actorId ? <Link to={`/members/${activity.actorId}`} className="flex items-center gap-1.5 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-xs font-bold text-neutral-300 transition hover:bg-white/10 hover:text-white">Profile</Link> : null}
+        <div className="mt-3.5 flex flex-wrap gap-2">
+          {activity.itemType ? <span className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-400">{activity.itemType}</span> : null}
+          {activity.payload?.priority ? <span className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-neutral-400">{activity.payload.priority}</span> : null}
+          {(activity.payload?.tags || []).map((tag) => <span key={tag} className="rounded-full border border-white/10 bg-neutral-900/50 px-3 py-1 text-[11px] font-black text-neutral-300">{tag}</span>)}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-4">
+          {canShare ? (
+            <button type="button" onClick={() => onShare(activity)} className="flex items-center gap-1.5 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-xs font-bold text-neutral-300 transition hover:bg-white/10 hover:text-white">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+              Share
+            </button>
+          ) : null}
+          {activity.actorId ? <Link to={`/members/${activity.actorId}`} className="flex items-center gap-1.5 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-xs font-bold text-neutral-300 transition hover:bg-white/10 hover:text-white">Profile</Link> : null}
+        </div>
+        <ActivityCommentForm activity={activity} signedIn={signedIn} onCommented={onCommented} onFlash={onFlash} />
+        <ActivityReportForm activity={activity} signedIn={signedIn} onFlash={onFlash} onBlocked={onCommented} />
       </div>
-      <ActivityCommentForm activity={activity} signedIn={signedIn} onCommented={onCommented} onFlash={onFlash} />
-      <ActivityReportForm activity={activity} signedIn={signedIn} onFlash={onFlash} onBlocked={onCommented} />
     </article>
   )
 }
@@ -623,7 +630,7 @@ export default function Community() {
         <main className="mx-auto w-full max-w-[640px] min-w-0">
           <div className="mb-4 pt-2">
             <div className="flex flex-wrap items-end justify-between gap-3 px-1">
-              <div><h1 className="text-3xl font-black tracking-tight sm:text-4xl text-white">Friend feed</h1><p className="mt-1 text-sm text-neutral-400">{activeGroup?.name ? `${activeGroup.name} and friends` : 'Recommendations, shares, comments, and clique updates.'}</p></div>
+              <div><h1 className="text-3xl font-black tracking-tight sm:text-4xl text-white">Friend feed</h1></div>
               <div className="hidden gap-2 sm:flex"><a href="#recommend" className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-neutral-950">Recommend</a><button type="button" onClick={() => refresh()} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-black text-neutral-300 transition hover:bg-white hover:text-neutral-950">Refresh</button></div>
             </div>
             <div className="community-feed-tabs mt-4 flex gap-2 overflow-x-auto pb-1 px-1">
