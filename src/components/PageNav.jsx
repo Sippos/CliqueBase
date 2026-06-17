@@ -503,6 +503,7 @@ export default function PageNav({ active = 'library' }) {
           </button>
         </div>
       </div>
+      <div className="h-[3.75rem] w-full shrink-0 md:hidden" aria-hidden="true" />
       <div className="fixed top-3 left-3 right-3 sm:left-4 sm:right-4 md:left-6 md:right-6 z-[80] pointer-events-none hidden md:flex justify-center">
         <header className={`pointer-events-auto w-full max-w-6xl rounded-[2rem] border border-white/10 bg-neutral-950/95 px-3 py-3 shadow-2xl shadow-black/30 backdrop-blur transition-all duration-300 sm:px-4 ${scrolled ? 'py-2 shadow-black/50' : 'py-3'}`}>
         <div className="grid gap-3 xl:grid-cols-[auto_1fr_auto] xl:items-center">
