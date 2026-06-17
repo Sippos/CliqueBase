@@ -7,7 +7,7 @@ import { GROUPS_CHANGED_EVENT, getActiveGroup, getActiveGroupId, setActiveGroup 
 import { demoGames } from '../lib/demoMovies.js'
 import { getGameDetails, searchGames } from '../lib/tmdb.js'
 import { getCurrentSession, getGames, getRemoteGroups, hasSupabase, markGamePlayed, rateGame as saveGameRating, saveGame, voteGame } from '../lib/supabaseClient.js'
-import { useLocalVotes } from '../hooks/useLocalVotes'
+import { useMediaVotes } from '../hooks/useMediaVotes.js'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
@@ -53,7 +53,7 @@ export default function Games() {
   const [selectedScope, setSelectedScopeState] = useState(() => getInitialScope())
   const isPersonalScope = selectedScope === 'personal'
   const selectedGroupId = isPersonalScope ? null : selectedScope
-  const [votes, recordVote] = useLocalVotes('games', selectedGroupId)
+  const [votes, recordVote] = useMediaVotes('game', selectedGroupId)
   const [played, setPlayed] = useState(() => hasSupabase ? [] : demoGames.filter((game) => game.played || game.finished).map((game) => game.id))
   const [ratings, setRatings] = useState(() => hasSupabase ? {} : Object.fromEntries(demoGames.filter((game) => game.rating).map((game) => [game.id, game.rating])))
   const [editingRating, setEditingRating] = useState(null)

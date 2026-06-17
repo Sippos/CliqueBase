@@ -303,3 +303,20 @@ export async function voteGame(game, vote, groupId = null) { const client = requ
 export async function markGamePlayed(game, rating = null, groupId = null) { const scopedGame = await upsertScopedMedia({ table: 'games', item: game, payloadFor: gamePayload, conflict: groupId ? 'group_id,game_id' : 'owner_id,game_id', normalize: normalizeGame, groupId, nominatedBy: game.nominated_by || 'anonymous', doneColumn: 'played', rating, itemType: 'game' }); if (groupId) await upsertScopedMedia({ table: 'games', item: game, payloadFor: gamePayload, conflict: 'owner_id,game_id', normalize: normalizeGame, groupId: null, nominatedBy: game.nominated_by || 'anonymous', doneColumn: 'played', rating, itemType: 'game' }); return scopedGame }
 export async function rateGame(game, rating, groupId = null) { return markGamePlayed(game, rating, groupId) }
 export async function getCommunityLeaderboard() { const client = requireSupabase(); const { data, error } = await client.rpc('get_community_leaderboard'); if (error) throw error; return data || { groups: [], topContent: [], totals: {} } }
+
+export async function getUserVotes(mediaType, groupId = null) {
+  if (!hasSupabase) return {}
+  const client = requireSupabase()
+  const { data, error } = await client.rpc('get_user_votes', {
+    media_type_input: mediaType,
+    group_id_input: groupId
+  })
+  if (error) {
+    console.error('Failed to get user votes:', error)
+    return {}
+  }
+  return (data || []).reduce((acc, row) => {
+    acc[row.media_id] = row.vote
+    return acc
+  }, {})
+}

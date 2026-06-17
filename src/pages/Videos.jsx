@@ -6,7 +6,7 @@ import { DetailPill, InfoModal, PageHero, StatusMessage, displayYear } from '../
 import { getSavedHandle } from '../lib/handle.js'
 import { getActiveGroupId } from '../lib/groups.js'
 import { deleteVideo, getVideos, makeVideoFromLink, markVideoClassic, saveVideo, updateVideo, voteVideo } from '../lib/videoLibrary.js'
-import { useLocalVotes } from '../hooks/useLocalVotes.js'
+import { useMediaVotes } from '../hooks/useMediaVotes.js'
 
 function scopedGroupFromLocation(search) {
   const params = new URLSearchParams(search)
@@ -72,7 +72,7 @@ export default function Videos() {
   const location = useLocation()
   const groupId = scopedGroupFromLocation(location.search)
   const [videos, setVideos] = useState([])
-  const [votes, recordVote] = useLocalVotes('videos', groupId)
+  const [votes, recordVote] = useMediaVotes('video', groupId)
   const [infoVideo, setInfoVideo] = useState(null)
   const [editingVideo, setEditingVideo] = useState(null)
   const [editTitle, setEditTitle] = useState('')

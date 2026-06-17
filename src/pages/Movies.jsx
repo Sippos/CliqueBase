@@ -8,7 +8,7 @@ import { demoMovies } from '../lib/demoMovies.js'
 import { shareContent } from '../lib/share.js'
 import { getMovieDetails, searchMovies } from '../lib/tmdb.js'
 import { getCurrentSession, getGroupMembers, getMovies, getRemoteGroups, hasSupabase, markMovieWatched, rateMovie as saveMovieRating, saveMovie, voteMovie } from '../lib/supabaseClient.js'
-import { useLocalVotes } from '../hooks/useLocalVotes.js'
+import { useMediaVotes } from '../hooks/useMediaVotes.js'
 
 const MOVIES_SCOPE_STORAGE_KEY = 'cliquebase_movies_scope'
 
@@ -168,7 +168,7 @@ export default function Movies() {
   const [selectedScope, setSelectedScopeState] = useState(() => getInitialScope())
   const isPersonalScope = selectedScope === 'personal'
   const selectedGroupId = isPersonalScope ? null : selectedScope
-  const [votes, recordVote] = useLocalVotes('movies', selectedGroupId)
+  const [votes, recordVote] = useMediaVotes('movie', selectedGroupId)
   const [watched, setWatched] = useState(() => hasSupabase ? [] : demoMovies.filter((movie) => movie.watched).map((movie) => movie.id))
   const [ratings, setRatings] = useState(() => hasSupabase ? {} : Object.fromEntries(demoMovies.filter((movie) => movie.rating).map((movie) => [movie.id, movie.rating])))
   const [editingRating, setEditingRating] = useState(null)
@@ -481,8 +481,8 @@ export default function Movies() {
   return (
     <PageShell active="movies">
       {isPersonalScope ? (
-        <section className="mb-5 rounded-[1.75rem] border border-white/10 bg-white/[0.03] p-5 shadow-2xl shadow-black/20">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="mb-5 pt-2">
+          <div className="flex flex-col gap-4 px-1 md:flex-row md:items-start md:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">My Library</p>
               <h1 className="mt-1 text-3xl font-black tracking-tight text-white md:text-5xl">Movies library</h1>
@@ -491,7 +491,7 @@ export default function Movies() {
             </div>
             <div className="shrink-0">{scopeControl}</div>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-3 px-1">
             <div className="rounded-3xl border border-white/10 bg-neutral-950/70 p-4">
               <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">Cards</p>
               <p className="mt-2 text-3xl font-black text-white">{queue.length}</p>
@@ -508,7 +508,7 @@ export default function Movies() {
               <p className="mt-1 text-sm text-neutral-400">with your score</p>
             </div>
           </div>
-        </section>
+        </div>
       ) : (
         <PageHero
           eyebrow="Clique picks"

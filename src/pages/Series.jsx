@@ -7,7 +7,7 @@ import { GROUPS_CHANGED_EVENT, getActiveGroup } from '../lib/groups.js'
 import { demoSeries } from '../lib/demoMovies.js'
 import { getSeriesDetails, searchSeries } from '../lib/tmdb.js'
 import { getCurrentSession, getRemoteGroups, getSeries, hasSupabase, markSeriesFinished, rateSeries as saveSeriesRating, saveSeries, voteSeries } from '../lib/supabaseClient.js'
-import { useLocalVotes } from '../hooks/useLocalVotes.js'
+import { useMediaVotes } from '../hooks/useMediaVotes.js'
 
 function setupMessage(state) {
   if (!hasSupabase) return null
@@ -42,7 +42,7 @@ export default function Series() {
   const canUseLibrary = !hasSupabase || setupState === 'ready'
   const isPersonalScope = selectedScope === 'personal'
   const selectedGroupId = isPersonalScope ? null : selectedScope
-  const [votes, recordVote] = useLocalVotes('series', selectedGroupId)
+  const [votes, recordVote] = useMediaVotes('series', selectedGroupId)
   const destinationLabel = hasSupabase ? scopeLabel(selectedScope, groups) : 'Local demo library'
 
   const queue = useMemo(() => series.filter((item) => !votes[item.id] && !finished.includes(item.id)), [series, votes, finished])

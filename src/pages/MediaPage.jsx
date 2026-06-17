@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import PageShell from '../components/PageShell.jsx'
 import SwipeDeck from '../components/SwipeDeck.jsx'
 import { getSavedHandle } from '../lib/handle.js'
-import { useLocalVotes } from '../hooks/useLocalVotes.js'
+import { useMediaVotes } from '../hooks/useMediaVotes.js'
 
 function DetailPill({ children }) {
   if (!children) return null
@@ -15,7 +15,7 @@ function makeId(prefix, title) {
 
 export default function MediaPage({ active, eyebrow, title, description, items, itemLabel, likeLabel = 'Pick', historyLabel = 'Finished' }) {
   const [library, setLibrary] = useState(items)
-  const [votes, recordVote, setVotesDirectly] = useLocalVotes(itemLabel || 'media', null)
+  const [votes, recordVote, setVotesDirectly] = useMediaVotes(itemLabel || 'media', null)
   const [finished, setFinished] = useState(() => items.filter((item) => item.watched || item.finished).map((item) => item.id))
   const [ratings, setRatings] = useState(() => Object.fromEntries(items.filter((item) => item.rating).map((item) => [item.id, item.rating])))
   const [editingRating, setEditingRating] = useState(null)
@@ -84,24 +84,26 @@ export default function MediaPage({ active, eyebrow, title, description, items, 
 
   return (
     <PageShell active={active}>
-      <section className="mb-5 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20 sm:rounded-[1.75rem] md:p-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div className="mb-5 pt-2">
+        <div className="flex flex-col gap-4 px-1 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">{eyebrow}</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl md:text-4xl">{title}</h1>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-white sm:text-4xl md:text-5xl">{title}</h1>
             <p className="mt-3 max-w-2xl text-neutral-400">{description}</p>
           </div>
-          <button type="button" onClick={resetPage} className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset</button>
+          <button type="button" onClick={resetPage} className="shrink-0 rounded-2xl border border-white/10 px-4 py-3 text-sm font-semibold text-neutral-200 transition hover:bg-white hover:text-neutral-950">Reset</button>
         </div>
 
-        <form onSubmit={addItem} className="mt-5 grid gap-2 md:grid-cols-[1fr_0.45fr_1fr_auto]">
-          <input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder={`Add ${itemLabel.slice(0, -1)} title...`} className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-          <input value={draft.year} onChange={(event) => setDraft((current) => ({ ...current, year: event.target.value }))} placeholder="Year / label" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-          <input value={draft.poster} onChange={(event) => setDraft((current) => ({ ...current, poster: event.target.value }))} placeholder="Poster image URL" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-          <button type="submit" className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200">Add</button>
-        </form>
-        <textarea value={draft.overview} onChange={(event) => setDraft((current) => ({ ...current, overview: event.target.value }))} placeholder="Optional note or description" className="mt-2 min-h-20 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
-      </section>
+        <div className="px-1">
+          <form onSubmit={addItem} className="mt-5 grid gap-2 md:grid-cols-[1fr_0.45fr_1fr_auto]">
+            <input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder={`Add ${itemLabel.slice(0, -1)} title...`} className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
+            <input value={draft.year} onChange={(event) => setDraft((current) => ({ ...current, year: event.target.value }))} placeholder="Year / label" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
+            <input value={draft.poster} onChange={(event) => setDraft((current) => ({ ...current, poster: event.target.value }))} placeholder="Poster image URL" className="rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
+            <button type="submit" className="rounded-2xl bg-white px-5 py-3 font-semibold text-neutral-950 transition hover:bg-neutral-200">Add</button>
+          </form>
+          <textarea value={draft.overview} onChange={(event) => setDraft((current) => ({ ...current, overview: event.target.value }))} placeholder="Optional note or description" className="mt-2 min-h-20 w-full rounded-2xl border border-white/10 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-white/30" />
+        </div>
+      </div>
 
       {message ? <div className="mb-4 rounded-2xl bg-emerald-700 p-3 text-white">{message.text}</div> : null}
 

@@ -29,17 +29,19 @@ function itemShareType(item, fallback = '') {
 
 export function PageHero({ eyebrow, title, description, warning, actions = null, children }) {
   return (
-    <section className="mb-5 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/20 sm:rounded-[1.75rem] md:p-5">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+    <section className="mb-5 pt-2">
+      <div className="flex flex-col gap-4 px-1 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.3em] text-neutral-500">{eyebrow}</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white sm:text-3xl md:text-4xl">{title}</h1>
+          <h1 className="mt-1 text-3xl font-black tracking-tight text-white sm:text-4xl md:text-5xl">{title}</h1>
           {description ? <p className="mt-3 max-w-2xl text-neutral-400">{description}</p> : null}
           {warning ? <p className="mt-3 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-3 text-sm text-yellow-200">{warning}</p> : null}
         </div>
         {actions ? <div className="shrink-0">{actions}</div> : null}
       </div>
-      {children}
+      <div className="px-1">
+        {children}
+      </div>
     </section>
   )
 }
