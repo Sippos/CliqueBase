@@ -325,22 +325,25 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
   return (
     <article className="relative overflow-hidden rounded-2xl border border-white/15 bg-white/[0.12] shadow-lg shadow-black/20 transition hover:bg-white/[0.16]">
       {image ? (
-        <div 
-          className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-[0.15] mix-blend-screen"
-          style={{ backgroundImage: `url(${image})` }} 
-        />
+        <>
+          <div 
+            className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-40"
+            style={{ backgroundImage: `url(${image})` }} 
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950/80 via-neutral-950/40 to-neutral-950/10 mix-blend-multiply" />
+        </>
       ) : null}
       <div className="relative p-5">
         <div className="flex items-center gap-3 mb-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-bold text-white shadow-md">
             {avatarText}
           </div>
-          <div className="min-w-0 flex-1 leading-tight">
-            <div className="flex items-center gap-1.5 text-[0.9rem] text-neutral-400">
+          <div className="min-w-0 flex-1 leading-tight drop-shadow-md">
+            <div className="flex items-center gap-1.5 text-[0.9rem] text-neutral-200">
               {actor}
-              <span>{activityVerb(activity)}</span>
+              <span className="text-white font-medium">{activityVerb(activity)}</span>
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5 text-[0.75rem] text-neutral-500">
+            <div className="flex items-center gap-1.5 mt-0.5 text-[0.75rem] text-neutral-300">
               <span>{relativeTime(activity.createdAt)}</span>
               {activity.groupName ? (
                 <>
@@ -351,7 +354,7 @@ function ActivityCard({ activity, signedIn, onCommented, onFlash, onShare }) {
             </div>
           </div>
         </div>
-        <h3 className="mt-2 text-xl font-black leading-tight text-white">{activity.title}</h3>
+        <h3 className="mt-2 text-xl font-black leading-tight text-white drop-shadow-lg">{activity.title}</h3>
         {text ? (
           <div className="mt-3 rounded-2xl bg-neutral-950/40 p-3.5">
             <p className="min-w-0 flex-1 text-[0.95rem] leading-relaxed text-neutral-300">{text}</p>
